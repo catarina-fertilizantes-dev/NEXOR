@@ -223,6 +223,20 @@ const CarregamentoDetalhe = () => {
     handleNavigation("/carregamentos");
   };
 
+  // ✅ Função para clique nas etapas com verificação de mudanças não salvas
+  const handleEtapaClick = useCallback((etapaIndex: number) => {
+    const podeClicar = !proximaEtapaMutation.isPending && !isUploadingPhoto && !subEtapaMutation.isPending;
+    
+    if (!podeClicar) return;
+    
+    // Se há mudanças não salvas e está tentando mudar de etapa
+    if (hasUnsavedChanges && selectedEtapa !== etapaIndex) {
+      handleClose(() => setSelectedEtapa(etapaIndex));
+    } else {
+      setSelectedEtapa(etapaIndex);
+    }
+  }, [hasUnsavedChanges, selectedEtapa, proximaEtapaMutation.isPending, isUploadingPhoto, subEtapaMutation.isPending, handleClose]);
+
   const handleStartPhotoCapture = (etapa: number) => {
     setCurrentPhotoEtapa(etapa);
     setShowPhotoCapture(true);
@@ -735,6 +749,7 @@ const CarregamentoDetalhe = () => {
     };
   };
 
+  // ✅ MODIFICAR o renderEtapasFluxo para usar a nova função
   const renderEtapasFluxo = () => (
     <div
       className="w-full flex flex-col"
@@ -771,7 +786,7 @@ const CarregamentoDetalhe = () => {
               } else {
                 circleClasses += " cursor-not-allowed opacity-70";
               }
-  
+
               const getDataEtapa = () => {
                 switch (etapaIndex) {
                   case 1: return carregamento?.data_chegada;
@@ -812,11 +827,7 @@ const CarregamentoDetalhe = () => {
                       marginBottom: 3,
                       boxShadow: shadowStyle,
                     }}
-                    onClick={() => {
-                      if (podeClicar) {
-                        setSelectedEtapa(etapaIndex);
-                      }
-                    }}
+                    onClick={() => handleEtapaClick(etapaIndex)} // ✅ Usar nova função
                   >
                     {isFinalizada && !isSelected ? <CheckCircle className="w-6 h-6" /> : etapaIndex}
                   </div>
@@ -830,11 +841,7 @@ const CarregamentoDetalhe = () => {
                       minHeight: 32,
                       marginTop: 2,
                     }}
-                    onClick={() => {
-                      if (podeClicar) {
-                        setSelectedEtapa(etapaIndex);
-                      }
-                    }}
+                    onClick={() => handleEtapaClick(etapaIndex)} // ✅ Usar nova função
                   >
                     {etapa.nome}
                   </div>
