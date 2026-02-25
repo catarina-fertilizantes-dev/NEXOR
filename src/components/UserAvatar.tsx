@@ -76,6 +76,11 @@ export const UserAvatar = () => {
     await signOut();
   };
 
+  const handleConfigurationsClick = () => {
+    setIsOpen(false);
+    // TODO: Implementar página de configurações
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       {/* 📱 AVATAR BUTTON RESPONSIVO */}
@@ -132,10 +137,8 @@ export const UserAvatar = () => {
             <Button
               variant="ghost"
               className="w-full justify-start min-h-[44px] p-3 text-left rounded-md transition-all duration-200 hover:bg-gray-200 dark:hover:bg-gray-700/60 hover:shadow-sm group"
-              onClick={() => {
-                setIsOpen(false);
-                // TODO: Implementar página de configurações
-              }}
+              data-navigation="true"
+              onClick={handleConfigurationsClick}
             >
               <Settings className="h-4 w-4 mr-3 text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 flex-shrink-0 transition-colors duration-200" />
               <div className="min-w-0">
@@ -150,6 +153,7 @@ export const UserAvatar = () => {
             <Button
               variant="ghost"
               className="w-full justify-start min-h-[44px] p-3 text-left rounded-md transition-all duration-200 hover:bg-red-100 dark:hover:bg-red-900/30 hover:shadow-sm group"
+              data-navigation="true"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4 mr-3 text-red-500 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300 flex-shrink-0 transition-colors duration-200" />
