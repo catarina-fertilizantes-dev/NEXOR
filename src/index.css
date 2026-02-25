@@ -131,4 +131,121 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* 🔧 CORREÇÃO: Remove outline padrão do navegador em elementos focáveis */
+  button:focus,
+  button:focus-visible,
+  [role="button"]:focus,
+  [role="button"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 🔧 CORREÇÃO: Remove outline especificamente em Dialogs */
+  [data-radix-dialog-content] button:focus,
+  [data-radix-dialog-content] button:focus-visible,
+  [data-radix-dialog-content] [role="button"]:focus,
+  [data-radix-dialog-content] [role="button"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 🔧 CORREÇÃO: Mantém acessibilidade com ring customizado */
+  button:focus-visible {
+    @apply ring-2 ring-ring ring-offset-2;
+  }
+
+  /* 🔧 CORREÇÃO: Remove ring em contextos específicos onde não queremos */
+  [data-radix-dialog-content] button:focus-visible {
+    @apply ring-0 ring-offset-0;
+  }
+}
+
+@layer utilities {
+  /* Esconder barra de rolagem mas manter funcionalidade */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    scrollbar-width: none;     /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;             /* Safari and Chrome */
+  }
+
+  /* Mostrar barra de rolagem em telas pequenas de desktop */
+  .scrollbar-default {
+    -ms-overflow-style: auto;  /* Internet Explorer 10+ */
+    scrollbar-width: auto;     /* Firefox */
+  }
+  
+  .scrollbar-default::-webkit-scrollbar {
+    display: block;            /* Safari and Chrome */
+  }
+
+  /* Touch targets mobile para SidebarTrigger */
+  @media (max-width: 767px) {
+    button[data-sidebar="trigger"],
+    [data-sidebar="trigger"] {
+      height: 44px !important;
+      width: 44px !important;
+      padding: 8px !important;
+      min-height: 44px !important;
+      min-width: 44px !important;
+    }
+    
+    button[data-sidebar="trigger"] svg,
+    [data-sidebar="trigger"] svg {
+      height: 24px !important;
+      width: 24px !important;
+    }
+  }
+}
+
+@layer components {
+  /* 🎯 BOTÃO PRINCIPAL - Gradient com hover melhorado */
+  .btn-primary {
+    @apply bg-gradient-to-br from-primary to-accent text-white font-medium;
+    @apply hover:from-primary/90 hover:to-accent/90;
+    @apply hover:shadow-lg hover:shadow-primary/25;
+    @apply active:from-primary/95 active:to-accent/95;
+    @apply transition-all duration-200 ease-out;
+    @apply transform hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  /* 🎯 BOTÃO SECUNDÁRIO - Estilo roxo claro com animação FORÇADO */
+  .btn-secondary {
+    background-color: hsl(217 91% 60% / 0.1) !important;
+    color: hsl(217 91% 60%) !important;
+    border: 1px solid hsl(217 91% 60% / 0.2) !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease-out !important;
+    transform: scale(1) !important;
+  }
+
+  .btn-secondary:hover {
+    background-color: hsl(217 91% 60% / 0.15) !important;
+    color: hsl(217 91% 60%) !important;
+    border-color: hsl(217 91% 60% / 0.3) !important;
+    box-shadow: 0 4px 6px -1px hsl(217 91% 60% / 0.1) !important;
+    transform: scale(1.02) !important;
+  }
+
+  .btn-secondary:active {
+    background-color: hsl(217 91% 60% / 0.2) !important;
+    transform: scale(0.98) !important;
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.5 !important;
+    transform: scale(1) !important;
+  }
+
+  /* 🎯 ALTERNATIVA - Botão secundário com fundo sutil colorido */
+  .btn-secondary-alt {
+    @apply bg-primary/5 text-primary border border-primary/20;
+    @apply hover:bg-primary hover:text-primary-foreground hover:border-primary;
+    @apply active:bg-primary/90;
+    @apply transition-all duration-200 ease-out;
+    @apply font-medium;
+  }
 }

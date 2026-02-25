@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Users, UserPlus, Shield, BadgeCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { passwordSchema } from "@/lib/validationSchemas";
 import type { Database } from "@/integrations/supabase/types";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { ModalFooter } from "@/components/ui/modal-footer";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 
 type UserRole = Database['public']['Enums']['user_role'];
 
@@ -24,7 +27,6 @@ interface User {
   role: string | null;
 }
 
-// Tipo para o retorno da função RPC get_users_with_roles
 interface RpcUserData {
   id: string;
   nome: string;
@@ -34,13 +36,10 @@ interface RpcUserData {
   role?: UserRole;
 }
 
-// Constante para facilitar troca futura de função RPC
 const USERS_FUNCTION = 'get_users_with_roles';
 
-// Helper para mapear e filtrar colaboradores (admin e logistica)
 const mapAndFilterColaboradores = (usersData: RpcUserData[]): User[] => {
   const usersMapped: User[] = (usersData || []).map(u => {
-    // Se roles é um array, selecionar role com prioridade: admin > logistica > outros
     let selectedRole: string | null = null;
     if (Array.isArray(u.roles)) {
       if (u.roles.includes('admin')) selectedRole = 'admin';
@@ -59,12 +58,23 @@ const mapAndFilterColaboradores = (usersData: RpcUserData[]): User[] => {
     };
   });
   
-  // Filtrar apenas colaboradores (admin ou logistica)
   return usersMapped.filter(u => u.role === 'admin' || u.role === 'logistica');
 };
 
 const Colaboradores = () => {
   useScrollToTop();
+  
+  // ✅ Hook para controle de mudanças não salvas
+  const {
+    hasUnsavedChanges,
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose
+  } = useUnsavedChanges();
   
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +85,6 @@ const Colaboradores = () => {
   const [newUserRole, setNewUserRole] = useState<UserRole>("logistica");
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // 🚀 NOVOS ESTADOS DE LOADING
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdatingRole, setIsUpdatingRole] = useState<Record<string, boolean>>({});
   const [isRetrying, setIsRetrying] = useState(false);
@@ -113,7 +122,6 @@ const Colaboradores = () => {
     }
   };
 
-  // 🚀 FUNÇÃO DE RETRY COM LOADING
   const handleRetry = async () => {
     setIsRetrying(true);
     await fetchUsers();
@@ -125,6 +133,22 @@ const Colaboradores = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const resetForm = () => {
+    setNewUserEmail("");
+    setNewUserNome("");
+    setNewUserPassword("");
+    setNewUserRole("logistica");
+    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
+  };
+
+  // ✅ Função para fechar modal com verificação
+  const handleCloseModal = () => {
+    handleClose(() => {
+      setDialogOpen(false);
+      resetForm(); // ✅ Limpar dados ao fechar
+    });
+  };
+
 const handleCreateUser = async () => {
   if (!newUserEmail || !newUserNome || !newUserPassword || !newUserRole) {
     toast({
@@ -135,7 +159,6 @@ const handleCreateUser = async () => {
     return;
   }
 
-  // Validar senha usando o schema
   const passwordValidation = passwordSchema.safeParse(newUserPassword);
   if (!passwordValidation.success) {
     const errorMessage = passwordValidation.error.issues[0]?.message || "Senha inválida";
@@ -148,7 +171,6 @@ const handleCreateUser = async () => {
     return;
   }
 
-  // 🚀 ATIVAR LOADING STATE
   setIsCreating(true);
 
   try {
@@ -212,14 +234,12 @@ const handleCreateUser = async () => {
 
       let errorMessage = "Erro ao criar colaborador";
 
-      // ------ TRATAMENTO ROBUSTO PARA DETALHES ZOD/OBJETO ------
       if (data) {
         if (
           typeof data.details === "object" &&
           data.details !== null &&
           "fieldErrors" in data.details
         ) {
-          // Detalhes de erro do Zod: mensagens de campo amigáveis
           errorMessage = Object.values(data.details.fieldErrors)
             .flat()
             .map(msg => {
@@ -230,10 +250,8 @@ const handleCreateUser = async () => {
             })
             .join(" | ");
         } else {
-          // Se details é string ou similar
           let rawDetails = data.details || data.error || "";
 
-          // Traduzir duplicidade
           if (typeof rawDetails === "string" &&
             (rawDetails.includes('already been registered') || rawDetails.includes('already exists'))) {
             errorMessage = "Este email já está cadastrado no sistema.";
@@ -243,7 +261,6 @@ const handleCreateUser = async () => {
             errorMessage = String(data.error);
           }
 
-          // Mensagens específicas de stage
           if (data.stage === 'validation' && String(data.error).includes('Weak password')) {
             errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres e evite senhas comuns.";
           } else if (data.stage === 'createUser') {
@@ -267,7 +284,6 @@ const handleCreateUser = async () => {
       return;
     }
 
-    // Success case - verify we have valid data
     if (!data) {
       toast({
         variant: "destructive",
@@ -279,19 +295,18 @@ const handleCreateUser = async () => {
 
     if (data.success) {
       console.log('✅ [SUCCESS] Colaborador criado com sucesso:', data);
+      
+      markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
+      
       toast({
         title: "Colaborador criado com sucesso!",
         description: `${newUserNome} foi adicionado ao sistema com a role ${newUserRole}`
       });
-      setNewUserEmail("");
-      setNewUserNome("");
-      setNewUserPassword("");
-      setNewUserRole("logistica");
+      resetForm();
       setDialogOpen(false);
       await new Promise(resolve => setTimeout(resolve, 500));
       fetchUsers();
     } else {
-      // Unexpected response structure
       toast({
         variant: "destructive",
         title: "Erro ao criar colaborador",
@@ -307,14 +322,11 @@ const handleCreateUser = async () => {
       description: errorMessage
     });
   } finally {
-    // 🚀 DESATIVAR LOADING STATE
     setIsCreating(false);
   }
 };
 
-  // 🚀 FUNÇÃO DE UPDATE ROLE COM LOADING
   const handleUpdateUserRole = async (userId: string, newRole: UserRole) => {
-    // Ativar loading para este usuário específico
     setIsUpdatingRole(prev => ({ ...prev, [userId]: true }));
 
     try {
@@ -334,7 +346,6 @@ const handleCreateUser = async () => {
         fetchUsers();
       }
     } finally {
-      // Desativar loading para este usuário
       setIsUpdatingRole(prev => ({ ...prev, [userId]: false }));
     }
   };
@@ -351,8 +362,8 @@ const handleCreateUser = async () => {
 
   if (! hasRole('admin')) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
           <CardContent className="pt-6">
             <div className="text-center">
               <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -368,122 +379,137 @@ const handleCreateUser = async () => {
   };
 
   return (
-    // Aplicando p-6 space-y-6 na div principal, assim como na página Clientes
-    <div className="min-h-screen bg-background p-6 space-y-6"> 
+    <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6"> 
+      
+      {/* ✅ Componente de alerta */}
+      <UnsavedChangesAlert 
+        open={showAlert}
+        onConfirm={confirmClose}
+        onCancel={cancelClose}
+      />
+
       <PageHeader
         title="Colaboradores"
         subtitle="Gerencie colaboradores do sistema (Admin e Logística)"
         icon={BadgeCheck}
         actions={
           <Dialog open={dialogOpen} onOpenChange={(open) => {
-            // 🚀 BLOQUEAR FECHAMENTO DURANTE CRIAÇÃO
-            if (!open && isCreating) return;
-            setDialogOpen(open);
+            if (!open && isCreating) return; // Não fechar durante criação
+            if (!open) {
+              handleCloseModal(); // ✅ Usar nova função
+            } else {
+              setDialogOpen(open);
+            }
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary">
+              <Button className="btn-primary min-h-[44px] max-md:min-h-[44px]">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Novo Colaborador
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Criar Novo Colaborador</DialogTitle>
-                <DialogDescription>
-                  Crie um novo colaborador (Admin ou Logística).  Clientes e armazéns são criados em suas respectivas páginas.
-                </DialogDescription>
+            
+            {/* Modal de Criação - Mobile Otimizado */}
+            <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+              <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+                <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Criar Novo Colaborador</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nome">Nome Completo</Label>
-                  <Input
-                    id="nome"
-                    value={newUserNome}
-                    onChange={(e) => setNewUserNome(e.target.value)}
-                    placeholder="Nome do usuário"
-                    disabled={isCreating} // 🚀 DESABILITAR DURANTE LOADING
-                  />
+              
+              <div className="py-4 px-1 space-y-6">
+                {/* Formulário */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nome" className="text-sm font-medium">Nome Completo</Label>
+                    <Input
+                      id="nome"
+                      value={newUserNome}
+                      onChange={(e) => {
+                        setNewUserNome(e.target.value);
+                        markAsChanged(); // ✅ Marcar como alterado
+                      }}
+                      placeholder="Nome do usuário"
+                      disabled={isCreating}
+                      className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-user-email" className="text-sm font-medium">Email</Label>
+                    <Input
+                      id="new-user-email"
+                      name="new-user-email"
+                      type="email"
+                      value={newUserEmail}
+                      onChange={(e) => {
+                        setNewUserEmail(e.target.value);
+                        markAsChanged(); // ✅ Marcar como alterado
+                      }}
+                      placeholder="email@exemplo.com"
+                      disabled={isCreating}
+                      autoComplete="new-password" // ✅ Evita preenchimento automático
+                      className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-user-password" className="text-sm font-medium">Senha</Label>
+                    <Input
+                      id="new-user-password"
+                      name="new-user-password"
+                      type="password"
+                      value={newUserPassword}
+                      onChange={(e) => {
+                        setNewUserPassword(e.target.value);
+                        markAsChanged(); // ✅ Marcar como alterado
+                      }}
+                      placeholder="Senha segura"
+                      disabled={isCreating}
+                      autoComplete="new-password" // ✅ Evita preenchimento automático
+                      className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Mínimo 6 caracteres. Evite senhas comuns como '123456' ou 'senha123'.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role" className="text-sm font-medium">Role</Label>
+                    <Select 
+                      value={newUserRole} 
+                      onValueChange={(v) => {
+                        setNewUserRole(v as UserRole);
+                        markAsChanged(); // ✅ Marcar como alterado
+                      }}
+                      disabled={isCreating}
+                    >
+                      <SelectTrigger className="min-h-[44px] max-md:min-h-[44px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="logistica">Logística</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Para criar usuários de armazém ou clientes, use as páginas específicas.
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                    placeholder="email@exemplo.com"
-                    disabled={isCreating} // 🚀 DESABILITAR DURANTE LOADING
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newUserPassword}
-                    onChange={(e) => setNewUserPassword(e.target.value)}
-                    placeholder="Senha segura"
-                    disabled={isCreating} // 🚀 DESABILITAR DURANTE LOADING
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Mínimo 6 caracteres.  Evite senhas comuns como '123456' ou 'senha123'.
-                  </p>
-                </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select 
-                    value={newUserRole} 
-                    onValueChange={(v) => setNewUserRole(v as UserRole)}
-                    disabled={isCreating} // 🚀 DESABILITAR DURANTE LOADING
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="logistica">Logística</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Para criar usuários de armazém ou clientes, use as páginas específicas.
-                  </p>
-                </div>
+
+                {/* Botões no final do conteúdo */}
+                <ModalFooter 
+                  variant="double"
+                  onClose={() => handleCloseModal()}
+                  onConfirm={handleCreateUser}
+                  confirmText="Criar Colaborador"
+                  confirmIcon={<UserPlus className="h-4 w-4" />}
+                  isLoading={isCreating}
+                />
               </div>
-              <DialogFooter>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setDialogOpen(false)}
-                  disabled={isCreating} // 🚀 DESABILITAR DURANTE LOADING
-                >
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={handleCreateUser} 
-                  className="bg-gradient-primary"
-                  disabled={isCreating} // 🚀 DESABILITAR DURANTE LOADING
-                >
-                  {isCreating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Criando...
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Criar Colaborador
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
         }
       />
 
-      {/* Removido o div 'container mx-auto px-6 py-8' para que o Card principal siga o padding do wrapper */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
             <Users className="h-5 w-5" />
             Usuários do Sistema
           </CardTitle>
@@ -496,20 +522,19 @@ const handleCreateUser = async () => {
             </div>
           ) : error ? (
             <div className="text-center py-8">
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 max-w-md mx-auto">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 md:p-6 max-w-md mx-auto">
                 <Shield className="h-12 w-12 mx-auto mb-4 text-destructive" />
-                <h3 className="text-lg font-semibold mb-2 text-destructive">Erro ao Carregar Colaboradores</h3>
+                <h3 className="text-base md:text-lg font-semibold mb-2 text-destructive">Erro ao Carregar Colaboradores</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Não foi possível carregar a lista de colaboradores. Verifique se a função get_users_with_roles foi atualizada para não usar a tabela profiles.
                 </p>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Execute a migration: <code className="bg-muted px-2 py-1 rounded">20251120_update_get_users_function.sql</code>
+                <p className="text-xs text-muted-foreground mb-4 break-words">
+                  Execute a migration: <code className="bg-muted px-2 py-1 rounded text-xs">20251120_update_get_users_function.sql</code>
                 </p>
-                {/* 🚀 BOTÃO DE RETRY COM LOADING */}
                 <Button 
                   onClick={handleRetry} 
-                  variant="outline"
                   disabled={isRetrying}
+                  className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
                 >
                   {isRetrying ? (
                     <>
@@ -531,44 +556,42 @@ const handleCreateUser = async () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {users.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors space-y-3 md:space-y-0 md:space-x-4"
                 >
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{user.nome}</h3>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground text-sm md:text-base break-words">{user.nome}</h3>
+                    <p className="text-sm text-muted-foreground break-all">{user.email}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Criado em {new Date(user.created_at).toLocaleDateString('pt-BR')}
                     </p>
-                    {! user.role && (
+                    {!user.role && (
                       <p className="text-xs text-destructive mt-1">
                         ⚠️ Sem role - contate administrador
                       </p>
                     )}
                   </div>
 
-                  {/* 🚀 SELECT COM LOADING STATE */}
-                  <div className="relative">
+                  <div className="relative w-full md:w-[180px] flex-shrink-0">
                     <Select
                       value={user.role || ''}
                       onValueChange={(value) => handleUpdateUserRole(user.id, value as UserRole)}
-                      disabled={isUpdatingRole[user.id]} // 🚀 DESABILITAR DURANTE LOADING
+                      disabled={isUpdatingRole[user.id]}
                     >
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-full min-h-[44px] max-md:min-h-[44px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {! user.role && <SelectItem value="">Selecione uma role</SelectItem>}
+                        {!user.role && <SelectItem value="">Selecione uma role</SelectItem>}
                         <SelectItem value="admin">Administrador</SelectItem>
                         <SelectItem value="logistica">Logística</SelectItem>
                         <SelectItem value="armazem">Armazém</SelectItem>
                         <SelectItem value="cliente">Cliente</SelectItem>
                       </SelectContent>
                     </Select>
-                    {/* 🚀 SPINNER SOBREPOSTO DURANTE LOADING */}
                     {isUpdatingRole[user.id] && (
                       <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
                         <Loader2 className="h-4 w-4 animate-spin" />

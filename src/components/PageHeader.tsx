@@ -11,29 +11,38 @@ interface PageHeaderProps {
 
 export const PageHeader = ({ title, subtitle, icon: Icon, actions, backButton }: PageHeaderProps) => {
   return (
-    <div className="border-b border-border bg-card">
-      <div className="px-6 py-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex items-start gap-3">
-            {/* Botão Voltar à esquerda */}
+    <div className="bg-card border-b border-border sticky top-0 z-40">
+      <div className="p-4 md:p-6">
+        <div className="flex flex-col gap-3 md:gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
             {backButton && (
-              <div className="flex items-center mt-1">
+              <div className="flex-shrink-0 max-md:min-h-[44px] max-md:min-w-[44px] max-md:flex max-md:items-center">
                 {backButton}
               </div>
             )}
             {Icon && (
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                <Icon className="h-5 w-5 text-primary" />
+              <div className="flex-shrink-0 max-md:min-h-[44px] max-md:min-w-[44px] max-md:flex max-md:items-center max-md:justify-center">
+                <Icon className="h-5 w-5 md:h-6 md:w-6 max-md:h-6 max-md:w-6 text-muted-foreground" />
               </div>
             )}
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl md:text-2xl max-md:text-xl font-bold text-foreground truncate">
+                {title}
+              </h1>
               {subtitle && (
-                <p className="mt-1 text-muted-foreground">{subtitle}</p>
+                <p className="text-sm md:text-base max-md:text-sm text-muted-foreground mt-1 line-clamp-2 md:line-clamp-1">
+                  {subtitle}
+                </p>
               )}
             </div>
           </div>
-          {actions && <div className="flex gap-2">{actions}</div>}
+          {actions && (
+            <div className="flex-shrink-0 max-md:pt-2 max-md:border-t max-md:border-border md:border-0 md:pt-0">
+              <div className="flex flex-wrap gap-2 max-md:justify-stretch [&>*]:max-md:min-h-[44px] [&>button]:max-md:min-h-[44px] [&>button]:max-md:px-4 [&>button]:max-md:text-sm">
+                {actions}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { emailSchema } from "@/lib/validationSchemas";
 
@@ -57,67 +57,82 @@ const ForgotPassword = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-xl bg-gradient-primary flex items-center justify-center">
-              <Package className="h-10 w-10 text-white" />
-            </div>
+        <CardHeader className="text-center pb-2">
+          <div className="flex justify-center items-center gap-2 mb-2">
+            <img 
+              src="/nexor-auth-logo.png" 
+              alt="NEXOR" 
+              className="h-10 w-10 sm:h-12 sm:w-12 object-contain" 
+            />
+            <span className="text-sm sm:text-base font-medium text-muted-foreground">NEXOR</span>
           </div>
-          <CardTitle className="text-2xl font-bold">Esqueci minha senha</CardTitle>
-          <CardDescription>
-            {emailSent 
-              ? "Email de recuperação enviado com sucesso"
-              : "Digite seu email para receber instruções de recuperação"
-            }
-          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {emailSent ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center p-4 bg-green-50 rounded-lg border border-green-200">
-                <Check className="h-5 w-5 text-green-600 mr-2" />
-                <p className="text-sm text-green-800">
-                  Enviamos um link de recuperação para <strong>{email}</strong>
+            <div className="space-y-6">
+              <div className="flex justify-center">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                  <Check className="h-8 w-8 sm:h-12 sm:w-12 text-white" />
+                </div>
+              </div>
+              <div className="text-center space-y-3">
+                <CardTitle className="text-lg sm:text-xl">Email enviado!</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
+                  Enviamos um link de recuperação para <strong className="break-all">{email}</strong>
+                </CardDescription>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Verifique sua caixa de entrada e spam. O link expira em 1 hora.
                 </p>
               </div>
-              <p className="text-sm text-muted-foreground text-center">
-                Verifique sua caixa de entrada e spam. O link expira em 1 hora.
-              </p>
-              <Link to="/auth">
-                <Button variant="outline" className="w-full">
+              <Link to="/auth" className="block">
+                <Button className="w-full min-h-[44px] max-md:min-h-[44px] btn-secondary">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Voltar ao Login
                 </Button>
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                  placeholder="seu@email.com"
-                />
+            <div className="space-y-6">
+              <div className="flex justify-center">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-gradient-primary flex items-center justify-center">
+                  <Mail className="h-8 w-8 sm:h-12 sm:w-12 text-white" />
+                </div>
               </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-primary" 
-                disabled={loading}
-              >
-                {loading ? "Enviando..." : "Enviar link de recuperação"}
-              </Button>
-              <Link to="/auth">
-                <Button variant="ghost" className="w-full">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar ao Login
+              <div className="text-center space-y-3">
+                <CardTitle className="text-lg sm:text-xl">Esqueci minha senha</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
+                  Digite seu email para receber instruções de recuperação
+                </CardDescription>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                    placeholder="seu@email.com"
+                    className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full btn-primary min-h-[44px] max-md:min-h-[44px]" 
+                  disabled={loading}
+                >
+                  {loading ? "Enviando..." : "Enviar link de recuperação"}
                 </Button>
-              </Link>
-            </form>
+                <Link to="/auth" className="block">
+                  <Button className="w-full min-h-[44px] max-md:min-h-[44px] btn-secondary">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Voltar ao Login
+                  </Button>
+                </Link>
+              </form>
+            </div>
           )}
         </CardContent>
       </Card>

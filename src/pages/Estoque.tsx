@@ -8,12 +8,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Package, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Loader2, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { ModalFooter } from "@/components/ui/modal-footer";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 
 type StockStatus = "normal" | "baixo";
 type Unidade = "t" | "kg";
@@ -73,16 +76,15 @@ const EmptyStateCard = ({
 }) => (
   <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 space-y-3">
     <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-      <AlertCircle className="h-5 w-5" />
+      <AlertCircle className="h-5 w-5 flex-shrink-0" />
       <span className="font-medium">{title}</span>
     </div>
     <p className="text-sm text-amber-700 dark:text-amber-300">
       {description}
     </p>
     <Button 
-      variant="outline" 
       size="sm" 
-      className="w-full border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/20"
+      className="w-full border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/20 min-h-[44px] max-md:min-h-[44px] btn-secondary"
       onClick={() => window.location.href = actionUrl}
     >
       <ExternalLink className="h-4 w-4 mr-2" />
@@ -99,12 +101,23 @@ const parseDate = (d: string) => {
 const Estoque = () => {
   useScrollToTop();
   
+  // ✅ Hook para controle de mudanças não salvas
+  const {
+    hasUnsavedChanges,
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose
+  } = useUnsavedChanges();
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasRole, userRole, user } = useAuth();
   const navigate = useNavigate();
 
-  // 🎯 CONTROLE DE PERMISSÕES BASEADO NO ROLE
   const canCreate = hasRole("admin") || hasRole("logistica");
 
   // Estados de loading
@@ -116,12 +129,10 @@ const Estoque = () => {
   const [numeroRemessa, setNumeroRemessa] = useState("");
   const [observacoesRemessa, setObservacoesRemessa] = useState("");
 
-  // 🔍 DEBUG LOGS - Estoque.tsx
   console.log("🔍 [DEBUG] Estoque.tsx - Renderização iniciada");
   console.log("🔍 [DEBUG] Estoque.tsx - userRole:", userRole);
   console.log("🔍 [DEBUG] Estoque.tsx - user?.id:", user?.id);
 
-  // 🆕 BUSCAR ARMAZÉM DO USUÁRIO LOGADO (OTIMIZADO)
   const { data: currentArmazem } = useQuery({
     queryKey: ["current-armazem", user?.id],
     queryFn: async () => {
@@ -138,17 +149,16 @@ const Estoque = () => {
       return data;
     },
     enabled: !!user && userRole === "armazem",
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    cacheTime: 10 * 60 * 1000, // 10 minutos
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
   });
 
   console.log("🔍 [DEBUG] Estoque.tsx - currentArmazem:", currentArmazem);
 
-  // 🔄 QUERY PRINCIPAL MODIFICADA PARA FILTRAR POR PERFIL (OTIMIZADA)
   const { data: estoqueData, isLoading, error } = useQuery({
     queryKey: ["estoque", currentArmazem?.id, userRole],
     queryFn: async () => {
-      console.log("�� [DEBUG] Estoque.tsx - queryFn executada");
+      console.log("🔍 [DEBUG] Estoque.tsx - queryFn executada");
       console.log("🔍 [DEBUG] Estoque.tsx - Condições queryFn:", {
         userRole,
         currentArmazem,
@@ -166,7 +176,6 @@ const Estoque = () => {
         `)
         .order("updated_at", { ascending: false });
 
-      // 🎯 FILTRAR POR ARMAZÉM PARA USUÁRIO ARMAZÉM
       if (userRole === "armazem" && currentArmazem?.id) {
         console.log("🔍 [DEBUG] Estoque.tsx - Aplicando filtro por armazém:", currentArmazem.id);
         query = query.eq("armazem_id", currentArmazem.id);
@@ -182,7 +191,7 @@ const Estoque = () => {
     },
     refetchInterval: 30000,
     enabled: !!user?.id && (userRole !== "armazem" || !!currentArmazem?.id),
-    staleTime: 2 * 60 * 1000, // 2 minutos
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: produtosCadastrados } = useQuery({
@@ -199,7 +208,7 @@ const Estoque = () => {
       return data || [];
     },
     refetchInterval: 30000,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
     enabled: !!user?.id,
   });
 
@@ -218,20 +227,17 @@ const Estoque = () => {
       return data || [];
     },
     refetchInterval: 30000,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
     enabled: canCreate && !!user?.id,
   });
 
-  // 🆕 QUERY PARA FILTROS ADAPTADA POR PERFIL (OTIMIZADA)
   const { data: armazensParaFiltro } = useQuery({
     queryKey: ["armazens-filtro", currentArmazem?.id],
     queryFn: async () => {
-      // Para usuário armazém, retorna apenas seu armazém
       if (userRole === "armazem" && currentArmazem) {
         return [currentArmazem];
       }
       
-      // Para admin/logística, retorna todos
       const { data, error } = await supabase
         .from("armazens")
         .select("id, nome, cidade, estado, ativo")
@@ -244,7 +250,7 @@ const Estoque = () => {
       return data || [];
     },
     refetchInterval: 10000,
-    staleTime: 3 * 60 * 1000, // 3 minutos
+    staleTime: 3 * 60 * 1000,
     enabled: !!user?.id,
   });
 
@@ -309,7 +315,6 @@ const Estoque = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // 🆕 FUNÇÃO PARA LIMPAR FILTROS (SEGUINDO PADRÃO CARREGAMENTOS)
   const clearFilters = () => {
     setSearch("");
     setSelectedProdutos([]);
@@ -374,11 +379,10 @@ const Estoque = () => {
 
   const activeAdvancedCount =
     (selectedProdutos.length ? 1 : 0) +
-    (selectedWarehouses.length && userRole !== "armazem" ? 1 : 0) + // Não conta filtro de armazém para usuário armazém
+    (selectedWarehouses.length && userRole !== "armazem" ? 1 : 0) +
     (selectedStatuses.length ? 1 : 0) +
     ((dateFrom || dateTo) ? 1 : 0);
   
-  // 🆕 VERIFICAR SE HÁ FILTROS ATIVOS
   const hasActiveFilters = search.trim() || selectedProdutos.length > 0 || selectedWarehouses.length > 0 || selectedStatuses.length > 0 || dateFrom || dateTo;
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -423,9 +427,17 @@ const Estoque = () => {
     setXmlRemessaFile(null);
     setNumeroRemessa("");
     setObservacoesRemessa("");
+    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
-  // Função melhorada para validação de arquivo
+  // ✅ Função para fechar modal com verificação
+  const handleCloseModal = () => {
+    handleClose(() => {
+      setDialogOpen(false);
+      resetFormNovoProduto(); // ✅ Limpar dados ao fechar
+    });
+  };
+
   const handleFileChange = (
     file: File | null, 
     allowedTypes: string[], 
@@ -435,14 +447,13 @@ const Estoque = () => {
   ) => {
     if (!file) {
       setterFunction(null);
+      markAsChanged(); // ✅ Marcar como alterado mesmo ao remover arquivo
       return;
     }
 
-    // Verificar extensão do arquivo
     const fileExtension = file.name.toLowerCase().split('.').pop();
     const isValidExtension = allowedExtensions.includes(`.${fileExtension}`);
     
-    // Verificar tipo MIME
     const isValidMimeType = allowedTypes.includes(file.type);
 
     if (!isValidExtension || !isValidMimeType) {
@@ -457,13 +468,12 @@ const Estoque = () => {
     }
 
     setterFunction(file);
+    markAsChanged(); // ✅ Marcar como alterado ao selecionar arquivo
   };
 
-  // Função para upload de documentos
   const uploadDocumentos = async (produtoId: string, armazemId: string) => {
     const uploads = [];
     
-    // Upload da nota de remessa (PDF)
     if (notaRemessaFile) {
       const fileName = `${produtoId}_${armazemId}_nota_remessa_${Date.now()}.pdf`;
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -482,7 +492,6 @@ const Estoque = () => {
       uploads.push({ campo: 'url_nota_remessa', url: urlData.publicUrl });
     }
 
-    // Upload do XML
     if (xmlRemessaFile) {
       const fileName = `${produtoId}_${armazemId}_xml_remessa_${Date.now()}.xml`;
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -504,7 +513,6 @@ const Estoque = () => {
     return uploads;
   };
 
-  // Função de criação modificada para trabalhar com remessas
   const handleCreateProduto = async () => {
     const { produtoId, armazem, quantidade, unidade } = novoProduto;
     const qtdNum = Number(quantidade);
@@ -514,7 +522,6 @@ const Estoque = () => {
       return;
     }
 
-    // Validação de documentos obrigatórios
     if (!notaRemessaFile) {
       toast({ variant: "destructive", title: "Documento obrigatório", description: "Anexe a nota de remessa em PDF." });
       return;
@@ -561,17 +568,14 @@ const Estoque = () => {
         return;
       }
 
-      // Fazer upload dos documentos primeiro
       console.log("🔍 [DEBUG] Fazendo upload dos documentos...");
       const uploads = await uploadDocumentos(produtoId, armazemData.id);
 
-      // Preparar URLs dos documentos
       const urlNotaRemessa = uploads.find(u => u.campo === 'url_nota_remessa')?.url || null;
       const urlXmlRemessa = uploads.find(u => u.campo === 'url_xml_remessa')?.url || null;
 
       const { data: userData } = await supabase.auth.getUser();
 
-      // Criar registro na tabela estoque_remessas
       const { data: novaRemessa, error: errRemessa } = await supabase
         .from("estoque_remessas")
         .insert({
@@ -594,7 +598,6 @@ const Estoque = () => {
 
       console.log("✅ [SUCCESS] Remessa criada:", novaRemessa.id);
 
-      // Atualizar/criar estoque total
       const { data: estoqueAtual, error: errBuscaEstoque } = await supabase
         .from("estoque")
         .select("id, quantidade")
@@ -611,7 +614,6 @@ const Estoque = () => {
       const novaQuantidade = estoqueAnterior + qtdNum;
 
       if (estoqueAtual?.id) {
-        // Atualizar estoque existente
         const { error: errEstoque } = await supabase
           .from("estoque")
           .update({
@@ -626,7 +628,6 @@ const Estoque = () => {
           return;
         }
       } else {
-        // Criar novo registro de estoque
         const { error: errEstoque } = await supabase
           .from("estoque")
           .insert({
@@ -646,6 +647,8 @@ const Estoque = () => {
           return;
         }
       }
+
+      markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
 
       toast({
         title: "Entrada registrada com sucesso!",
@@ -667,14 +670,12 @@ const Estoque = () => {
     }
   };
 
-  // Verificar se há produtos e armazéns ativos disponíveis
   const produtosAtivos = produtosCadastrados?.filter(p => p.ativo) || [];
   const armazensDisponiveis = armazensAtivos || [];
   
   const temProdutosDisponiveis = produtosAtivos.length > 0;
   const temArmazensDisponiveis = armazensDisponiveis.length > 0;
 
-  // 🆕 RENDERIZAÇÃO CONDICIONAL PARA INTERFACE SIMPLIFICADA (ARMAZÉM) - COM NAVEGAÇÃO
   const renderInterfaceSimplificada = () => {
     if (!currentArmazem) {
       return (
@@ -687,7 +688,7 @@ const Estoque = () => {
       );
     }
   
-    const armazem = filteredArmazens[0]; // Só há um armazém para usuário armazém
+    const armazem = filteredArmazens[0];
     
     if (!armazem || armazem.produtos.length === 0) {
       return (
@@ -700,10 +701,9 @@ const Estoque = () => {
           </p>
           {hasActiveFilters && (
             <Button 
-              variant="outline" 
               size="sm" 
               onClick={clearFilters}
-              className="mt-2"
+              className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
             >
               <X className="h-4 w-4 mr-2" />
               Limpar Filtros
@@ -713,7 +713,6 @@ const Estoque = () => {
       );
     }
   
-    // 🎯 APENAS LISTA DE PRODUTOS (SEM CARD DO ARMAZÉM) - COM NAVEGAÇÃO
     return (
       <div className="grid gap-3">
         {armazem.produtos.map((produto) => (
@@ -724,10 +723,10 @@ const Estoque = () => {
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{produto.produto}</h3>
-                  <div className="flex items-center gap-4 mt-1">
-                    <span className="text-2xl font-bold text-primary">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base md:text-lg leading-tight">{produto.produto}</h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+                    <span className="text-xl sm:text-2xl font-bold text-primary">
                       {produto.quantidade.toLocaleString('pt-BR')} {produto.unidade}
                     </span>
                     <Badge variant={produto.status === "baixo" ? "destructive" : "secondary"}>
@@ -748,7 +747,7 @@ const Estoque = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader title="Controle de Estoque" subtitle="Carregando..." icon={Package} actions={<></>} />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
@@ -760,7 +759,7 @@ const Estoque = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader title="Controle de Estoque" subtitle="Erro ao carregar dados" icon={Package} actions={<></>} />
         <div className="text-center">
           <p className="text-destructive">Erro: {(error as Error).message}</p>
@@ -770,7 +769,15 @@ const Estoque = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 space-y-6">
+    <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+      
+      {/* ✅ Componente de alerta */}
+      <UnsavedChangesAlert 
+        open={showAlert}
+        onConfirm={confirmClose}
+        onCancel={cancelClose}
+      />
+
       <PageHeader
         title="Controle de Estoque"
         subtitle={
@@ -782,230 +789,251 @@ const Estoque = () => {
         actions={
           canCreate ? (
             <Dialog open={dialogOpen} onOpenChange={(open) => {
-              if (!open && isCreating) return;
-              setDialogOpen(open);
+              if (!open && isCreating) return; // Não fechar durante criação
+              if (!open) {
+                handleCloseModal(); // ✅ Usar nova função
+              } else {
+                setDialogOpen(open);
+              }
             }}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-primary">
+                <Button className="btn-primary min-h-[44px] max-md:min-h-[44px]">
                   <Plus className="mr-2 h-4 w-4" />
                   Entrada de Estoque
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Registrar Entrada de Estoque</DialogTitle>
+              
+              {/* Modal de Entrada de Estoque - Mobile Otimizado */}
+              <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+                  <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="produto">Produto *</Label>
-                    {temProdutosDisponiveis ? (
-                      <Select
-                        value={novoProduto.produtoId}
-                        onValueChange={id => setNovoProduto(s => ({ ...s, produtoId: id }))}
-                        disabled={isCreating}
-                      >
-                        <SelectTrigger id="produto">
-                          <SelectValue placeholder="Selecione o produto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {produtosAtivos.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.nome} ({p.unidade})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <EmptyStateCard
-                        title="Nenhum produto cadastrado"
-                        description="Para registrar estoque, você precisa cadastrar produtos primeiro."
-                        actionText="Cadastrar Produto"
-                        actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
-                      />
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="armazem">Armazém *</Label>
-                    {temArmazensDisponiveis ? (
-                      <Select 
-                        value={novoProduto.armazem} 
-                        onValueChange={(v) => setNovoProduto((s) => ({ ...s, armazem: v }))}
-                        disabled={isCreating}
-                      >
-                        <SelectTrigger id="armazem">
-                          <SelectValue placeholder="Selecione o armazém" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {armazensDisponiveis.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <EmptyStateCard
-                        title="Nenhum armazém cadastrado"
-                        description="Para registrar estoque, você precisa cadastrar armazéns primeiro."
-                        actionText="Cadastrar Armazém"
-                        actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
-                      />
-                    )}
-                  </div>
-                  
-                  {temProdutosDisponiveis && temArmazensDisponiveis && (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="quantidade">Quantidade a adicionar *</Label>
-                          <Input
-                            id="quantidade"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="Ex: 20500.50"
-                            value={novoProduto.quantidade}
-                            onChange={(e) => setNovoProduto((s) => ({ ...s, quantidade: e.target.value }))}
-                            style={{ width: "120px", maxWidth: "100%" }}
-                            disabled={isCreating}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="unidade">Unidade</Label>
-                          <Select 
-                            value={novoProduto.unidade} 
-                            onValueChange={(v) => setNovoProduto((s) => ({ ...s, unidade: v as Unidade }))}
-                            disabled={isCreating}
-                          >
-                            <SelectTrigger id="unidade"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="t">Toneladas (t)</SelectItem>
-                              <SelectItem value="kg">Quilos (kg)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      {/* Campos adicionais da remessa - layout responsivo */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="numero-remessa">Número da Remessa</Label>
-                          <Input
-                            id="numero-remessa"
-                            type="text"
-                            placeholder="Ex: REM-001"
-                            value={numeroRemessa}
-                            onChange={(e) => setNumeroRemessa(e.target.value)}
-                            disabled={isCreating}
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="md:col-span-2 space-y-2">
-                          <Label htmlFor="observacoes">Observações</Label>
-                          <Input
-                            id="observacoes"
-                            type="text"
-                            placeholder="Observações sobre esta remessa..."
-                            value={observacoesRemessa}
-                            onChange={(e) => setObservacoesRemessa(e.target.value)}
-                            disabled={isCreating}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Seção de documentos obrigatórios */}
-                      <div className="border-t pt-4 space-y-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <FileText className="h-5 w-5 text-primary" />
-                          <h3 className="font-semibold text-base">Documentos Obrigatórios</h3>
-                        </div>
-
-                        <div className="space-y-3">
-                          {/* Upload da Nota de Remessa */}
+                
+                <div className="py-4 px-1 space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
+                      {temProdutosDisponiveis ? (
+                        <Select
+                          value={novoProduto.produtoId}
+                          onValueChange={id => {
+                            setNovoProduto(s => ({ ...s, produtoId: id }));
+                            markAsChanged(); // ✅ Marcar como alterado
+                          }}
+                          disabled={isCreating}
+                        >
+                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
+                            <SelectValue placeholder="Selecione o produto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {produtosAtivos.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome} ({p.unidade})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <EmptyStateCard
+                          title="Nenhum produto cadastrado"
+                          description="Para registrar estoque, você precisa cadastrar produtos primeiro."
+                          actionText="Cadastrar Produto"
+                          actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
+                        />
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
+                      {temArmazensDisponiveis ? (
+                        <Select 
+                          value={novoProduto.armazem} 
+                          onValueChange={(v) => {
+                            setNovoProduto((s) => ({ ...s, armazem: v }));
+                            markAsChanged(); // ✅ Marcar como alterado
+                          }}
+                          disabled={isCreating}
+                        >
+                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                            <SelectValue placeholder="Selecione o armazém" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {armazensDisponiveis.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                <span className="break-words">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <EmptyStateCard
+                          title="Nenhum armazém cadastrado"
+                          description="Para registrar estoque, você precisa cadastrar armazéns primeiro."
+                          actionText="Cadastrar Armazém"
+                          actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
+                        />
+                      )}
+                    </div>
+                    
+                    {temProdutosDisponiveis && temArmazensDisponiveis && (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div className="space-y-2">
-                            <Label htmlFor="nota-remessa" className="flex items-center gap-2">
-                              <FileText className="h-4 w-4" />
-                              Nota de Remessa (PDF) *
-                            </Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                id="nota-remessa"
-                                type="file"
-                                accept=".pdf"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0] ?? null;
-                                  handleFileChange(
-                                    file,
-                                    ['application/pdf'],
-                                    ['.pdf'],
-                                    setNotaRemessaFile,
-                                    e.target
-                                  );
-                                }}
-                                className="flex-1"
-                                disabled={isCreating}
-                              />
-                              {notaRemessaFile && (
-                                <Badge variant="secondary" className="text-xs">
-                                  ✓ {notaRemessaFile.name}
-                                </Badge>
-                              )}
-                            </div>
+                            <Label htmlFor="quantidade" className="text-sm font-medium">Quantidade a adicionar *</Label>
+                            <Input
+                              id="quantidade"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="Ex: 20500.50"
+                              value={novoProduto.quantidade}
+                              onChange={(e) => {
+                                setNovoProduto((s) => ({ ...s, quantidade: e.target.value }));
+                                markAsChanged(); // ✅ Marcar como alterado
+                              }}
+                              disabled={isCreating}
+                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            />
                           </div>
-
-                          {/* Upload do XML */}
                           <div className="space-y-2">
-                            <Label htmlFor="xml-remessa" className="flex items-center gap-2">
-                              <FileText className="h-4 w-4" />
-                              Arquivo XML da Remessa *
-                            </Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                id="xml-remessa"
-                                type="file"
-                                accept=".xml"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0] ?? null;
-                                  handleFileChange(
-                                    file,
-                                    ['application/xml', 'text/xml'],
-                                    ['.xml'],
-                                    setXmlRemessaFile,
-                                    e.target
-                                  );
-                                }}
-                                className="flex-1"
-                                disabled={isCreating}
-                              />
-                              {xmlRemessaFile && (
-                                <Badge variant="secondary" className="text-xs">
-                                  ✓ {xmlRemessaFile.name}
-                                </Badge>
-                              )}
-                            </div>
+                            <Label htmlFor="unidade" className="text-sm font-medium">Unidade</Label>
+                            <Select 
+                              value={novoProduto.unidade} 
+                              onValueChange={(v) => {
+                                setNovoProduto((s) => ({ ...s, unidade: v as Unidade }));
+                                markAsChanged(); // ✅ Marcar como alterado
+                              }}
+                              disabled={isCreating}
+                            >
+                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione a unidade" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="t">Toneladas (t)</SelectItem>
+                                <SelectItem value="kg">Quilos (kg)</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* Legenda simples para campos obrigatórios */}
-                  <p className="text-xs text-muted-foreground">
-                    * Campos obrigatórios
-                  </p>
-                </div>
-                <DialogFooter>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setDialogOpen(false)}
-                    disabled={isCreating}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    className="bg-gradient-primary" 
-                    onClick={handleCreateProduto}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="numero-remessa" className="text-sm font-medium">Número da Remessa</Label>
+                            <Input
+                              id="numero-remessa"
+                              type="text"
+                              placeholder="Ex: REM-001"
+                              value={numeroRemessa}
+                              onChange={(e) => {
+                                setNumeroRemessa(e.target.value);
+                                markAsChanged(); // ✅ Marcar como alterado
+                              }}
+                              disabled={isCreating}
+                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            />
+                          </div>
+                          <div className="lg:col-span-2 space-y-2">
+                            <Label htmlFor="observacoes" className="text-sm font-medium">Observações</Label>
+                            <Input
+                              id="observacoes"
+                              type="text"
+                              placeholder="Observações sobre esta remessa..."
+                              value={observacoesRemessa}
+                              onChange={(e) => {
+                                setObservacoesRemessa(e.target.value);
+                                markAsChanged(); // ✅ Marcar como alterado
+                              }}
+                              disabled={isCreating}
+                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-4 space-y-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <FileText className="h-5 w-5 text-primary" />
+                            <h3 className="font-semibold text-base">Documentos Obrigatórios</h3>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="nota-remessa" className="flex items-center gap-2 text-sm font-medium">
+                                <FileText className="h-4 w-4" />
+                                Nota de Remessa (PDF) *
+                              </Label>
+                              <div className="flex flex-col gap-2">
+                                <Input
+                                  id="nota-remessa"
+                                  type="file"
+                                  accept=".pdf"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    handleFileChange(
+                                      file,
+                                      ['application/pdf'],
+                                      ['.pdf'],
+                                      setNotaRemessaFile,
+                                      e.target
+                                    );
+                                  }}
+                                  className="min-h-[44px] max-md:min-h-[44px]"
+                                  disabled={isCreating}
+                                />
+                                {notaRemessaFile && (
+                                  <Badge variant="secondary" className="text-xs break-all self-start">
+                                    ✓ {notaRemessaFile.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="xml-remessa" className="flex items-center gap-2 text-sm font-medium">
+                                <FileText className="h-4 w-4" />
+                                Arquivo XML da Remessa *
+                              </Label>
+                              <div className="flex flex-col gap-2">
+                                <Input
+                                  id="xml-remessa"
+                                  type="file"
+                                  accept=".xml"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    handleFileChange(
+                                      file,
+                                      ['application/xml', 'text/xml'],
+                                      ['.xml'],
+                                      setXmlRemessaFile,
+                                      e.target
+                                    );
+                                  }}
+                                  className="min-h-[44px] max-md:min-h-[44px]"
+                                  disabled={isCreating}
+                                />
+                                {xmlRemessaFile && (
+                                  <Badge variant="secondary" className="text-xs break-all self-start">
+                                    ✓ {xmlRemessaFile.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    <p className="text-xs text-muted-foreground">
+                      * Campos obrigatórios
+                    </p>
+                  </div>
+
+                  {/* Botões no final do conteúdo */}
+                  <ModalFooter 
+                    variant="double"
+                    onClose={() => handleCloseModal()}
+                    onConfirm={handleCreateProduto}
+                    confirmText="Salvar"
+                    isLoading={isCreating}
                     disabled={
                       !temProdutosDisponiveis || 
                       !temArmazensDisponiveis || 
@@ -1013,73 +1041,66 @@ const Estoque = () => {
                       !xmlRemessaFile || 
                       isCreating
                     }
-                  >
-                    {isCreating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      "Salvar"
-                    )}
-                  </Button>
-                </DialogFooter>
+                  />
+                </div>
               </DialogContent>
             </Dialog>
           ) : null
         }
       />
 
-      {/* 🎯 INTERFACE CONDICIONAL: SIMPLIFICADA PARA ARMAZÉM, COMPLETA PARA ADMIN/LOGÍSTICA */}
       {userRole === "armazem" ? (
         <>
-          {/* 🆕 BARRA DE FILTROS SIMPLIFICADA PARA ARMAZÉM (PADRÃO CARREGAMENTOS) */}
-          <div className="flex items-center gap-3">
-            <Input
-              className="h-9 flex-1"
-              placeholder="Buscar produto..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Mostrando <span className="font-medium">{showingCount}</span> de <span className="font-medium">{totalCount}</span>
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="whitespace-nowrap" 
-              onClick={() => setFiltersOpen((v) => !v)}
-            >
-              <FilterIcon className="h-4 w-4 mr-1" />
-              Filtros {activeAdvancedCount ? `(${activeAdvancedCount})` : ""}
-              {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
-            </Button>
-            {hasActiveFilters && (
+          {/* Barra de filtros simplificada para armazém - Mobile otimizada */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Input
+                className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                placeholder="Buscar produto..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
               <Button 
-                variant="ghost" 
                 size="sm" 
-                onClick={clearFilters} 
-                className="gap-1"
+                className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary" 
+                onClick={() => setFiltersOpen((v) => !v)}
               >
-                <X className="h-4 w-4" /> 
-                Limpar Filtros
+                <FilterIcon className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Filtros</span>
+                {activeAdvancedCount ? ` (${activeAdvancedCount})` : ""}
+                {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
               </Button>
-            )}
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Mostrando <span className="font-medium">{showingCount}</span> de <span className="font-medium">{totalCount}</span>
+              </span>
+              {hasActiveFilters && (
+                <Button 
+                  size="sm" 
+                  onClick={clearFilters} 
+                  className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                >
+                  <X className="h-4 w-4" /> 
+                  Limpar Filtros
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* 🆕 FILTROS SIMPLIFICADOS PARA ARMAZÉM SEM BOTÃO LIMPAR INTERNO */}
+          {/* Filtros simplificados para armazém - Mobile otimizado */}
           {filtersOpen && (
-            <div className="rounded-md border p-3 space-y-6">
+            <div className="rounded-md border p-3 space-y-4">
               <div>
-                <Label className="text-sm font-semibold mb-1">Produtos</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <Label className="text-sm font-semibold mb-2 block">Produtos</Label>
+                <div className="flex flex-wrap gap-2">
                   {produtosUnicos.map((p) => (
                     <Badge
                       key={p}
                       onClick={() => setSelectedProdutos((prev) =>
                         prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
                       )}
-                      className={`cursor-pointer text-xs px-2 py-1 ${selectedProdutos.includes(p) ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
+                      className={`cursor-pointer text-xs px-2 py-1 min-h-[32px] ${selectedProdutos.includes(p) ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
                     >
                       {p}
                     </Badge>
@@ -1087,8 +1108,8 @@ const Estoque = () => {
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-semibold mb-1">Status de estoque</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <Label className="text-sm font-semibold mb-2 block">Status de estoque</Label>
+                <div className="flex flex-wrap gap-2">
                   {["normal", "baixo"].map((st) => {
                     const active = selectedStatuses.includes(st as StockStatus);
                     return (
@@ -1099,7 +1120,7 @@ const Estoque = () => {
                             ? prev.filter(s => s !== st)
                             : [...prev, st as StockStatus]
                         ))}
-                        className={`cursor-pointer text-xs px-2 py-1 ${active ? "bg-gradient-primary text-white" : "bg-muted text-muted-foreground"}`}
+                        className={`cursor-pointer text-xs px-2 py-1 min-h-[32px] ${active ? "bg-gradient-primary text-white" : "bg-muted text-muted-foreground"}`}
                       >
                         {st === "normal" ? "Normal" : "Baixo"}
                       </Badge>
@@ -1107,11 +1128,24 @@ const Estoque = () => {
                   })}
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="space-y-3">
                 <Label className="text-sm font-semibold">Período</Label>
-                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-[160px]" />
-                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-[160px]" />
-                <div className="flex-1"></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input 
+                    type="date" 
+                    value={dateFrom} 
+                    onChange={(e) => setDateFrom(e.target.value)} 
+                    className="min-h-[44px] max-md:min-h-[44px]" 
+                    placeholder="Data inicial"
+                  />
+                  <Input 
+                    type="date" 
+                    value={dateTo} 
+                    onChange={(e) => setDateTo(e.target.value)} 
+                    className="min-h-[44px] max-md:min-h-[44px]" 
+                    placeholder="Data final"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1121,53 +1155,57 @@ const Estoque = () => {
         </>
       ) : (
         <>
-          {/* 🆕 BARRA DE FILTROS COMPLETA PARA ADMIN/LOGÍSTICA (PADRÃO CARREGAMENTOS) */}
-          <div className="flex items-center gap-3">
-            <Input
-              className="h-9 flex-1"
-              placeholder="Buscar por armazém ou produto..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Mostrando <span className="font-medium">{showingCount}</span> de <span className="font-medium">{totalCount}</span>
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="whitespace-nowrap" 
-              onClick={() => setFiltersOpen((v) => !v)}
-            >
-              <FilterIcon className="h-4 w-4 mr-1" />
-              Filtros {activeAdvancedCount ? `(${activeAdvancedCount})` : ""}
-              {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
-            </Button>
-            {hasActiveFilters && (
+          {/* Barra de filtros completa para admin/logística - Mobile otimizada */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Input
+                className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                placeholder="Buscar por armazém ou produto..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
               <Button 
-                variant="ghost" 
                 size="sm" 
-                onClick={clearFilters} 
-                className="gap-1"
+                className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary" 
+                onClick={() => setFiltersOpen((v) => !v)}
               >
-                <X className="h-4 w-4" /> 
-                Limpar Filtros
+                <FilterIcon className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Filtros</span>
+                {activeAdvancedCount ? ` (${activeAdvancedCount})` : ""}
+                {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
               </Button>
-            )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Mostrando <span className="font-medium">{showingCount}</span> de <span className="font-medium">{totalCount}</span>
+              </span>
+              {hasActiveFilters && (
+                <Button 
+                  size="sm" 
+                  onClick={clearFilters} 
+                  className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                >
+                  <X className="h-4 w-4" /> 
+                  Limpar Filtros
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* 🆕 FILTROS COMPLETOS SEM BOTÃO LIMPAR INTERNO */}
+          {/* Filtros completos - Mobile otimizado */}
           {filtersOpen && (
-            <div className="rounded-md border p-3 space-y-6">
+            <div className="rounded-md border p-3 space-y-4">
               <div>
-                <Label className="text-sm font-semibold mb-1">Produtos</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <Label className="text-sm font-semibold mb-2 block">Produtos</Label>
+                <div className="flex flex-wrap gap-2">
                   {produtosUnicos.map((p) => (
                     <Badge
                       key={p}
                       onClick={() => setSelectedProdutos((prev) =>
                         prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
                       )}
-                      className={`cursor-pointer text-xs px-2 py-1 ${selectedProdutos.includes(p) ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
+                      className={`cursor-pointer text-xs px-2 py-1 min-h-[32px] ${selectedProdutos.includes(p) ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
                     >
                       {p}
                     </Badge>
@@ -1175,15 +1213,15 @@ const Estoque = () => {
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-semibold mb-1">Armazéns</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <Label className="text-sm font-semibold mb-2 block">Armazéns</Label>
+                <div className="flex flex-wrap gap-2">
                   {armazensUnicos.map((a) => (
                     <Badge
                       key={a.id}
                       onClick={() => setSelectedWarehouses((prev) =>
                         prev.includes(a.id) ? prev.filter(x => x !== a.id) : [...prev, a.id]
                       )}
-                      className={`cursor-pointer text-xs px-2 py-1 ${selectedWarehouses.includes(a.id) ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
+                      className={`cursor-pointer text-xs px-2 py-1 min-h-[32px] break-words ${selectedWarehouses.includes(a.id) ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
                     >
                       {a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}
                     </Badge>
@@ -1191,8 +1229,8 @@ const Estoque = () => {
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-semibold mb-1">Status de estoque</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <Label className="text-sm font-semibold mb-2 block">Status de estoque</Label>
+                <div className="flex flex-wrap gap-2">
                   {["normal", "baixo"].map((st) => {
                     const active = selectedStatuses.includes(st as StockStatus);
                     return (
@@ -1203,7 +1241,7 @@ const Estoque = () => {
                             ? prev.filter(s => s !== st)
                             : [...prev, st as StockStatus]
                         ))}
-                        className={`cursor-pointer text-xs px-2 py-1 ${active ? "bg-gradient-primary text-white" : "bg-muted text-muted-foreground"}`}
+                        className={`cursor-pointer text-xs px-2 py-1 min-h-[32px] ${active ? "bg-gradient-primary text-white" : "bg-muted text-muted-foreground"}`}
                       >
                         {st === "normal" ? "Normal" : "Baixo"}
                       </Badge>
@@ -1211,16 +1249,29 @@ const Estoque = () => {
                   })}
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="space-y-3">
                 <Label className="text-sm font-semibold">Período</Label>
-                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-[160px]" />
-                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-[160px]" />
-                <div className="flex-1"></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input 
+                    type="date" 
+                    value={dateFrom} 
+                    onChange={(e) => setDateFrom(e.target.value)} 
+                    className="min-h-[44px] max-md:min-h-[44px]" 
+                    placeholder="Data inicial"
+                  />
+                  <Input 
+                    type="date" 
+                    value={dateTo} 
+                    onChange={(e) => setDateTo(e.target.value)} 
+                    className="min-h-[44px] max-md:min-h-[44px]" 
+                    placeholder="Data final"
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Interface completa com cards expansíveis - SIMPLIFICADA (SEM BOTÃO ATUALIZAR) */}
+          {/* Interface completa com cards expansíveis - Mobile otimizada */}
           <div className="flex flex-col gap-4">
             {filteredArmazens.map((armazem) => (
               <div key={armazem.id}>
@@ -1228,48 +1279,49 @@ const Estoque = () => {
                   className={`w-full transition-all hover:shadow-md cursor-pointer flex flex-col ${openArmazemId === armazem.id ? "border-primary" : ""}`}
                 >
                   <CardContent
-                    className="px-5 py-3 flex flex-row items-center"
+                    className="px-4 md:px-5 py-3 flex flex-row items-center"
                     onClick={() =>
                       setOpenArmazemId(openArmazemId === armazem.id ? null : armazem.id)
                     }
                     style={{ cursor: "pointer" }}
                   >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-primary mr-4 shrink-0">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-primary mr-3 md:mr-4 shrink-0">
                       <Package className="h-5 w-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg truncate">{armazem.nome}</h3>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <h3 className="font-semibold text-base md:text-lg break-words">{armazem.nome}</h3>
+                      <p className="text-xs text-muted-foreground break-words">
                         {armazem.cidade}{armazem.estado ? `/${armazem.estado}` : ""}
                       </p>
                       <span className="text-xs text-muted-foreground">
-                        {armazem.produtos.length} produto{armazem.produtos.length !== 1 && 's'} atualmente
+                        {armazem.produtos.length} produto{armazem.produtos.length !== 1 && 's'}
                       </span>
                       {armazem.capacidade_total != null && (
                         <div className="text-xs text-muted-foreground">Capacidade: {armazem.capacidade_total}t</div>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" tabIndex={-1} className="pointer-events-none ml-4">
+                    <Button variant="ghost" size="icon" tabIndex={-1} className="pointer-events-none ml-2 md:ml-4 min-h-[44px] max-md:min-h-[44px]">
                       {openArmazemId === armazem.id ? <ChevronUp /> : <ChevronDown />}
                     </Button>
                   </CardContent>
                   {openArmazemId === armazem.id && (
-                    <div className="border-t py-3 px-5 bg-muted/50 flex flex-col gap-3">
+                    <div className="border-t py-3 px-4 md:px-5 bg-muted/50 flex flex-col gap-3">
                       {armazem.produtos.length > 0 ? (
                         armazem.produtos.map((produto) => (
                           <Card 
                             key={produto.id} 
-                            className="w-full flex flex-row items-center bg-muted/30 px-3 py-2 cursor-pointer hover:bg-muted/50" 
-                            style={{ minHeight: 56 }}
+                            className="w-full flex flex-col sm:flex-row items-start sm:items-center bg-muted/30 p-3 cursor-pointer hover:bg-muted/50 transition-all" 
                             onClick={() => navigate(`/estoque/${produto.produto_id}/${armazem.id}`)}
                           >
-                            <CardContent className="w-full py-2 flex flex-row items-center justify-between gap-4">
-                              <div className="flex-1">
-                                <span className="font-medium">{produto.produto}</span>
-                                <span className="ml-2 font-mono text-xs">{produto.quantidade} {produto.unidade}</span>
-                                <div className="flex gap-2 text-xs text-muted-foreground items-center">
+                            <CardContent className="w-full p-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                  <span className="font-medium break-words">{produto.produto}</span>
+                                  <span className="font-mono text-sm text-primary font-bold">{produto.quantidade} {produto.unidade}</span>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 text-xs text-muted-foreground sm:items-center mt-1">
                                   <span>{produto.data}</span>
-                                  <Badge variant={produto.status === "baixo" ? "destructive" : "secondary"}>
+                                  <Badge variant={produto.status === "baixo" ? "destructive" : "secondary"} className="self-start sm:self-auto">
                                     {produto.status === "baixo" ? "Baixo" : "Normal"}
                                   </Badge>
                                 </div>
@@ -1297,10 +1349,9 @@ const Estoque = () => {
                 </p>
                 {hasActiveFilters && (
                   <Button 
-                    variant="outline" 
                     size="sm" 
                     onClick={clearFilters}
-                    className="mt-2"
+                    className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
                   >
                     <X className="h-4 w-4 mr-2" />
                     Limpar Filtros

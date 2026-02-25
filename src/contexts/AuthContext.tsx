@@ -16,9 +16,34 @@ interface AuthContextType {
   needsPasswordChange: boolean;
   recoveryMode: boolean;
   clearRecoveryMode: () => void;
+  getDefaultRouteForRole: (role: string | null) => string; // 🆕 FUNÇÃO TEMPORÁRIA
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// 🔒 Função para verificar status ativo do usuário
+const checkUserActiveStatus = async (userId: string): Promise<{ active: boolean; role: string | null; message: string }> => {
+  try {
+    console.log('🔍 [DEBUG] Verificando status ativo para usuário:', userId);
+    
+    const { data, error } = await supabase.rpc('check_user_active_status', {
+      user_uuid: userId
+    });
+
+    if (error) {
+      console.error('❌ [ERROR] Erro na RPC check_user_active_status:', error);
+      // 🛡️ FALLBACK SEGURO: Em caso de erro, permitir acesso (não bloquear sistema)
+      return { active: true, role: null, message: 'Erro na verificação - acesso permitido' };
+    }
+
+    console.log('✅ [DEBUG] Status check resultado:', data);
+    return data || { active: true, role: null, message: 'Sem dados - acesso permitido' };
+  } catch (err) {
+    console.error('❌ [ERROR] Erro inesperado na verificação de status:', err);
+    // 🛡️ FALLBACK SEGURO: Em caso de erro, permitir acesso
+    return { active: true, role: null, message: 'Erro inesperado - acesso permitido' };
+  }
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -30,22 +55,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const fetchUserRole = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Erro ao buscar role:', error);
+      if (error) {
+        console.error('❌ [ERROR] Erro ao buscar role:', error);
+        setUserRole(null);
+        return;
+      }
+
+      setUserRole(data?.role ?? null);
+      console.log('✅ [DEBUG] Role definida:', data?.role);
+    } catch (err) {
+      console.error('❌ [ERROR] Erro inesperado ao buscar role:', err);
       setUserRole(null);
-      return;
     }
+  };
 
-    setUserRole(data?.role ?? null);
+  // 🚧 FUNÇÃO TEMPORÁRIA: Redirecionamento por role enquanto Dashboard não está implementado
+  // TODO: REMOVER esta função quando os dashboards personalizados forem implementados
+  // Após implementação dos dashboards, todos os perfis devem ser redirecionados para "/" (Dashboard)
+  const getDefaultRouteForRole = (role: string | null): string => {
+    console.log('🚧 [TEMP] Redirecionamento temporário para role:', role);
+    
+    if (!role) {
+      console.log('🚧 [TEMP] Role não definida, redirecionando para /agendamentos');
+      return "/agendamentos"; // Fallback padrão
+    }
+    
+    switch (role) {
+      case "admin":
+      case "logistica":
+      case "cliente":        // 🆕 CORRIGIDO: Cliente tem acesso a Liberações
+      case "representante":  // �� CORRIGIDO: Representante tem acesso a Liberações
+        console.log('🚧 [TEMP] Admin/Logística/Cliente/Representante → /liberacoes');
+        return "/liberacoes"; // Primeira página disponível para estes perfis
+      
+      case "armazem":
+        console.log('🚧 [TEMP] Armazém → /agendamentos');
+        return "/agendamentos"; // Primeira página disponível para armazém (excluído de liberações)
+      
+      default:
+        console.log('🚧 [TEMP] Role desconhecida, redirecionando para /agendamentos');
+        return "/agendamentos"; // Fallback padrão
+    }
   };
 
   useEffect(() => {
+    // 🔄 MANTÉM O CÓDIGO ORIGINAL - SEM VALIDAÇÃO DE STATUS AQUI
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('🔍 [DEBUG] Auth state change event:', event);
@@ -73,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
+    // 🔄 MANTÉM O CÓDIGO ORIGINAL - SEM VALIDAÇÃO DE STATUS AQUI
     const initializeAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -131,7 +193,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           title: "Erro no login",
           description: errorMessage,
         });
-      } else if (data.user) {
+        
+        return { error };
+      } 
+      
+      if (data.user) {
+        console.log('✅ [DEBUG] Login bem-sucedido, verificando status ativo...');
+        
+        // 🔒 VALIDAÇÃO DE USUÁRIO ATIVO - APENAS NO LOGIN ATIVO
+        const statusCheck = await checkUserActiveStatus(data.user.id);
+        
+        if (!statusCheck.active) {
+          console.log('🚫 [DEBUG] Usuário inativo detectado - bloqueando acesso');
+          
+          // Fazer logout imediato SEM disparar auth state change loop
+          await supabase.auth.signOut();
+          
+          toast({
+            variant: "destructive",
+            title: "Não foi possível acessar o sistema",
+            description: "Entre em contato com o suporte (Código: USR001).",
+          });
+          
+          return { error: new Error("User inactive") };
+        }
+        
+        console.log('✅ [DEBUG] Usuário ativo - prosseguindo com login');
+        
         // Verificar se precisa trocar senha
         const needsChange = data.user.user_metadata?.force_password_change === true;
         
@@ -152,7 +240,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       return { error };
     } catch (err) {
-      console.error("Erro inesperado no login:", err);
+      console.error("❌ [ERROR] Erro inesperado no login:", err);
       toast({
         variant: "destructive",
         title: "Erro inesperado",
@@ -235,7 +323,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       hasRole,
       needsPasswordChange,
       recoveryMode,
-      clearRecoveryMode
+      clearRecoveryMode,
+      getDefaultRouteForRole // 🆕 FUNÇÃO TEMPORÁRIA
     }}>
       {children}
     </AuthContext.Provider>

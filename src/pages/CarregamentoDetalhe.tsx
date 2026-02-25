@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,10 +11,13 @@ import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import PhotoCaptureMethod from "@/components/PhotoCaptureMethod";
+import CameraCapture from "@/components/CameraCapture";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 import {
   Loader2,
   CheckCircle,
@@ -169,13 +172,55 @@ const CarregamentoDetalhe = () => {
     '5c': { pdf: null, xml: null }
   });
 
+  // ✅ Hook para controle de mudanças não salvas
+  const {
+    hasUnsavedChanges,
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose,
+    handleNavigation
+  } = useUnsavedChanges({
+    enableBrowserWarnings: true,
+    warningMessage: "Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
+  });
+
   const { uploadPhoto, isUploading: isUploadingPhoto } = usePhotoUpload({
     bucket: 'carregamento-fotos',
     folder: id || 'unknown'
   });
 
+  // ✅ Função para verificar se há mudanças pendentes
+  const checkUnsavedChanges = useCallback(() => {
+    // Verificar arquivos de etapas 1-4
+    const hasStageFile = !!stageFile;
+    const hasStageObs = !!stageObs.trim();
+    
+    // Verificar arquivos de sub-etapas da etapa 5
+    const hasSubEtapaFiles = Object.values(subEtapaFiles).some(files => 
+      files.pdf || files.xml
+    );
+    
+    const hasChanges = hasStageFile || hasStageObs || hasSubEtapaFiles;
+    
+    if (hasChanges && !hasUnsavedChanges) {
+      markAsChanged();
+    } else if (!hasChanges && hasUnsavedChanges) {
+      markAsSaved();
+    }
+  }, [stageFile, stageObs, subEtapaFiles, hasUnsavedChanges, markAsChanged, markAsSaved]);
+
+  // ✅ Monitorar mudanças
+  useEffect(() => {
+    checkUnsavedChanges();
+  }, [checkUnsavedChanges]);
+
+  // ✅ Modificar função handleGoBack
   const handleGoBack = () => {
-    navigate("/carregamentos");
+    handleNavigation("/carregamentos");
   };
 
   const handleStartPhotoCapture = (etapa: number) => {
@@ -396,7 +441,7 @@ const CarregamentoDetalhe = () => {
     })(),
   });
 
-  // Mutation para etapas normais (1-4)
+  // ✅ Mutation para etapas normais (1-4) - com limpeza de estado
   const proximaEtapaMutation = useMutation({
     mutationFn: async () => {
       if (!selectedEtapa || !carregamento) {
@@ -459,9 +504,12 @@ const CarregamentoDetalhe = () => {
         description: `Carregamento avançou para: ${ETAPAS.find(e => e.id === proximaEtapa)?.nome}`,
       });
       
+      // ✅ Limpar estado de mudanças após salvar
       setStageFile(null);
       setStageFileXml(null);
       setStageObs("");
+      markAsSaved(); // ✅ Marcar como salvo
+      
       queryClient.invalidateQueries({ queryKey: ["carregamento-detalhe", id] });
       setSelectedEtapa(proximaEtapa);
     },
@@ -474,7 +522,7 @@ const CarregamentoDetalhe = () => {
     },
   });
 
-  // Mutation para sub-etapas da etapa 5
+  // ✅ Mutation para sub-etapas da etapa 5 - com limpeza de estado
   const subEtapaMutation = useMutation({
     mutationFn: async (subEtapaId: string) => {
       if (!carregamento || !subEtapaId) {
@@ -559,11 +607,12 @@ const CarregamentoDetalhe = () => {
           : `${subEtapa?.nome} concluída. Aguardando próxima etapa.`,
       });
       
-      // Limpar arquivos da sub-etapa
+      // ✅ Limpar estado de mudanças após salvar
       setSubEtapaFiles(prev => ({
         ...prev,
         [subEtapaId]: { pdf: null, xml: null }
       }));
+      markAsSaved(); // ✅ Marcar como salvo
       
       queryClient.invalidateQueries({ queryKey: ["carregamento-detalhe", id] });
       
@@ -579,6 +628,26 @@ const CarregamentoDetalhe = () => {
       });
     },
   });
+
+  // ✅ MOVER handleEtapaClick para DEPOIS das mutations
+  const handleEtapaClick = useCallback((etapaIndex: number) => {
+    // Verificar se pode clicar usando valores diretos em vez de mutation.isPending
+    const isProximaEtapaPending = proximaEtapaMutation.isPending;
+    const isSubEtapaPending = subEtapaMutation.isPending;
+    const podeClicar = !isProximaEtapaPending && !isUploadingPhoto && !isSubEtapaPending;
+    
+    if (!podeClicar) return;
+    
+    // Se há mudanças não salvas e está tentando mudar de etapa
+    if (hasUnsavedChanges && selectedEtapa !== etapaIndex) {
+      // ✅ Versão mais segura - usar confirm nativo
+      if (window.confirm("Você tem alterações não salvas. Deseja continuar mesmo assim?")) {
+        setSelectedEtapa(etapaIndex);
+      }
+    } else {
+      setSelectedEtapa(etapaIndex);
+    }
+  }, [hasUnsavedChanges, selectedEtapa, proximaEtapaMutation.isPending, isUploadingPhoto, subEtapaMutation.isPending]);
 
   useEffect(() => {
     if (carregamento?.etapa_atual != null) {
@@ -686,113 +755,109 @@ const CarregamentoDetalhe = () => {
     };
   };
 
+  // ✅ MODIFICAR o renderEtapasFluxo para usar a nova função
   const renderEtapasFluxo = () => (
     <div
       className="w-full flex flex-col"
       style={{ marginTop: `${ARROW_HEIGHT + 8}px`, marginBottom: "28px" }}
     >
       <div className="relative">
-        <div className="flex items-end justify-between w-full max-w-4xl mx-auto relative">
-          {ETAPAS.map((etapa, idx) => {
-            const etapaIndex = etapa.id;
-            const etapaAtual = carregamento?.etapa_atual ?? 1;
-            const isFinalizada = etapaIndex < etapaAtual;
-            const isAtual = etapaIndex === etapaAtual;
-            const isSelected = selectedEtapa === etapaIndex;
-            const podeClicar = !proximaEtapaMutation.isPending && !isUploadingPhoto && !subEtapaMutation.isPending;
-            
-            let circleClasses = "rounded-full flex items-center justify-center transition-all";
-            let shadowStyle = "none";
-            
-            if (isSelected) {
-              circleClasses += " bg-white text-primary border-4 border-primary font-bold";
-              shadowStyle = "0 2px 8px 0 rgba(59, 130, 246, 0.3)";
-            } else if (isAtual) {
-              circleClasses += " bg-blue-500 text-white";
-            } else if (isFinalizada) {
-              circleClasses += " bg-green-500 text-white";
-            } else {
-              circleClasses += " bg-gray-200 text-gray-600";
-            }
-            
-            if (podeClicar) {
-              circleClasses += " cursor-pointer hover:scale-105";
-            } else {
-              circleClasses += " cursor-not-allowed opacity-70";
-            }
-
-            const getDataEtapa = () => {
-              switch (etapaIndex) {
-                case 1: return carregamento?.data_chegada;
-                case 2: return carregamento?.data_inicio;
-                case 3: return carregamento?.data_carregando;
-                case 4: return carregamento?.data_finalizacao;
-                case 5: return carregamento?.data_documentacao;
-                default: return null;
+        {/* Container com scroll horizontal - com padding para as setas */}
+        <div className="overflow-x-auto pb-2" style={{ paddingTop: `${ARROW_HEIGHT}px` }}>
+          <div className="flex items-end justify-between w-full min-w-[600px] lg:min-w-0 max-w-4xl mx-auto relative">
+            {ETAPAS.map((etapa, idx) => {
+              const etapaIndex = etapa.id;
+              const etapaAtual = carregamento?.etapa_atual ?? 1;
+              const isFinalizada = etapaIndex < etapaAtual;
+              const isAtual = etapaIndex === etapaAtual;
+              const isSelected = selectedEtapa === etapaIndex;
+              const podeClicar = !proximaEtapaMutation.isPending && !isUploadingPhoto && !subEtapaMutation.isPending;
+              
+              let circleClasses = "rounded-full flex items-center justify-center transition-all";
+              let shadowStyle = "none";
+              
+              if (isSelected) {
+                circleClasses += " bg-white text-primary border-4 border-primary font-bold";
+                shadowStyle = "0 2px 8px 0 rgba(59, 130, 246, 0.3)";
+              } else if (isAtual) {
+                circleClasses += " bg-blue-500 text-white";
+              } else if (isFinalizada) {
+                circleClasses += " bg-green-500 text-white";
+              } else {
+                circleClasses += " bg-gray-200 text-gray-600";
               }
-            };
-            
-            return (
-              <div
-                key={etapa.id}
-                className="flex flex-col items-center flex-1 min-w-[90px] relative"
-              >
-                {idx < ETAPAS.length - 1 && (
+              
+              if (podeClicar) {
+                circleClasses += " cursor-pointer hover:scale-105";
+              } else {
+                circleClasses += " cursor-not-allowed opacity-70";
+              }
+
+              const getDataEtapa = () => {
+                switch (etapaIndex) {
+                  case 1: return carregamento?.data_chegada;
+                  case 2: return carregamento?.data_inicio;
+                  case 3: return carregamento?.data_carregando;
+                  case 4: return carregamento?.data_finalizacao;
+                  case 5: return carregamento?.data_documentacao;
+                  default: return null;
+                }
+              };
+              
+              return (
+                <div
+                  key={etapa.id}
+                  className="flex flex-col items-center flex-1 min-w-[90px] relative"
+                >
+                  {idx < ETAPAS.length - 1 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: `-${ARROW_HEIGHT}px`,
+                        left: "50%",
+                        transform: "translateX(0)",
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "center"
+                      }}
+                    >
+                      <ArrowRight className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
                   <div
+                    className={circleClasses}
                     style={{
-                      position: "absolute",
-                      top: `-${ARROW_HEIGHT}px`,
-                      left: "50%",
-                      transform: "translateX(0)",
-                      width: "100%",
-                      display: "flex",
-                      justifyContent: "center"
+                      width: 36,
+                      height: 36,
+                      fontSize: "1.1rem",
+                      marginBottom: 3,
+                      boxShadow: shadowStyle,
                     }}
+                    onClick={() => handleEtapaClick(etapaIndex)} // ✅ Usar nova função
                   >
-                    <ArrowRight className="w-6 h-6 text-gray-400" />
+                    {isFinalizada && !isSelected ? <CheckCircle className="w-6 h-6" /> : etapaIndex}
                   </div>
-                )}
-                <div
-                  className={circleClasses}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    fontSize: "1.1rem",
-                    marginBottom: 3,
-                    boxShadow: shadowStyle,
-                  }}
-                  onClick={() => {
-                    if (podeClicar) {
-                      setSelectedEtapa(etapaIndex);
+                  <div
+                    className={
+                      "text-xs text-center leading-tight " +
+                      (isSelected ? "text-primary font-bold" : "text-foreground") +
+                      (podeClicar ? " cursor-pointer" : " cursor-not-allowed opacity-70")
                     }
-                  }}
-                >
-                  {isFinalizada && !isSelected ? <CheckCircle className="w-6 h-6" /> : etapaIndex}
+                    style={{
+                      minHeight: 32,
+                      marginTop: 2,
+                    }}
+                    onClick={() => handleEtapaClick(etapaIndex)} // ✅ Usar nova função
+                  >
+                    {etapa.nome}
+                  </div>
+                  <div className="text-[11px] text-center text-muted-foreground" style={{ marginTop: 1 }}>
+                    {formatarDataHora(getDataEtapa())}
+                  </div>
                 </div>
-                <div
-                  className={
-                    "text-xs text-center leading-tight " +
-                    (isSelected ? "text-primary font-bold" : "text-foreground") +
-                    (podeClicar ? " cursor-pointer" : " cursor-not-allowed opacity-70")
-                  }
-                  style={{
-                    minHeight: 32,
-                    marginTop: 2,
-                  }}
-                  onClick={() => {
-                    if (podeClicar) {
-                      setSelectedEtapa(etapaIndex);
-                    }
-                  }}
-                >
-                  {etapa.nome}
-                </div>
-                <div className="text-[11px] text-center text-muted-foreground" style={{ marginTop: 1 }}>
-                  {formatarDataHora(getDataEtapa())}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -827,18 +892,18 @@ const CarregamentoDetalhe = () => {
           return (
             <Card key={subEtapa.id} className={`transition-all ${isConcluida ? 'border-green-200 bg-green-50' : podeEditar ? 'border-blue-200 bg-blue-50' : 'border-gray-200'}`}>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <Badge className={`${subEtapa.cor} border-0 font-medium`}>
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-3 mb-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <Badge className={`${subEtapa.cor} border-0 font-medium shrink-0`}>
                       {subEtapa.nome}
                     </Badge>
-                    <div>
-                      <h3 className="font-semibold text-sm">{subEtapa.titulo}</h3>
-                      <p className="text-xs text-muted-foreground">{subEtapa.descricao}</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-sm break-words">{subEtapa.titulo}</h3>
+                      <p className="text-xs text-muted-foreground break-words">{subEtapa.descricao}</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {isConcluida && (
                       <Badge className="bg-green-100 text-green-800 border-0">
                         <CheckCircle className="w-3 h-3 mr-1" />
@@ -851,6 +916,7 @@ const CarregamentoDetalhe = () => {
                         size="sm"
                         disabled={!files.pdf || !files.xml || subEtapaMutation.isPending}
                         onClick={() => subEtapaMutation.mutate(subEtapa.id)}
+                        className="btn-primary min-h-[44px] max-md:min-h-[44px]"
                       >
                         {subEtapaMutation.isPending ? (
                           <>
@@ -867,7 +933,7 @@ const CarregamentoDetalhe = () => {
 
                 {isConcluida ? (
                   <div className="space-y-2">
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <DocumentViewer
                         url={getDocumentUrl(subEtapa.campo_url)}
                         type="pdf"
@@ -899,11 +965,10 @@ const CarregamentoDetalhe = () => {
                       </label>
                       <div className="space-y-2">
                         <Button
-                          variant="outline"
                           size="sm"
                           onClick={() => document.getElementById(`pdf-upload-${subEtapa.id}`)?.click()}
                           disabled={subEtapaMutation.isPending}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
                         >
                           <Upload className="h-4 w-4" />
                           {files.pdf ? "Alterar PDF" : "Anexar PDF"}
@@ -926,16 +991,16 @@ const CarregamentoDetalhe = () => {
                         
                         {files.pdf && (
                           <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                            <FileText className="h-4 w-4 text-green-600" />
-                            <span className="text-sm text-green-700 flex-1">{files.pdf.name}</span>
+                            <FileText className="h-4 w-4 text-green-600 shrink-0" />
+                            <span className="text-sm text-green-700 flex-1 break-words">{files.pdf.name}</span>
                             <Button
-                              variant="ghost"
                               size="sm"
                               onClick={() => setSubEtapaFiles(prev => ({
                                 ...prev,
                                 [subEtapa.id]: { ...prev[subEtapa.id], pdf: null }
                               }))}
                               disabled={subEtapaMutation.isPending}
+                              className="btn-secondary min-h-[32px] max-md:min-h-[32px] shrink-0"
                             >
                               <X className="h-3 w-3" />
                             </Button>
@@ -951,11 +1016,10 @@ const CarregamentoDetalhe = () => {
                       </label>
                       <div className="space-y-2">
                         <Button
-                          variant="outline"
                           size="sm"
                           onClick={() => document.getElementById(`xml-upload-${subEtapa.id}`)?.click()}
                           disabled={subEtapaMutation.isPending}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
                         >
                           <Upload className="h-4 w-4" />
                           {files.xml ? "Alterar XML" : "Anexar XML"}
@@ -978,16 +1042,16 @@ const CarregamentoDetalhe = () => {
                         
                         {files.xml && (
                           <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                            <FileText className="h-4 w-4 text-green-600" />
-                            <span className="text-sm text-green-700 flex-1">{files.xml.name}</span>
+                            <FileText className="h-4 w-4 text-green-600 shrink-0" />
+                            <span className="text-sm text-green-700 flex-1 break-words">{files.xml.name}</span>
                             <Button
-                              variant="ghost"
                               size="sm"
                               onClick={() => setSubEtapaFiles(prev => ({
                                 ...prev,
                                 [subEtapa.id]: { ...prev[subEtapa.id], xml: null }
                               }))}
                               disabled={subEtapaMutation.isPending}
+                              className="btn-secondary min-h-[32px] max-md:min-h-[32px] shrink-0"
                             >
                               <X className="h-3 w-3" />
                             </Button>
@@ -999,7 +1063,7 @@ const CarregamentoDetalhe = () => {
                 ) : (
                   <div className="text-center py-4 text-muted-foreground">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm">
+                    <p className="text-sm break-words">
                       {!subEtapa.roles_permitidos.includes(userRole) 
                         ? (() => {
                             // ✅ MENSAGENS PERSONALIZADAS
@@ -1086,11 +1150,11 @@ const CarregamentoDetalhe = () => {
     return (
       <Card className="shadow-sm">
         <CardContent className="p-4 space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">{etapaTitulo}</h2>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-3 gap-3">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-foreground break-words">{etapaTitulo}</h2>
               {etapaData.data && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 break-words">
                   Concluída em: {formatarDataHora(etapaData.data)}
                 </p>
               )}
@@ -1099,7 +1163,7 @@ const CarregamentoDetalhe = () => {
               <Button
                 disabled={!stageFile || proximaEtapaMutation.isPending || isUploadingPhoto}
                 size="sm"
-                className="px-6"
+                className="px-6 btn-primary min-h-[44px] max-md:min-h-[44px] shrink-0"
                 onClick={() => {
                   proximaEtapaMutation.mutate();
                 }}
@@ -1137,7 +1201,7 @@ const CarregamentoDetalhe = () => {
                 {etapaData.observacao && (
                   <div className="mb-3">
                     <span className="text-xs font-medium text-green-700">Observações:</span>
-                    <p className="text-xs text-green-600 mt-1 bg-white p-2 rounded border">{etapaData.observacao}</p>
+                    <p className="text-xs text-green-600 mt-1 bg-white p-2 rounded border break-words">{etapaData.observacao}</p>
                   </div>
                 )}
 
@@ -1165,22 +1229,31 @@ const CarregamentoDetalhe = () => {
                 <div className="space-y-3">
                   {canUseCamera ? (
                     <Button
-                      variant="outline"
                       size="sm"
-                      onClick={() => handleStartPhotoCapture(selectedEtapa)}
+                      onClick={() => {
+                        // 🆕 Detectar se é mobile
+                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                        
+                        if (isMobile) {
+                          // Mobile: abrir câmera diretamente
+                          handleStartPhotoCapture(selectedEtapa);
+                        } else {
+                          // Desktop: manter modal de escolha
+                          handleStartPhotoCapture(selectedEtapa);
+                        }
+                      }}
                       disabled={proximaEtapaMutation.isPending || isUploadingPhoto}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
                     >
                       <Camera className="h-4 w-4" />
                       Anexar Foto
                     </Button>
                   ) : (
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={() => document.getElementById('file-upload-foto')?.click()}
                       disabled={proximaEtapaMutation.isPending || isUploadingPhoto}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
                     >
                       <Upload className="h-4 w-4" />
                       {stageFile ? "Alterar Foto" : "Anexar Foto"}
@@ -1201,13 +1274,13 @@ const CarregamentoDetalhe = () => {
                   
                   {stageFile && (
                     <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-700 flex-1">{stageFile.name}</span>
+                      <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                      <span className="text-sm text-green-700 flex-1 break-words">{stageFile.name}</span>
                       <Button
-                        variant="ghost"
                         size="sm"
                         onClick={() => setStageFile(null)}
                         disabled={proximaEtapaMutation.isPending || isUploadingPhoto}
+                        className="btn-secondary min-h-[32px] max-md:min-h-[32px] shrink-0"
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -1225,7 +1298,7 @@ const CarregamentoDetalhe = () => {
                   value={stageObs}
                   onChange={e => setStageObs(e.target.value)}
                   rows={2}
-                  className="text-sm"
+                  className="text-sm min-h-[44px] max-md:min-h-[44px]"
                   disabled={proximaEtapaMutation.isPending || isUploadingPhoto}
                 />
               </div>
@@ -1257,23 +1330,23 @@ const CarregamentoDetalhe = () => {
           <div className="space-y-4">
             {agendamento && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs text-muted-foreground">Pedido:</span>
-                    <p className="font-semibold text-sm">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
+                    <p className="font-semibold text-sm break-words">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground">Produto:</span>
-                    <p className="font-semibold text-sm">{carregamento?.produto_nome || "N/A"}</p>
+                    <p className="font-semibold text-sm break-words">{carregamento?.produto_nome || "N/A"}</p>
                   </div>
                 </div>
 
                 <div className="border-t"></div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs text-muted-foreground">Cliente:</span>
-                    <p className="font-semibold text-sm">{carregamento?.cliente_nome || "N/A"}</p>
+                    <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground">Quantidade:</span>
@@ -1281,11 +1354,11 @@ const CarregamentoDetalhe = () => {
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground">Placa:</span>
-                    <p className="font-semibold text-sm">{carregamento?.agendamento_placa_caminhao || "N/A"}</p>
+                    <p className="font-semibold text-sm break-words">{carregamento?.agendamento_placa_caminhao || "N/A"}</p>
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground">Motorista:</span>
-                    <p className="font-semibold text-sm">
+                    <p className="font-semibold text-sm break-words">
                       {carregamento?.agendamento_motorista_nome || "N/A"}
                       {carregamento?.agendamento_motorista_documento && (
                         <span className="block text-xs text-muted-foreground font-normal">
@@ -1298,7 +1371,7 @@ const CarregamentoDetalhe = () => {
 
                 <div className="border-t"></div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs text-muted-foreground">Data Agendada:</span>
                     <p className="font-semibold text-sm">
@@ -1322,7 +1395,7 @@ const CarregamentoDetalhe = () => {
                     <div className="border-t"></div>
                     <div>
                       <span className="text-xs text-muted-foreground">Nota Fiscal:</span>
-                      <p className="font-semibold text-sm">{carregamento.numero_nf}</p>
+                      <p className="font-semibold text-sm break-words">{carregamento.numero_nf}</p>
                     </div>
                   </>
                 )}
@@ -1362,7 +1435,7 @@ const CarregamentoDetalhe = () => {
                     <div className="border-t"></div>
                     <div>
                       <h3 className="text-sm font-medium mb-3">Estatísticas de Tempo</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <div>
                           <span className="text-xs text-muted-foreground">Tempo Decorrido:</span>
                           <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalDecorrido)}</p>
@@ -1395,7 +1468,7 @@ const CarregamentoDetalhe = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader 
           title="Detalhes do Carregamento"
           backButton={
@@ -1403,10 +1476,10 @@ const CarregamentoDetalhe = () => {
               variant="ghost"
               size="sm"
               onClick={handleGoBack}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
             >
               <ArrowLeft className="h-4 w-4" />
-              Voltar
+              <span className="hidden sm:inline">Voltar</span>
             </Button>
           }
         />
@@ -1419,7 +1492,7 @@ const CarregamentoDetalhe = () => {
   
   if (error || !carregamento) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader 
           title="Detalhes do Carregamento"
           backButton={
@@ -1427,10 +1500,10 @@ const CarregamentoDetalhe = () => {
               variant="ghost"
               size="sm"
               onClick={handleGoBack}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
             >
               <ArrowLeft className="h-4 w-4" />
-              Voltar
+              <span className="hidden sm:inline">Voltar</span>
             </Button>
           }
         />
@@ -1447,7 +1520,16 @@ const CarregamentoDetalhe = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 space-y-6">
+    <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* ✅ Componente de alerta */}
+      <UnsavedChangesAlert 
+        open={showAlert}
+        onConfirm={confirmClose}
+        onCancel={cancelClose}
+        title="Descartar alterações?"
+        description="Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
+      />
+
       <PageHeader 
         title="Detalhes do Carregamento"
         backButton={
@@ -1455,29 +1537,39 @@ const CarregamentoDetalhe = () => {
             variant="ghost"
             size="sm"
             onClick={handleGoBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Voltar
+            <span className="hidden sm:inline">Voltar</span>
           </Button>
         }
       />
       
-      <div className="max-w-[1050px] mx-auto space-y-6">
+      <div className="max-w-[1050px] mx-auto space-y-4 md:space-y-6">
         {renderEtapasFluxo()}
         {renderAreaEtapas()}
         {renderInformacoesProcesso()}
       </div>
-
+  
       {showPhotoCapture && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-2xl">
-            <PhotoCaptureMethod
-              onFileSelect={handlePhotoCapture}
-              onCancel={handleCancelPhotoCapture}
-              isUploading={isUploadingPhoto}
-              accept="image/*"
-            />
+            {/* 🆕 Detectar mobile e renderizar componente apropriado */}
+            {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
+              <CameraCapture
+                onCapture={handlePhotoCapture}
+                onCancel={handleCancelPhotoCapture}
+                isUploading={isUploadingPhoto}
+                allowFileSelection={true}
+              />
+            ) : (
+              <PhotoCaptureMethod
+                onFileSelect={handlePhotoCapture}
+                onCancel={handleCancelPhotoCapture}
+                isUploading={isUploadingPhoto}
+                accept="image/*"
+              />
+            )}
           </div>
         </div>
       )}

@@ -15,6 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { ModalFooter } from "@/components/ui/modal-footer";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 
 const getStatusCarregamento = (etapaAtual: number) => {
   if (etapaAtual === 1) {
@@ -93,16 +96,15 @@ const EmptyStateCardWithAction = ({
 }) => (
   <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 space-y-3">
     <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-      <AlertCircle className="h-5 w-5" />
+      <AlertCircle className="h-5 w-5 flex-shrink-0" />
       <span className="font-medium">{title}</span>
     </div>
     <p className="text-sm text-amber-700 dark:text-amber-300">
       {description}
     </p>
     <Button 
-      variant="outline" 
       size="sm" 
-      className="w-full border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/20"
+      className="w-full border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/20 min-h-[44px] max-md:min-h-[44px] btn-secondary"
       onClick={() => window.location.href = actionUrl}
     >
       <ExternalLink className="h-4 w-4 mr-2" />
@@ -120,7 +122,7 @@ const EmptyStateCardWithoutAction = ({
 }) => (
   <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4 space-y-3">
     <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-      <AlertCircle className="h-5 w-5" />
+      <AlertCircle className="h-5 w-5 flex-shrink-0" />
       <span className="font-medium">{title}</span>
     </div>
     <p className="text-sm text-blue-700 dark:text-blue-300">
@@ -228,6 +230,18 @@ const Agendamentos = () => {
   const queryClient = useQueryClient();
   const { hasRole, userRole, user } = useAuth();
   const { representanteId, clientesDoRepresentante } = usePermissions();
+  
+  // ✅ Hook para controle de mudanças não salvas
+  const {
+    hasUnsavedChanges,
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose
+  } = useUnsavedChanges();
   
   const canCreate = hasRole("admin") || hasRole("logistica") || hasRole("cliente") || hasRole("representante");
   const [isCreating, setIsCreating] = useState(false);
@@ -498,6 +512,15 @@ const Agendamentos = () => {
     setFormError("");
     setQuantidadeDisponivel(0);
     setValidandoQuantidade(false);
+    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
+  };
+
+  // ✅ Função para fechar modal com verificação
+  const handleCloseModal = () => {
+    handleClose(() => {
+      setDialogOpen(false);
+      resetFormNovoAgendamento(); // ✅ Limpar dados ao fechar
+    });
   };
 
   const atualizarQuantidadeDisponivel = async (liberacaoId: string) => {
@@ -623,6 +646,8 @@ const Agendamentos = () => {
         }
         return;
       }
+
+      markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
 
       toast({
         title: "Agendamento criado com sucesso!",
@@ -755,79 +780,91 @@ const Agendamentos = () => {
 
   const renderAgendamentoCard = (ag: AgendamentoItem) => (
     <Card key={ag.id} className="transition-all hover:shadow-md cursor-pointer">
-      <CardContent className="p-5">
+      <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          <div className="flex items-start justify-between">
+          {/* Layout Mobile-First: Badge no topo em mobile, ao lado em desktop */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            {/* Badge - Primeiro em mobile, à direita em desktop */}
+            <div className="flex justify-start sm:order-2 sm:justify-end">
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="flex items-center gap-1 cursor-help"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Badge className={`${getStatusColor(ag.status)} text-xs px-2 py-1 text-center`}>
+                      {getStatusLabel(ag.status)}
+                    </Badge>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-sm">{getAgendamentoStatusTooltip(ag.status)}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+  
+            {/* Conteúdo principal - Segundo em mobile, à esquerda em desktop */}
             <div 
-              className="flex items-start gap-4 flex-1"
+              className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
               onClick={() => setDetalhesAgendamento(ag)}
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-primary">
-                <Calendar className="h-5 w-5 text-white" />
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary shrink-0">
+                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-white" />
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground">Pedido: {ag.pedido}</h3>
-                <p className="text-xs text-muted-foreground">Cliente: <span className="font-semibold">{ag.cliente}</span></p>
-                <p className="text-xs text-muted-foreground">Produto: <span className="font-semibold">{ag.produto}</span></p>
-                <p className="text-xs text-muted-foreground">Armazém: <span className="font-semibold">{ag.armazem}</span></p>
-                <p className="text-xs text-muted-foreground">Quantidade: <span className="font-semibold">{ag.quantidade.toLocaleString('pt-BR')}t</span></p>
+              <div className="flex-1 min-w-0 space-y-1">
+                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {ag.pedido}</h3>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p><span className="font-semibold">Cliente:</span> <span className="break-words">{ag.cliente}</span></p>
+                  <p><span className="font-semibold">Produto:</span> <span className="break-words">{ag.produto}</span></p>
+                  <p className="break-words"><span className="font-semibold">Armazém:</span> {ag.armazem}</p>
+                </div>
+                
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Quantidade:</span> {ag.quantidade.toLocaleString('pt-BR')}t
+                  </p>
+                </div>
               </div>
             </div>
-            
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <div 
-                  className="flex items-center gap-1 cursor-help"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Badge className={getStatusColor(ag.status)}>
-                    {getStatusLabel(ag.status)}
-                  </Badge>
-                  <Info className="h-3 w-3 text-muted-foreground" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm">{getAgendamentoStatusTooltip(ag.status)}</p>
-              </TooltipContent>
-            </Tooltip>
           </div>
-
+  
+          {/* Grid de informações - Sempre abaixo do conteúdo principal */}
           <div 
-            className="grid grid-cols-1 lg:grid-cols-4 gap-4 text-sm pt-2"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2"
             onClick={() => setDetalhesAgendamento(ag)}
           >
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span>{ag.data}</span>
+              <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="truncate">{ag.data}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-muted-foreground" />
-              <span>{formatPlaca(ag.placa)}</span>
+              <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="truncate">{formatPlaca(ag.placa)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
+              <User className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="truncate">{ag.motorista}</span>
             </div>
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>{formatCPF(ag.documento)}</span>
+              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="truncate">{formatCPF(ag.documento)}</span>
             </div>
           </div>
-
-          <div className="pt-2 border-t">
+  
+          {/* Barra de progresso - Sempre na parte inferior */}
+          <div 
+            className="pt-2 border-t"
+            onClick={() => setDetalhesAgendamento(ag)}
+          >
             <div className="flex items-center gap-2">
-              <div 
-                className="flex items-center gap-2"
-                onClick={() => setDetalhesAgendamento(ag)}
-              >
-                <Truck className="h-4 w-4 text-purple-600" />
-                <span className="text-xs text-purple-600 font-medium w-24">Carregamento:</span>
-              </div>
+              <Truck className="h-4 w-4 text-purple-600 shrink-0" />
+              <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
               
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
                   <div 
-                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help"
+                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div 
@@ -844,11 +881,11 @@ const Agendamentos = () => {
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
                   <div 
-                    className="flex items-center gap-1 cursor-help"
+                    className="flex items-center gap-1 cursor-help shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Info className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium w-12">
+                    <span className="text-xs text-muted-foreground font-medium w-8 text-right">
                       {ag.percentual_carregamento}%
                     </span>
                   </div>
@@ -866,7 +903,7 @@ const Agendamentos = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader title="Agendamentos de Retirada" subtitle="Carregando..." icon={Calendar} actions={<></>} />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
@@ -878,7 +915,7 @@ const Agendamentos = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader title="Agendamentos de Retirada" subtitle="Erro ao carregar dados" icon={Calendar} actions={<></>} />
         <div className="text-center">
           <p className="text-destructive">Erro: {(error as Error).message}</p>
@@ -889,7 +926,15 @@ const Agendamentos = () => {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+        
+        {/* ✅ Componente de alerta */}
+        <UnsavedChangesAlert 
+          open={showAlert}
+          onConfirm={confirmClose}
+          onCancel={cancelClose}
+        />
+
         <PageHeader
           title="Agendamentos de Retirada"
           subtitle="Gerencie os agendamentos de retirada de produtos"
@@ -897,248 +942,294 @@ const Agendamentos = () => {
           actions={
             canCreate ? (
               <Dialog open={dialogOpen} onOpenChange={(open) => {
-                if (!open && isCreating) return;
-                setDialogOpen(open);
+                if (!open && isCreating) return; // Não fechar durante criação
+                if (!open) {
+                  handleCloseModal(); // ✅ Usar nova função
+                } else {
+                  setDialogOpen(open);
+                }
               }}>
                 <DialogTrigger asChild>
-                  <Button className="bg-gradient-primary">
+                  <Button className="btn-primary min-h-[44px] max-md:min-h-[44px]">
                     <Plus className="mr-2 h-4 w-4" />
                     Novo Agendamento
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Novo Agendamento</DialogTitle>
+                
+                {/* Modal de Novo Agendamento - Mobile Otimizado */}
+                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                  <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+                    <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Novo Agendamento</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 py-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="liberacao">Liberação *</Label>
-                      {temLiberacoesDisponiveis ? (
-                        <Select
-                          value={novoAgendamento.liberacao}
-                          onValueChange={async (v) => {
-                            setNovoAgendamento((s) => ({ ...s, liberacao: v, quantidade: "" }));
-                            await atualizarQuantidadeDisponivel(v);
-                          }}
-                          disabled={isCreating}
-                        >
-                          <SelectTrigger id="liberacao">
-                            <SelectValue placeholder="Selecione a liberação" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {liberacoesDisponiveis?.map((lib: any) => {
-                              const disponivel = lib.quantidade_disponivel_real || 
-                                (lib.quantidade_liberada - (lib.quantidade_retirada || 0));
-                              return (
-                                <SelectItem key={lib.id} value={lib.id}>
-                                  {lib.pedido_interno} - {lib.clientes?.nome} - {lib.produto?.nome} ({disponivel.toLocaleString('pt-BR')}t disponível) - {lib.armazem?.cidade}/{lib.armazem?.estado}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        renderEmptyLiberacoesCard()
+                  
+                  <div className="py-4 px-1 space-y-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="liberacao" className="text-sm font-medium">Liberação *</Label>
+                        {temLiberacoesDisponiveis ? (
+                          <Select
+                            value={novoAgendamento.liberacao}
+                            onValueChange={async (v) => {
+                              setNovoAgendamento((s) => ({ ...s, liberacao: v, quantidade: "" }));
+                              markAsChanged(); // ✅ Marcar como alterado
+                              await atualizarQuantidadeDisponivel(v);
+                            }}
+                            disabled={isCreating}
+                          >
+                            <SelectTrigger id="liberacao" className="min-h-[44px] max-md:min-h-[44px]">
+                              <SelectValue placeholder="Selecione a liberação" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {liberacoesDisponiveis?.map((lib: any) => {
+                                const disponivel = lib.quantidade_disponivel_real || 
+                                  (lib.quantidade_liberada - (lib.quantidade_retirada || 0));
+                                return (
+                                  <SelectItem key={lib.id} value={lib.id}>
+                                    <span className="break-words">
+                                      {lib.pedido_interno} - {lib.clientes?.nome} - {lib.produto?.nome} ({disponivel.toLocaleString('pt-BR')}t disponível) - {lib.armazem?.cidade}/{lib.armazem?.estado}
+                                    </span>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          renderEmptyLiberacoesCard()
+                        )}
+                      </div>
+
+                      {temLiberacoesDisponiveis && (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="quantidade" className="text-sm font-medium">Quantidade (t) *</Label>
+                              {novoAgendamento.liberacao && (
+                                <div className="text-sm text-muted-foreground mb-1">
+                                  {validandoQuantidade ? (
+                                    <span className="flex items-center gap-1">
+                                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                                      Verificando disponibilidade...
+                                    </span>
+                                  ) : (
+                                    <span className={quantidadeDisponivel > 0 ? "text-green-600" : "text-red-600"}>
+                                      Disponível: {quantidadeDisponivel.toLocaleString('pt-BR')}t
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              <Input
+                                id="quantidade"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max={quantidadeDisponivel || undefined}
+                                value={novoAgendamento.quantidade}
+                                onChange={(e) => {
+                                  setNovoAgendamento((s) => ({ ...s, quantidade: e.target.value }));
+                                  markAsChanged(); // ✅ Marcar como alterado
+                                }}
+                                placeholder="0.00"
+                                className={`min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base ${
+                                  novoAgendamento.quantidade && !quantidadeValida 
+                                    ? "border-red-500 focus:border-red-500" 
+                                    : novoAgendamento.quantidade && quantidadeValida
+                                    ? "border-green-500 focus:border-green-500"
+                                    : ""
+                                }`}
+                                disabled={isCreating}
+                              />
+                              {novoAgendamento.quantidade && !quantidadeValida && (
+                                <p className="text-xs text-red-600">
+                                  {Number(novoAgendamento.quantidade) > quantidadeDisponivel 
+                                    ? `Quantidade excede o disponível (${quantidadeDisponivel.toLocaleString('pt-BR')}t)`
+                                    : "Quantidade deve ser maior que zero"
+                                  }
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="data" className="text-sm font-medium">Data *</Label>
+                              <Input
+                                id="data"
+                                type="date"
+                                value={novoAgendamento.data}
+                                onChange={(e) => {
+                                  setNovoAgendamento((s) => ({ ...s, data: e.target.value }));
+                                  markAsChanged(); // ✅ Marcar como alterado
+                                }}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="placa" className="text-sm font-medium">Placa do Veículo *</Label>
+                            <Input
+                              id="placa"
+                              value={novoAgendamento.placa}
+                              onChange={(e) => {
+                                setNovoAgendamento((s) => ({
+                                  ...s,
+                                  placa: maskPlaca(e.target.value),
+                                }));
+                                markAsChanged(); // ✅ Marcar como alterado
+                              }}
+                              placeholder="Ex: ABC-1234 ou ABC-1D23"
+                              maxLength={9}
+                              autoCapitalize="characters"
+                              spellCheck={false}
+                              inputMode="text"
+                              disabled={isCreating}
+                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            />
+                            <p className="text-xs text-muted-foreground">Formato antigo (ABC-1234) ou Mercosul (ABC-1D23)</p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="motorista" className="text-sm font-medium">Nome do Motorista *</Label>
+                              <Input
+                                id="motorista"
+                                value={novoAgendamento.motorista}
+                                onChange={(e) => {
+                                  setNovoAgendamento((s) => ({ ...s, motorista: e.target.value }));
+                                  markAsChanged(); // ✅ Marcar como alterado
+                                }}
+                                placeholder="Ex: João Silva"
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="documento" className="text-sm font-medium">Documento (CPF) *</Label>
+                              <Input
+                                id="documento"
+                                value={novoAgendamento.documento}
+                                onChange={(e) => {
+                                  setNovoAgendamento((s) => ({
+                                    ...s,
+                                    documento: maskCPF(e.target.value),
+                                  }));
+                                  markAsChanged(); // ✅ Marcar como alterado
+                                }}
+                                placeholder="Ex: 123.456.789-00"
+                                maxLength={14}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="tipoCaminhao" className="text-sm font-medium">Tipo de Caminhão</Label>
+                            <Input
+                              id="tipoCaminhao"
+                              value={novoAgendamento.tipoCaminhao}
+                              onChange={(e) => {
+                                setNovoAgendamento((s) => ({ ...s, tipoCaminhao: e.target.value }));
+                                markAsChanged(); // ✅ Marcar como alterado
+                              }}
+                              placeholder="Ex: Bitrem, Carreta, Truck"
+                              disabled={isCreating}
+                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="observacoes" className="text-sm font-medium">Observações</Label>
+                            <Input
+                              id="observacoes"
+                              value={novoAgendamento.observacoes}
+                              onChange={(e) => {
+                                setNovoAgendamento((s) => ({ ...s, observacoes: e.target.value }));
+                                markAsChanged(); // ✅ Marcar como alterado
+                              }}
+                              placeholder="Informações adicionais sobre o agendamento"
+                              disabled={isCreating}
+                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            />
+                          </div>
+                          
+                          {formError && (
+                            <div className="pt-3 text-destructive text-sm font-semibold border-t">
+                              {formError}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
 
-                    {temLiberacoesDisponiveis && (
-                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="quantidade">Quantidade (t) *</Label>
-                            {novoAgendamento.liberacao && (
-                              <div className="text-sm text-muted-foreground mb-1">
-                                {validandoQuantidade ? (
-                                  <span className="flex items-center gap-1">
-                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                                    Verificando disponibilidade...
-                                  </span>
-                                ) : (
-                                  <span className={quantidadeDisponivel > 0 ? "text-green-600" : "text-red-600"}>
-                                                                        Disponível: {quantidadeDisponivel.toLocaleString('pt-BR')}t
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            <Input
-                              id="quantidade"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max={quantidadeDisponivel || undefined}
-                              value={novoAgendamento.quantidade}
-                              onChange={(e) => setNovoAgendamento((s) => ({ ...s, quantidade: e.target.value }))}
-                              placeholder="0.00"
-                              className={
-                                novoAgendamento.quantidade && !quantidadeValida 
-                                  ? "border-red-500 focus:border-red-500" 
-                                  : novoAgendamento.quantidade && quantidadeValida
-                                  ? "border-green-500 focus:border-green-500"
-                                  : ""
-                              }
-                              disabled={isCreating}
-                            />
-                            {novoAgendamento.quantidade && !quantidadeValida && (
-                              <p className="text-xs text-red-600">
-                                {Number(novoAgendamento.quantidade) > quantidadeDisponivel 
-                                  ? `Quantidade excede o disponível (${quantidadeDisponivel.toLocaleString('pt-BR')}t)`
-                                  : "Quantidade deve ser maior que zero"
-                                }
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="data">Data *</Label>
-                            <Input
-                              id="data"
-                              type="date"
-                              value={novoAgendamento.data}
-                              onChange={(e) => setNovoAgendamento((s) => ({ ...s, data: e.target.value }))}
-                              disabled={isCreating}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="placa">Placa do Veículo *</Label>
-                          <Input
-                            id="placa"
-                            value={novoAgendamento.placa}
-                            onChange={(e) =>
-                              setNovoAgendamento((s) => ({
-                                ...s,
-                                placa: maskPlaca(e.target.value),
-                              }))
-                            }
-                            placeholder="Ex: ABC-1234 ou ABC-1D23"
-                            maxLength={9}
-                            autoCapitalize="characters"
-                            spellCheck={false}
-                            inputMode="text"
-                            disabled={isCreating}
-                          />
-                          <p className="text-xs text-muted-foreground">Formato antigo (ABC-1234) ou Mercosul (ABC-1D23)</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="motorista">Nome do Motorista *</Label>
-                            <Input
-                              id="motorista"
-                              value={novoAgendamento.motorista}
-                              onChange={(e) => setNovoAgendamento((s) => ({ ...s, motorista: e.target.value }))}
-                              placeholder="Ex: João Silva"
-                              disabled={isCreating}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="documento">Documento (CPF) *</Label>
-                            <Input
-                              id="documento"
-                              value={novoAgendamento.documento}
-                              onChange={(e) =>
-                                setNovoAgendamento((s) => ({
-                                  ...s,
-                                  documento: maskCPF(e.target.value),
-                                }))
-                              }
-                              placeholder="Ex: 123.456.789-00"
-                              maxLength={14}
-                              disabled={isCreating}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="tipoCaminhao">Tipo de Caminhão</Label>
-                          <Input
-                            id="tipoCaminhao"
-                            value={novoAgendamento.tipoCaminhao}
-                            onChange={(e) => setNovoAgendamento((s) => ({ ...s, tipoCaminhao: e.target.value }))}
-                            placeholder="Ex: Bitrem, Carreta, Truck"
-                            disabled={isCreating}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="observacoes">Observações</Label>
-                          <Input
-                            id="observacoes"
-                            value={novoAgendamento.observacoes}
-                            onChange={(e) => setNovoAgendamento((s) => ({ ...s, observacoes: e.target.value }))}
-                            placeholder="Informações adicionais sobre o agendamento"
-                            disabled={isCreating}
-                          />
-                        </div>
-                        
-                        {formError && (
-                          <div className="pt-3 text-destructive text-sm font-semibold border-t">
-                            {formError}
-                          </div>
-                        )}
-                      </>
-                    )}
+                    {/* Botões no final do conteúdo */}
+                    <ModalFooter 
+                      variant="double"
+                      onClose={() => handleCloseModal()}
+                      onConfirm={handleCreateAgendamento}
+                      confirmText="Criar Agendamento"
+                      confirmIcon={<Plus className="h-4 w-4" />}
+                      isLoading={isCreating}
+                      disabled={!temLiberacoesDisponiveis || !quantidadeValida || validandoQuantidade}
+                    />
                   </div>
-                  <DialogFooter>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setDialogOpen(false)}
-                      disabled={isCreating}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button 
-                      className="bg-gradient-primary" 
-                      onClick={handleCreateAgendamento}
-                      disabled={!temLiberacoesDisponiveis || !quantidadeValida || validandoQuantidade || isCreating}
-                    >
-                      {isCreating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Criando...
-                        </>
-                      ) : (
-                        "Criar Agendamento"
-                      )}
-                    </Button>
-                  </DialogFooter>
                 </DialogContent>
               </Dialog>
             ) : null
           }
         />
 
-        <div className="flex items-center gap-3">
-          <Input className="h-9 flex-1" placeholder="Buscar por cliente, produto, pedido ou motorista..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          <span className="text-xs text-muted-foreground whitespace-nowrap">Mostrando <span className="font-medium">{showingCount}</span> de <span className="font-medium">{totalCount}</span></span>
-          <Button variant="outline" size="sm" onClick={() => setFiltersOpen((v) => !v)}>
-            <FilterIcon className="h-4 w-4 mr-1" />
-            Filtros {activeAdvancedCount ? `(${activeAdvancedCount})` : ""}
-            {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
-          </Button>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
-              <X className="h-4 w-4" /> 
-              Limpar Filtros
+        {/* Barra de filtros - Mobile otimizada */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <Input 
+              className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
+              placeholder="Buscar por cliente, produto, pedido ou motorista..." 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+            />
+            <Button 
+              size="sm" 
+              onClick={() => setFiltersOpen((v) => !v)} 
+              className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary"
+            >
+              <FilterIcon className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Filtros</span>
+              {activeAdvancedCount ? ` (${activeAdvancedCount})` : ""}
+              {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
             </Button>
-          )}
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              Mostrando <span className="font-medium">{showingCount}</span> de <span className="font-medium">{totalCount}</span>
+            </span>
+            {hasActiveFilters && (
+              <Button 
+                size="sm" 
+                onClick={clearFilters} 
+                className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              >
+                <X className="h-4 w-4" /> 
+                Limpar Filtros
+              </Button>
+            )}
+          </div>
         </div>
         
+        {/* Filtros expandidos - Mobile otimizado */}
         {filtersOpen && (
-          <div className="rounded-md border p-3 space-y-6 relative">
+          <div className="rounded-md border p-3 space-y-4">
             <div>
-              <Label className="text-sm font-semibold mb-1">Status do Agendamento</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
+              <Label className="text-sm font-semibold mb-2 block">Status do Agendamento</Label>
+              <div className="flex flex-wrap gap-2">
                 {STATUS_AGENDAMENTO.map((status) => {
                   const active = selectedStatuses.includes(status.id as AgendamentoStatus);
                   return (
                     <Badge
                       key={status.id}
                       onClick={() => toggleStatus(status.id as AgendamentoStatus)}
-                      className={`cursor-pointer text-xs px-2 py-1 border-0 ${
+                      className={`cursor-pointer text-xs px-2 py-1 border-0 min-h-[32px] ${
                         active 
                           ? "bg-gradient-primary text-white"
                           : status.cor
@@ -1149,30 +1240,46 @@ const Agendamentos = () => {
                 })}
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <Label className="text-sm font-semibold mb-1">Período</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-[160px]" />
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-[160px]" />
-              <div className="flex-1"></div>
+            
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Período</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input 
+                  type="date" 
+                  value={dateFrom} 
+                  onChange={(e) => setDateFrom(e.target.value)} 
+                  className="min-h-[44px] max-md:min-h-[44px]" 
+                  placeholder="Data inicial"
+                />
+                <Input 
+                  type="date" 
+                  value={dateTo} 
+                  onChange={(e) => setDateTo(e.target.value)} 
+                  className="min-h-[44px] max-md:min-h-[44px]" 
+                  placeholder="Data final"
+                />
+              </div>
             </div>
           </div>
         )}
 
+        {/* Modal de Detalhes - Mobile Otimizado */}
         <Dialog open={!!detalhesAgendamento} onOpenChange={open => !open && setDetalhesAgendamento(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Detalhes do Agendamento</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Detalhes do Agendamento</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
                 Pedido: {detalhesAgendamento?.pedido}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            
+            <div className="py-4 px-1 space-y-4">
               {detalhesAgendamento && (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Data de Retirada:</Label>
-                      <p className="font-semibold">{detalhesAgendamento.data}</p>
+                      <p className="font-semibold text-sm">{detalhesAgendamento.data}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Status:</Label>
@@ -1184,48 +1291,51 @@ const Agendamentos = () => {
 
                   <div className="border-t"></div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Cliente:</Label>
-                      <p className="font-semibold">{detalhesAgendamento.cliente}</p>
+                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.cliente}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Armazém:</Label>
-                      <p className="font-semibold">{detalhesAgendamento.armazem}</p>
+                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.armazem}</p>
                     </div>
                   </div>
 
                   <div className="border-t"></div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Produto:</Label>
-                      <p className="font-semibold">{detalhesAgendamento.produto}</p>
+                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.produto}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Quantidade:</Label>
-                      <p className="font-semibold">{detalhesAgendamento.quantidade.toLocaleString('pt-BR')}t</p>
+                      <p className="font-semibold text-sm">{detalhesAgendamento.quantidade.toLocaleString('pt-BR')}t</p>
                     </div>
                   </div>
 
                   <div className="border-t"></div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Nome do Motorista:</Label>
-                      <p className="font-semibold">{detalhesAgendamento.motorista}</p>
+                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.motorista}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">CPF do Motorista:</Label>
-                      <p className="font-semibold">{formatCPF(detalhesAgendamento.documento)}</p>
+                      <p className="font-semibold text-sm">{formatCPF(detalhesAgendamento.documento)}</p>
                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Placa do Veículo:</Label>
-                      <p className="font-semibold">{formatPlaca(detalhesAgendamento.placa)}</p>
+                      <p className="font-semibold text-sm">{formatPlaca(detalhesAgendamento.placa)}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Tipo de Caminhão:</Label>
-                      <p className="font-semibold">{detalhesAgendamento.tipo_caminhao || "—"}</p>
+                      <p className="font-semibold text-sm">{detalhesAgendamento.tipo_caminhao || "—"}</p>
                     </div>
                   </div>
 
@@ -1234,7 +1344,7 @@ const Agendamentos = () => {
                       <div className="border-t"></div>
                       <div>
                         <Label className="text-xs text-muted-foreground">Observações:</Label>
-                        <p className="text-sm bg-muted p-3 rounded-md mt-1">
+                        <p className="text-sm bg-muted p-3 rounded-md mt-1 break-words">
                           {detalhesAgendamento.observacoes}
                         </p>
                       </div>
@@ -1243,21 +1353,22 @@ const Agendamentos = () => {
                 </>
               )}
             </div>
-            <DialogFooter>
-              <Button onClick={() => setDetalhesAgendamento(null)}>
-                Fechar
-              </Button>
-            </DialogFooter>
+            
+            <ModalFooter 
+              variant="single"
+              onClose={() => setDetalhesAgendamento(null)}
+            />
           </DialogContent>
         </Dialog>
 
+        {/* Lista de Agendamentos - Mobile Otimizada */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">Agendamentos Ativos ({agendamentosAtivos.length})</h2>
           </div>
           
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {agendamentosAtivos.map(renderAgendamentoCard)}
             {agendamentosAtivos.length === 0 && (
               <div className="text-center py-8">
@@ -1269,10 +1380,9 @@ const Agendamentos = () => {
                 </p>
                 {hasActiveFilters && (
                   <Button 
-                    variant="outline" 
                     size="sm" 
                     onClick={clearFilters}
-                    className="mt-2"
+                    className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
                   >
                     <X className="h-4 w-4 mr-2" />
                     Limpar Filtros
@@ -1283,11 +1393,11 @@ const Agendamentos = () => {
           </div>
         </div>
 
+        {/* Seção de Agendamentos Finalizados - Mobile Otimizada */}
         {agendamentosFinalizados.length > 0 && (
           <div className="space-y-4">
             <Button
-              variant="ghost"
-              className="flex items-center gap-2 p-0 h-auto text-lg font-semibold hover:bg-transparent"
+              className="flex items-center gap-2 p-0 h-auto text-lg font-semibold hover:bg-transparent btn-secondary min-h-[44px] max-md:min-h-[44px]"
               onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
             >
               {secaoFinalizadosExpandida ? (
@@ -1302,13 +1412,14 @@ const Agendamentos = () => {
             </Button>
             
             {secaoFinalizadosExpandida && (
-              <div className="grid gap-4 ml-7">
+              <div className="grid gap-3 ml-0 sm:ml-7">
                 {agendamentosFinalizados.map(renderAgendamentoCard)}
               </div>
             )}
           </div>
         )}
 
+        {/* Estado vazio geral - Mobile Otimizado */}
         {agendamentosAtivos.length === 0 && agendamentosFinalizados.length === 0 && (
           <div className="text-center py-12">
             <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -1319,10 +1430,9 @@ const Agendamentos = () => {
             </p>
             {hasActiveFilters && (
               <Button 
-                variant="outline" 
                 size="sm" 
                 onClick={clearFilters}
-                className="mt-2"
+                className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
               >
                 <X className="h-4 w-4 mr-2" />
                 Limpar Filtros
