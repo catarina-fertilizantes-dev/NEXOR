@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,8 @@ import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 import {
   Loader2,
   CheckCircle,
@@ -154,6 +156,22 @@ const CarregamentoDetalhe = () => {
   const { userRole, user } = useAuth();
   const { clienteId, armazemId, representanteId } = usePermissions();
 
+  // ✅ Hook para controle de mudanças não salvas
+  const {
+    hasUnsavedChanges,
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose,
+    handleNavigation
+  } = useUnsavedChanges({
+    enableBrowserWarnings: true,
+    warningMessage: "Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
+  });
+
   // Estados para etapas normais (1-4)
   const [stageFile, setStageFile] = useState<File | null>(null);
   const [stageFileXml, setStageFileXml] = useState<File | null>(null);
@@ -175,8 +193,34 @@ const CarregamentoDetalhe = () => {
     folder: id || 'unknown'
   });
 
+  // ✅ Função para verificar se há mudanças pendentes
+  const checkUnsavedChanges = useCallback(() => {
+    // Verificar arquivos de etapas 1-4
+    const hasStageFile = !!stageFile;
+    const hasStageObs = !!stageObs.trim();
+    
+    // Verificar arquivos de sub-etapas da etapa 5
+    const hasSubEtapaFiles = Object.values(subEtapaFiles).some(files => 
+      files.pdf || files.xml
+    );
+    
+    const hasChanges = hasStageFile || hasStageObs || hasSubEtapaFiles;
+    
+    if (hasChanges && !hasUnsavedChanges) {
+      markAsChanged();
+    } else if (!hasChanges && hasUnsavedChanges) {
+      markAsSaved();
+    }
+  }, [stageFile, stageObs, subEtapaFiles, hasUnsavedChanges, markAsChanged, markAsSaved]);
+
+  // ✅ Monitorar mudanças
+  useEffect(() => {
+    checkUnsavedChanges();
+  }, [checkUnsavedChanges]);
+
+  // ✅ Modificar função handleGoBack
   const handleGoBack = () => {
-    navigate("/carregamentos");
+    handleNavigation("/carregamentos");
   };
 
   const handleStartPhotoCapture = (etapa: number) => {
@@ -397,7 +441,7 @@ const CarregamentoDetalhe = () => {
     })(),
   });
 
-  // Mutation para etapas normais (1-4)
+  // ✅ Mutation para etapas normais (1-4) - com limpeza de estado
   const proximaEtapaMutation = useMutation({
     mutationFn: async () => {
       if (!selectedEtapa || !carregamento) {
@@ -460,9 +504,12 @@ const CarregamentoDetalhe = () => {
         description: `Carregamento avançou para: ${ETAPAS.find(e => e.id === proximaEtapa)?.nome}`,
       });
       
+      // ✅ Limpar estado de mudanças após salvar
       setStageFile(null);
       setStageFileXml(null);
       setStageObs("");
+      markAsSaved(); // ✅ Marcar como salvo
+      
       queryClient.invalidateQueries({ queryKey: ["carregamento-detalhe", id] });
       setSelectedEtapa(proximaEtapa);
     },
@@ -475,7 +522,7 @@ const CarregamentoDetalhe = () => {
     },
   });
 
-  // Mutation para sub-etapas da etapa 5
+  // ✅ Mutation para sub-etapas da etapa 5 - com limpeza de estado
   const subEtapaMutation = useMutation({
     mutationFn: async (subEtapaId: string) => {
       if (!carregamento || !subEtapaId) {
@@ -560,11 +607,12 @@ const CarregamentoDetalhe = () => {
           : `${subEtapa?.nome} concluída. Aguardando próxima etapa.`,
       });
       
-      // Limpar arquivos da sub-etapa
+      // ✅ Limpar estado de mudanças após salvar
       setSubEtapaFiles(prev => ({
         ...prev,
         [subEtapaId]: { pdf: null, xml: null }
       }));
+      markAsSaved(); // ✅ Marcar como salvo
       
       queryClient.invalidateQueries({ queryKey: ["carregamento-detalhe", id] });
       
@@ -1460,6 +1508,15 @@ const CarregamentoDetalhe = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* ✅ Componente de alerta */}
+      <UnsavedChangesAlert 
+        open={showAlert}
+        onConfirm={confirmClose}
+        onCancel={cancelClose}
+        title="Descartar alterações?"
+        description="Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
+      />
+
       <PageHeader 
         title="Detalhes do Carregamento"
         backButton={
