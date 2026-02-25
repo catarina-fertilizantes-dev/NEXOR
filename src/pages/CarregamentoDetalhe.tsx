@@ -156,22 +156,6 @@ const CarregamentoDetalhe = () => {
   const { userRole, user } = useAuth();
   const { clienteId, armazemId, representanteId } = usePermissions();
 
-  // ✅ Hook para controle de mudanças não salvas
-  const {
-    hasUnsavedChanges,
-    showAlert,
-    markAsChanged,
-    markAsSaved,
-    reset: resetUnsavedChanges,
-    handleClose,
-    confirmClose,
-    cancelClose,
-    handleNavigation
-  } = useUnsavedChanges({
-    enableBrowserWarnings: true,
-    warningMessage: "Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
-  });
-
   // Estados para etapas normais (1-4)
   const [stageFile, setStageFile] = useState<File | null>(null);
   const [stageFileXml, setStageFileXml] = useState<File | null>(null);
@@ -186,6 +170,22 @@ const CarregamentoDetalhe = () => {
     '5a': { pdf: null, xml: null },
     '5b': { pdf: null, xml: null },
     '5c': { pdf: null, xml: null }
+  });
+
+  // ✅ Hook para controle de mudanças não salvas
+  const {
+    hasUnsavedChanges,
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose,
+    handleNavigation
+  } = useUnsavedChanges({
+    enableBrowserWarnings: true,
+    warningMessage: "Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
   });
 
   const { uploadPhoto, isUploading: isUploadingPhoto } = usePhotoUpload({
@@ -222,20 +222,6 @@ const CarregamentoDetalhe = () => {
   const handleGoBack = () => {
     handleNavigation("/carregamentos");
   };
-
-  // ✅ Função para clique nas etapas com verificação de mudanças não salvas
-  const handleEtapaClick = useCallback((etapaIndex: number) => {
-    const podeClicar = !proximaEtapaMutation.isPending && !isUploadingPhoto && !subEtapaMutation.isPending;
-    
-    if (!podeClicar) return;
-    
-    // Se há mudanças não salvas e está tentando mudar de etapa
-    if (hasUnsavedChanges && selectedEtapa !== etapaIndex) {
-      handleClose(() => setSelectedEtapa(etapaIndex));
-    } else {
-      setSelectedEtapa(etapaIndex);
-    }
-  }, [hasUnsavedChanges, selectedEtapa, proximaEtapaMutation.isPending, isUploadingPhoto, subEtapaMutation.isPending, handleClose]);
 
   const handleStartPhotoCapture = (etapa: number) => {
     setCurrentPhotoEtapa(etapa);
@@ -642,6 +628,26 @@ const CarregamentoDetalhe = () => {
       });
     },
   });
+
+  // ✅ MOVER handleEtapaClick para DEPOIS das mutations
+  const handleEtapaClick = useCallback((etapaIndex: number) => {
+    // Verificar se pode clicar usando valores diretos em vez de mutation.isPending
+    const isProximaEtapaPending = proximaEtapaMutation.isPending;
+    const isSubEtapaPending = subEtapaMutation.isPending;
+    const podeClicar = !isProximaEtapaPending && !isUploadingPhoto && !isSubEtapaPending;
+    
+    if (!podeClicar) return;
+    
+    // Se há mudanças não salvas e está tentando mudar de etapa
+    if (hasUnsavedChanges && selectedEtapa !== etapaIndex) {
+      // ✅ Versão mais segura - usar confirm nativo
+      if (window.confirm("Você tem alterações não salvas. Deseja continuar mesmo assim?")) {
+        setSelectedEtapa(etapaIndex);
+      }
+    } else {
+      setSelectedEtapa(etapaIndex);
+    }
+  }, [hasUnsavedChanges, selectedEtapa, proximaEtapaMutation.isPending, isUploadingPhoto, subEtapaMutation.isPending]);
 
   useEffect(() => {
     if (carregamento?.etapa_atual != null) {
