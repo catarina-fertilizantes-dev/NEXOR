@@ -430,31 +430,53 @@ const CarregamentoDetalhe = () => {
     },
     */
     queryFn: async () => {
-    console.log("🔍 [DEBUG] CarregamentoDetalhe query executando (UNIVERSAL):");
-    console.log("- id:", id);
-    console.log("- userRole:", userRole);
-    console.log("- clienteId:", clienteId);
-    console.log("- armazemId:", armazemId);
-    console.log("- representanteId:", representanteId);
-    
-    // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
-    const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', {
-      p_user_role: userRole,
-      p_user_id: user?.id,
-      p_cliente_id: clienteId || null,
-      p_armazem_id: armazemId || null,
-      p_representante_id: representanteId || null,
-      p_carregamento_id: id
-    });
-    
-    console.log("🔍 [DEBUG] Resultado função universal:", { data, error });
-    
-    if (error) throw error;
-    
-    if (data && data.length > 0) {
+      console.log("🔍 [DEBUG] ========== INÍCIO QUERY CARREGAMENTO ==========");
+      console.log("🔍 [DEBUG] Parâmetros de entrada:");
+      console.log("- id:", id);
+      console.log("- userRole:", userRole);
+      console.log("- user?.id:", user?.id);
+      console.log("- clienteId:", clienteId);
+      console.log("- armazemId:", armazemId);
+      console.log("- representanteId:", representanteId);
+      
+      // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
+      console.log("🔍 [DEBUG] Chamando função universal com parâmetros:");
+      const params = {
+        p_user_role: userRole,
+        p_user_id: user?.id,
+        p_cliente_id: clienteId || null,
+        p_armazem_id: armazemId || null,
+        p_representante_id: representanteId || null,
+        p_carregamento_id: id
+      };
+      console.log("🔍 [DEBUG] Parâmetros função:", params);
+      
+      const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', params);
+      
+      console.log("🔍 [DEBUG] Resultado bruto da função:");
+      console.log("- data:", data);
+      console.log("- error:", error);
+      console.log("- data?.length:", data?.length);
+      
+      if (error) {
+        console.error("❌ [ERROR] Erro na função universal:", error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log("❌ [DEBUG] Nenhum dado retornado pela função");
+        return null;
+      }
+      
       const item = data[0];
-      console.log("🔍 [DEBUG] Dados encontrados:", item);
-      return {
+      console.log("🔍 [DEBUG] Item encontrado (primeiros campos):");
+      console.log("- item.id:", item.id);
+      console.log("- item.agendamento_id:", item.agendamento_id);
+      console.log("- item.cliente_nome:", item.cliente_nome);
+      console.log("- item.produto_nome:", item.produto_nome);
+      console.log("- item.agendamento_quantidade:", item.agendamento_quantidade);
+      
+      const resultado = {
         id: item.id,
         etapa_atual: item.etapa_atual,
         numero_nf: item.numero_nf,
@@ -495,11 +517,16 @@ const CarregamentoDetalhe = () => {
         liberacao_pedido_interno: item.liberacao_pedido_interno,
         produto_nome: item.produto_nome
       };
-    }
+      
+      console.log("🔍 [DEBUG] Objeto resultado final:");
+      console.log("- resultado.cliente_nome:", resultado.cliente_nome);
+      console.log("- resultado.produto_nome:", resultado.produto_nome);
+      console.log("- resultado.agendamento_quantidade:", resultado.agendamento_quantidade);
+      console.log("🔍 [DEBUG] ========== FIM QUERY CARREGAMENTO ==========");
+      
+      return resultado;
+    },
     
-    console.log("🔍 [DEBUG] Nenhum dado encontrado");
-    return null;
-  },
     enabled: (() => {
       if (!user || !userRole || !id) {
         console.log("🔍 [DEBUG] Query desabilitada: faltam dados básicos");
@@ -1398,7 +1425,16 @@ const CarregamentoDetalhe = () => {
   };
 
   const renderInformacoesProcesso = () => {
+    console.log("🔍 [DEBUG] ========== RENDER INFORMAÇÕES ==========");
+    console.log("🔍 [DEBUG] carregamento completo:", carregamento);
+    console.log("🔍 [DEBUG] carregamento?.cliente_nome:", carregamento?.cliente_nome);
+    console.log("🔍 [DEBUG] carregamento?.produto_nome:", carregamento?.produto_nome);
+    console.log("🔍 [DEBUG] carregamento?.agendamento_quantidade:", carregamento?.agendamento_quantidade);
+    console.log("🔍 [DEBUG] carregamento?.liberacao_pedido_interno:", carregamento?.liberacao_pedido_interno);
+    
     const agendamento = carregamento?.agendamento;
+    console.log("🔍 [DEBUG] agendamento object:", agendamento);
+    
     const etapaAtual = carregamento?.etapa_atual ?? 1;
     const etapaInfo = getEtapaInfo(etapaAtual);
 
