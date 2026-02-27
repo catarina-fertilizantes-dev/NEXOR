@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/ui/password-input";
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -450,18 +451,17 @@ const handleCreateUser = async () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="new-user-password" className="text-sm font-medium">Senha</Label>
-                    <Input
+                    <PasswordInput
                       id="new-user-password"
                       name="new-user-password"
-                      type="password"
                       value={newUserPassword}
                       onChange={(e) => {
                         setNewUserPassword(e.target.value);
-                        markAsChanged(); // ✅ Marcar como alterado
+                        markAsChanged();
                       }}
                       placeholder="Senha segura"
                       disabled={isCreating}
-                      autoComplete="new-password" // ✅ Evita preenchimento automático
+                      autoComplete="new-password"
                       className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                     />
                     <p className="text-xs text-muted-foreground">
