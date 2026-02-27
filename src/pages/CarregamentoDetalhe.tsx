@@ -283,6 +283,10 @@ const CarregamentoDetalhe = () => {
 
   const { data: carregamento, isLoading, error } = useQuery({
     queryKey: ["carregamento-detalhe", id, clienteId, armazemId, representanteId, userRole],
+    // ==========================================
+    // 🔄 BACKUP - CÓDIGO ORIGINAL (ROLLBACK)
+    // ==========================================
+    /*
     queryFn: async () => {
       console.log("🔍 [DEBUG] CarregamentoDetalhe query executando:");
       console.log("- id:", id);
@@ -301,7 +305,7 @@ const CarregamentoDetalhe = () => {
           p_representante_id: representanteId || null,
           p_carregamento_id: id
         });
-  
+    
         if (error) {
           console.log("🔍 [DEBUG] Erro na query representante:", error);
           throw error;
@@ -355,8 +359,8 @@ const CarregamentoDetalhe = () => {
         console.log("🔍 [DEBUG] Nenhum dado encontrado para representante");
         return null;
       }
-  
-      console.log("🔍 [DEBUG] Usando query direta (não representante)");
+    
+      console.log("�� [DEBUG] Usando query direta (não representante)");
       let query = supabase
         .from("carregamentos")
         .select(`
@@ -408,7 +412,7 @@ const CarregamentoDetalhe = () => {
           )
         `)
         .eq("id", id);
-  
+    
       if (userRole === "cliente" && clienteId) {
         console.log("🔍 [DEBUG] Aplicando filtro de cliente:", clienteId);
         query = query.eq("cliente_id", clienteId);
@@ -416,7 +420,7 @@ const CarregamentoDetalhe = () => {
         console.log("🔍 [DEBUG] Aplicando filtro de armazém:", armazemId);
         query = query.eq("armazem_id", armazemId);
       }
-  
+    
       const { data, error } = await query.single();
       
       console.log("🔍 [DEBUG] Resultado query direta:", { data, error });
@@ -424,6 +428,78 @@ const CarregamentoDetalhe = () => {
       if (error) throw error;
       return data;
     },
+    */
+    queryFn: async () => {
+    console.log("🔍 [DEBUG] CarregamentoDetalhe query executando (UNIVERSAL):");
+    console.log("- id:", id);
+    console.log("- userRole:", userRole);
+    console.log("- clienteId:", clienteId);
+    console.log("- armazemId:", armazemId);
+    console.log("- representanteId:", representanteId);
+    
+    // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
+    const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', {
+      p_user_role: userRole,
+      p_user_id: user?.id,
+      p_cliente_id: clienteId || null,
+      p_armazem_id: armazemId || null,
+      p_representante_id: representanteId || null,
+      p_carregamento_id: id
+    });
+    
+    console.log("🔍 [DEBUG] Resultado função universal:", { data, error });
+    
+    if (error) throw error;
+    
+    if (data && data.length > 0) {
+      const item = data[0];
+      console.log("🔍 [DEBUG] Dados encontrados:", item);
+      return {
+        id: item.id,
+        etapa_atual: item.etapa_atual,
+        numero_nf: item.numero_nf,
+        data_chegada: item.data_chegada,
+        created_at: item.created_at,
+        cliente_id: item.cliente_id,
+        armazem_id: item.armazem_id,
+        observacao_chegada: item.observacao_chegada,
+        observacao_inicio: item.observacao_inicio,
+        observacao_carregando: item.observacao_carregando,
+        observacao_finalizacao: item.observacao_finalizacao,
+        observacao_documentacao: item.observacao_documentacao,
+        data_inicio: item.data_inicio,
+        data_carregando: item.data_carregando,
+        data_finalizacao: item.data_finalizacao,
+        data_documentacao: item.data_documentacao,
+        docs_retorno_url: item.docs_retorno_url,
+        docs_retorno_xml_url: item.docs_retorno_xml_url,
+        docs_venda_url: item.docs_venda_url,
+        docs_venda_xml_url: item.docs_venda_xml_url,
+        docs_remessa_url: item.docs_remessa_url,
+        docs_remessa_xml_url: item.docs_remessa_xml_url,
+        etapa_5a_status: item.etapa_5a_status || 'pendente',
+        etapa_5b_status: item.etapa_5b_status || 'pendente',
+        etapa_5c_status: item.etapa_5c_status || 'pendente',
+        url_foto_chegada: item.url_foto_chegada,
+        url_foto_inicio: item.url_foto_inicio,
+        url_foto_carregando: item.url_foto_carregando,
+        url_foto_finalizacao: item.url_foto_finalizacao,
+        // ✅ CAMPOS CORRETOS DA FUNÇÃO UNIVERSAL
+        agendamento_id: item.agendamento_id,
+        agendamento_data_retirada: item.agendamento_data_retirada,
+        agendamento_quantidade: item.agendamento_quantidade,
+        agendamento_placa_caminhao: item.agendamento_placa_caminhao,
+        agendamento_motorista_nome: item.agendamento_motorista_nome,
+        agendamento_motorista_documento: item.agendamento_motorista_documento,
+        cliente_nome: item.cliente_nome,
+        liberacao_pedido_interno: item.liberacao_pedido_interno,
+        produto_nome: item.produto_nome
+      };
+    }
+    
+    console.log("🔍 [DEBUG] Nenhum dado encontrado");
+    return null;
+  },
     enabled: (() => {
       if (!user || !userRole || !id) {
         console.log("🔍 [DEBUG] Query desabilitada: faltam dados básicos");
