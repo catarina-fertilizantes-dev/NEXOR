@@ -1426,154 +1426,150 @@ const CarregamentoDetalhe = () => {
 
   const renderInformacoesProcesso = () => {
     console.log("🔍 [DEBUG] ========== RENDER INFORMAÇÕES ==========");
-    console.log("🔍 [DEBUG] carregamento completo:", carregamento);
     console.log("🔍 [DEBUG] carregamento?.cliente_nome:", carregamento?.cliente_nome);
     console.log("🔍 [DEBUG] carregamento?.produto_nome:", carregamento?.produto_nome);
     console.log("🔍 [DEBUG] carregamento?.agendamento_quantidade:", carregamento?.agendamento_quantidade);
     console.log("🔍 [DEBUG] carregamento?.liberacao_pedido_interno:", carregamento?.liberacao_pedido_interno);
     
-    const agendamento = carregamento?.agendamento;
-    console.log("🔍 [DEBUG] agendamento object:", agendamento);
+    // ❌ REMOVER: const agendamento = carregamento?.agendamento;
+    // ✅ USAR: dados diretos do carregamento
     
     const etapaAtual = carregamento?.etapa_atual ?? 1;
     const etapaInfo = getEtapaInfo(etapaAtual);
-
+  
     return (
       <Card className="shadow-sm">
         <CardContent className="p-4">
           <h2 className="text-base font-semibold mb-4">Informações do Carregamento</h2>
           
           <div className="space-y-4">
-            {agendamento && (
+            {/* ✅ USAR DADOS DIRETOS - SEM agendamento. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-muted-foreground">Pedido:</span>
+                <p className="font-semibold text-sm break-words">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Produto:</span>
+                <p className="font-semibold text-sm break-words">{carregamento?.produto_nome || "N/A"}</p>
+              </div>
+            </div>
+  
+            <div className="border-t"></div>
+  
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-muted-foreground">Cliente:</span>
+                <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Quantidade:</span>
+                <p className="font-semibold text-sm">{carregamento?.agendamento_quantidade ?? "N/A"} ton</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Placa:</span>
+                <p className="font-semibold text-sm break-words">{carregamento?.agendamento_placa_caminhao || "N/A"}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Motorista:</span>
+                <p className="font-semibold text-sm break-words">
+                  {carregamento?.agendamento_motorista_nome || "N/A"}
+                  {carregamento?.agendamento_motorista_documento && (
+                    <span className="block text-xs text-muted-foreground font-normal">
+                      CPF: {carregamento.agendamento_motorista_documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+  
+            <div className="border-t"></div>
+  
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-muted-foreground">Data Agendada:</span>
+                <p className="font-semibold text-sm">
+                  {carregamento?.agendamento_data_retirada 
+                    ? new Date(carregamento.agendamento_data_retirada).toLocaleDateString("pt-BR")
+                    : "N/A"}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Etapa Atual:</span>
+                <div className="mt-1">
+                  <Badge className={`${etapaInfo.cor} border-0 font-medium text-xs`}>
+                    {etapaInfo.nome}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+  
+            {carregamento?.numero_nf && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Pedido:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Produto:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.produto_nome || "N/A"}</p>
-                  </div>
-                </div>
-
                 <div className="border-t"></div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Cliente:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Quantidade:</span>
-                    <p className="font-semibold text-sm">{carregamento?.agendamento_quantidade ?? "N/A"} ton</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Placa:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.agendamento_placa_caminhao || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Motorista:</span>
-                    <p className="font-semibold text-sm break-words">
-                      {carregamento?.agendamento_motorista_nome || "N/A"}
-                      {carregamento?.agendamento_motorista_documento && (
-                        <span className="block text-xs text-muted-foreground font-normal">
-                          CPF: {carregamento.agendamento_motorista_documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
-                        </span>
-                      )}
-                    </p>
-                  </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Nota Fiscal:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento.numero_nf}</p>
                 </div>
-
+              </>
+            )}
+  
+            {/* Resto do código permanece igual... */}
+            {carregamento?.etapa_atual === 5 && (
+              <>
                 <div className="border-t"></div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Data Agendada:</span>
-                    <p className="font-semibold text-sm">
-                      {carregamento?.agendamento_data_retirada 
-                        ? new Date(carregamento.agendamento_data_retirada).toLocaleDateString("pt-BR")
-                        : "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Etapa Atual:</span>
-                    <div className="mt-1">
-                      <Badge className={`${etapaInfo.cor} border-0 font-medium text-xs`}>
-                        {etapaInfo.nome}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Progresso da Documentação</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Docs. Retorno:</span>
+                      <Badge className={getSubEtapaStatus('5a') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {getSubEtapaStatus('5a') === 'concluida' ? 'Concluída' : 'Pendente'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Docs. Venda:</span>
+                      <Badge className={getSubEtapaStatus('5b') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {getSubEtapaStatus('5b') === 'concluida' ? 'Concluída' : 'Pendente'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Docs. Remessa:</span>
+                      <Badge className={getSubEtapaStatus('5c') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {getSubEtapaStatus('5c') === 'concluida' ? 'Concluída' : 'Pendente'}
                       </Badge>
                     </div>
                   </div>
                 </div>
-
-                {carregamento.numero_nf && (
-                  <>
-                    <div className="border-t"></div>
+              </>
+            )}
+  
+            {stats && (
+              <>
+                <div className="border-t"></div>
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Estatísticas de Tempo</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
-                      <span className="text-xs text-muted-foreground">Nota Fiscal:</span>
-                      <p className="font-semibold text-sm break-words">{carregamento.numero_nf}</p>
+                      <span className="text-xs text-muted-foreground">Tempo Decorrido:</span>
+                      <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalDecorrido)}</p>
                     </div>
-                  </>
-                )}
-
-                {/* Progresso das Sub-etapas da Etapa 5 */}
-                {carregamento?.etapa_atual === 5 && (
-                  <>
-                    <div className="border-t"></div>
-                    <div>
-                      <h3 className="text-sm font-medium mb-3">Progresso da Documentação</h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Docs. Retorno:</span>
-                          <Badge className={getSubEtapaStatus('5a') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {getSubEtapaStatus('5a') === 'concluida' ? 'Concluída' : 'Pendente'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Docs. Venda:</span>
-                          <Badge className={getSubEtapaStatus('5b') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {getSubEtapaStatus('5b') === 'concluida' ? 'Concluída' : 'Pendente'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Docs. Remessa:</span>
-                          <Badge className={getSubEtapaStatus('5c') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {getSubEtapaStatus('5c') === 'concluida' ? 'Concluída' : 'Pendente'}
-                          </Badge>
-                        </div>
+                    
+                    {stats.tempoTotalProcesso && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Tempo Total:</span>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
                       </div>
-                    </div>
-                  </>
-                )}
-
-                {stats && (
-                  <>
-                    <div className="border-t"></div>
-                    <div>
-                      <h3 className="text-sm font-medium mb-3">Estatísticas de Tempo</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <div>
-                          <span className="text-xs text-muted-foreground">Tempo Decorrido:</span>
-                          <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalDecorrido)}</p>
-                        </div>
-                        
-                        {stats.tempoTotalProcesso && (
-                          <div>
-                            <span className="text-xs text-muted-foreground">Tempo Total:</span>
-                            <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
-                          </div>
-                        )}
-                        
-                        {stats.tempoMedioPorEtapa > 0 && (
-                          <div>
-                            <span className="text-xs text-muted-foreground">Tempo Médio/Etapa:</span>
-                            <p className="font-semibold text-sm">{formatarTempo(stats.tempoMedioPorEtapa)}</p>
-                          </div>
-                        )}
+                    )}
+                    
+                    {stats.tempoMedioPorEtapa > 0 && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Tempo Médio/Etapa:</span>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoMedioPorEtapa)}</p>
                       </div>
-                    </div>
-                  </>
-                )}
+                    )}
+                  </div>
+                </div>
               </>
             )}
           </div>
