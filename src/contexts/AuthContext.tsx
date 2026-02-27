@@ -296,12 +296,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUserRole(null);
-    toast({
-      title: "Logout realizado",
-      description: "Até logo!"
-    });
+    try {
+      console.log('🚪 [DEBUG] Iniciando logout...');
+      
+      // 1. Logout do Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ [ERROR] Erro no logout do Supabase:', error);
+      }
+      
+      // 2. Limpar estados locais FORÇADAMENTE
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
+      setNeedsPasswordChange(false);
+      setRecoveryMode(false);
+      
+      // 3. Limpar localStorage/sessionStorage (se houver cache customizado)
+      try {
+        localStorage.removeItem('supabase.auth.token');
+        sessionStorage.clear();
+      } catch (storageError) {
+        console.warn('⚠️ [WARN] Erro ao limpar storage:', storageError);
+      }
+      
+      // 4. Forçar redirecionamento
+      window.location.href = '/auth';
+      
+      console.log('✅ [SUCCESS] Logout concluído');
+      
+      toast({
+        title: "Logout realizado",
+        description: "Até logo!"
+      });
+      
+    } catch (err) {
+      console.error('❌ [ERROR] Erro inesperado no logout:', err);
+      
+      // 5. FALLBACK: Forçar limpeza mesmo com erro
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
+      setNeedsPasswordChange(false);
+      setRecoveryMode(false);
+      
+      // Forçar redirecionamento mesmo com erro
+      window.location.href = '/auth';
+    }
   };
 
   const hasRole = (role: string) => userRole === role;
