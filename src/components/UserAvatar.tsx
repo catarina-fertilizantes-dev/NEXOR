@@ -76,10 +76,14 @@ export const UserAvatar = () => {
     await signOut();
   };
 
+  // 🚧 TEMPORARIAMENTE DESABILITADO
+  // TODO: Reativar quando a página de configurações for implementada
+  /*
   const handleConfigurationsClick = () => {
     setIsOpen(false);
     // TODO: Implementar página de configurações
   };
+  */
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -133,7 +137,9 @@ export const UserAvatar = () => {
 
           {/* 📱 MENU ITEMS COM CORES AJUSTADAS */}
           <div className="p-2">
-            {/* Configurações */}
+            {/* 🚧 TEMPORARIAMENTE DESABILITADO: Configurações */}
+            {/* TODO: Reativar quando a página de configurações for implementada */}
+            {/* 
             <Button
               variant="ghost"
               className="w-full justify-start min-h-[44px] p-3 text-left rounded-md transition-all duration-200 hover:bg-gray-200 dark:hover:bg-gray-700/60 hover:shadow-sm group"
@@ -148,6 +154,7 @@ export const UserAvatar = () => {
             </Button>
 
             <Separator className="my-2" />
+            */}
 
             {/* 📱 LOGOUT COM CORES AJUSTADAS */}
             <Button
