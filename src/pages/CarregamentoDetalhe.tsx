@@ -764,45 +764,26 @@ const CarregamentoDetalhe = () => {
 
   const calcularEstatisticas = () => {
     if (!carregamento) return null;
-
-    const agora = new Date();
-    const inicio = carregamento.data_chegada ? new Date(carregamento.data_chegada) : null;
-    const fim = carregamento.etapa_atual === 6 && carregamento.data_documentacao 
-      ? new Date(carregamento.data_documentacao) : null;
-
-    const tempoTotalDecorrido = inicio 
-      ? Math.round((agora.getTime() - inicio.getTime()) / 1000 / 60)
-      : 0;
-
-    const tempoTotalProcesso = inicio && fim
-      ? Math.round((fim.getTime() - inicio.getTime()) / 1000 / 60)
+  
+    // 🚛 Tempo de Espera: Chegada → Início do Carregamento
+    const tempoEspera = carregamento.data_chegada && carregamento.data_inicio
+      ? Math.round((new Date(carregamento.data_inicio).getTime() - new Date(carregamento.data_chegada).getTime()) / 1000 / 60)
       : null;
-
-    const temposPorEtapa = [];
-    const datas = [
-      carregamento.data_chegada,
-      carregamento.data_inicio,
-      carregamento.data_carregando,
-      carregamento.data_finalizacao,
-      carregamento.data_documentacao
-    ];
-
-    for (let i = 0; i < datas.length - 1; i++) {
-      if (datas[i] && datas[i + 1]) {
-        const tempo = Math.round((new Date(datas[i + 1]!).getTime() - new Date(datas[i]!).getTime()) / 1000 / 60);
-        temposPorEtapa.push(tempo);
-      }
-    }
-
-    const tempoMedioPorEtapa = temposPorEtapa.length > 0
-      ? Math.round(temposPorEtapa.reduce((a, b) => a + b, 0) / temposPorEtapa.length)
-      : 0;
-
+  
+    // ⚡ Tempo de Carregamento: Início → Finalização do Carregamento
+    const tempoCarregamento = carregamento.data_inicio && carregamento.data_finalizacao
+      ? Math.round((new Date(carregamento.data_finalizacao).getTime() - new Date(carregamento.data_inicio).getTime()) / 1000 / 60)
+      : null;
+  
+    // ⏱️ Tempo Total do Processo: Chegada → Documentação (só quando finalizado)
+    const tempoTotalProcesso = carregamento.data_chegada && carregamento.data_documentacao && carregamento.etapa_atual === 6
+      ? Math.round((new Date(carregamento.data_documentacao).getTime() - new Date(carregamento.data_chegada).getTime()) / 1000 / 60)
+      : null;
+  
     return {
-      tempoTotalDecorrido,
-      tempoTotalProcesso,
-      tempoMedioPorEtapa,
-      temposPorEtapa
+      tempoEspera,
+      tempoCarregamento,
+      tempoTotalProcesso
     };
   };
 
@@ -1544,28 +1525,30 @@ const CarregamentoDetalhe = () => {
               </>
             )}
   
-            {stats && (
+            {stats && (stats.tempoEspera || stats.tempoCarregamento || stats.tempoTotalProcesso) && (
               <>
                 <div className="border-t"></div>
                 <div>
                   <h3 className="text-sm font-medium mb-3">Estatísticas de Tempo</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Tempo Decorrido:</span>
-                      <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalDecorrido)}</p>
-                    </div>
-                    
-                    {stats.tempoTotalProcesso && (
+                    {stats.tempoEspera !== null && (
                       <div>
-                        <span className="text-xs text-muted-foreground">Tempo Total:</span>
-                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
+                        <span className="text-xs text-muted-foreground">Tempo de Espera:</span>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoEspera)}</p>
                       </div>
                     )}
                     
-                    {stats.tempoMedioPorEtapa > 0 && (
+                    {stats.tempoCarregamento !== null && (
                       <div>
-                        <span className="text-xs text-muted-foreground">Tempo Médio/Etapa:</span>
-                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoMedioPorEtapa)}</p>
+                        <span className="text-xs text-muted-foreground">Tempo de Carregamento:</span>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoCarregamento)}</p>
+                      </div>
+                    )}
+                    
+                    {stats.tempoTotalProcesso !== null && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Tempo Total do Processo:</span>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
                       </div>
                     )}
                   </div>
