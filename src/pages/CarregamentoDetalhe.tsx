@@ -293,8 +293,12 @@ const CarregamentoDetalhe = () => {
       
       if (userRole === "representante" && representanteId) {
         console.log("🔍 [DEBUG] Usando query para representante");
-        const { data, error } = await supabase.rpc('get_carregamento_detalhe_by_representante', {
-          p_representante_id: representanteId,
+        const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', {
+          p_user_role: userRole,
+          p_user_id: user?.id,
+          p_cliente_id: clienteId || null,
+          p_armazem_id: armazemId || null,
+          p_representante_id: representanteId || null,
           p_carregamento_id: id
         });
   
