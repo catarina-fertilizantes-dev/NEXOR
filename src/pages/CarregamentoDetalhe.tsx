@@ -33,7 +33,9 @@ import {
   X,
   FileText,
   AlertCircle
+  Info
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ETAPAS = [
   {
@@ -1533,21 +1535,51 @@ const CarregamentoDetalhe = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {stats.tempoEspera !== null && (
                       <div>
-                        <span className="text-xs text-muted-foreground">Tempo de Espera:</span>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <span className="text-xs text-muted-foreground">Tempo de Espera:</span>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">Tempo entre a chegada do caminhão no armazém e o início efetivo do carregamento</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoEspera)}</p>
                       </div>
                     )}
                     
                     {stats.tempoCarregamento !== null && (
                       <div>
-                        <span className="text-xs text-muted-foreground">Tempo de Carregamento:</span>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <span className="text-xs text-muted-foreground">Tempo de Carregamento:</span>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">Tempo da operação física de carregamento, desde o início até a finalização</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoCarregamento)}</p>
                       </div>
                     )}
                     
                     {stats.tempoTotalProcesso !== null && (
                       <div>
-                        <span className="text-xs text-muted-foreground">Tempo Total do Processo:</span>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <span className="text-xs text-muted-foreground">Tempo Total do Processo:</span>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">Tempo completo do processo, desde a chegada até a finalização da documentação</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
                       </div>
                     )}
@@ -1615,60 +1647,62 @@ const CarregamentoDetalhe = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-      {/* ✅ Componente de alerta */}
-      <UnsavedChangesAlert 
-        open={showAlert}
-        onConfirm={confirmClose}
-        onCancel={cancelClose}
-        title="Descartar alterações?"
-        description="Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
-      />
-
-      <PageHeader 
-        title="Detalhes do Carregamento"
-        backButton={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleGoBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Voltar</span>
-          </Button>
-        }
-      />
-      
-      <div className="max-w-[1050px] mx-auto space-y-4 md:space-y-6">
-        {renderEtapasFluxo()}
-        {renderAreaEtapas()}
-        {renderInformacoesProcesso()}
-      </div>
+    <TooltipProvider>
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+        {/* ✅ Componente de alerta */}
+        <UnsavedChangesAlert 
+          open={showAlert}
+          onConfirm={confirmClose}
+          onCancel={cancelClose}
+          title="Descartar alterações?"
+          description="Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
+        />
   
-      {showPhotoCapture && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl">
-            {/* 🆕 Detectar mobile e renderizar componente apropriado */}
-            {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
-              <CameraCapture
-                onCapture={handlePhotoCapture}
-                onCancel={handleCancelPhotoCapture}
-                isUploading={isUploadingPhoto}
-                allowFileSelection={true}
-              />
-            ) : (
-              <PhotoCaptureMethod
-                onFileSelect={handlePhotoCapture}
-                onCancel={handleCancelPhotoCapture}
-                isUploading={isUploadingPhoto}
-                accept="image/*"
-              />
-            )}
-          </div>
+        <PageHeader 
+          title="Detalhes do Carregamento"
+          backButton={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleGoBack}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Voltar</span>
+            </Button>
+          }
+        />
+        
+        <div className="max-w-[1050px] mx-auto space-y-4 md:space-y-6">
+          {renderEtapasFluxo()}
+          {renderAreaEtapas()}
+          {renderInformacoesProcesso()}
         </div>
-      )}
-    </div>
+    
+        {showPhotoCapture && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="w-full max-w-2xl">
+              {/* 🆕 Detectar mobile e renderizar componente apropriado */}
+              {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
+                <CameraCapture
+                  onCapture={handlePhotoCapture}
+                  onCancel={handleCancelPhotoCapture}
+                  isUploading={isUploadingPhoto}
+                  allowFileSelection={true}
+                />
+              ) : (
+                <PhotoCaptureMethod
+                  onFileSelect={handlePhotoCapture}
+                  onCancel={handleCancelPhotoCapture}
+                  isUploading={isUploadingPhoto}
+                  accept="image/*"
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 };
 
