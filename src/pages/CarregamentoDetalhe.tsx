@@ -1525,7 +1525,7 @@ const CarregamentoDetalhe = () => {
               </>
             )}
   
-            {stats && (stats.tempoEspera || stats.tempoCarregamento || stats.tempoTotalProcesso) && (
+            {stats && (stats.tempoEspera !== null || stats.tempoCarregamento !== null || stats.tempoTotalProcesso !== null) && (
               <>
                 <div className="border-t"></div>
                 <div>
