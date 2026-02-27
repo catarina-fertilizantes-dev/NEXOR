@@ -32,7 +32,7 @@ import {
   Upload,
   X,
   FileText,
-  AlertCircle
+  AlertCircle,
   Info
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
