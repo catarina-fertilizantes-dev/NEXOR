@@ -1180,8 +1180,7 @@ const Liberacoes = () => {
         {liberacoesFinalizadas.length > 0 && (
           <div className="space-y-4">
             <Button
-              variant="ghost"
-              className="flex items-center gap-2 p-0 h-auto text-base md:text-lg font-semibold hover:bg-transparent min-h-[44px] max-md:min-h-[44px]"
+              className="flex items-center gap-2 p-0 h-auto text-lg font-semibold hover:bg-transparent btn-secondary min-h-[44px] max-md:min-h-[44px]"
               onClick={() => setSecaoFinalizadasExpandida(!secaoFinalizadasExpandida)}
             >
               {secaoFinalizadasExpandida ? (
