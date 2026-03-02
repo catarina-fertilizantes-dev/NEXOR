@@ -921,7 +921,6 @@ const Agendamentos = () => {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2"
             onClick={() => setDetalhesAgendamento(ag)}
           >
-            <div className="
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="truncate">{ag.data}</span>
@@ -939,7 +938,7 @@ const Agendamentos = () => {
               <span className="truncate">{formatCPF(ag.documento)}</span>
             </div>
           </div>
-
+  
           {/* Barra de progresso - Sempre na parte inferior */}
           <div 
             className="pt-2 border-t"
