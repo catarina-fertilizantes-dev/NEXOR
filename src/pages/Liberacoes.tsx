@@ -925,7 +925,7 @@ const Liberacoes = () => {
                           />
                         )}
                   
-                        {/* Seção 4: Quantidade */}
+                        {/* Seção 5: Quantidade */}
                         {temEstoqueCadastrado && (
                           <div className="space-y-4">
                             <div className="flex items-center gap-2 border-b pb-2">
