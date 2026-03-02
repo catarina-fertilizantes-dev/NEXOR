@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, ChevronRight } from "lucide-react";
+import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, ChevronRight, CheckCircle, Package, Building2, User, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -636,9 +636,15 @@ const Liberacoes = () => {
               <div className="flex-1 min-w-0 space-y-1">
                 <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {lib.pedido}</h3>
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p><span className="font-semibold">Cliente:</span> <span className="break-words">{lib.cliente}</span></p>
-                  <p><span className="font-semibold">Produto:</span> <span className="break-words">{lib.produto}</span></p>
-                  <p className="break-words"><span className="font-semibold">Armazém:</span> {lib.armazem}</p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{lib.cliente}</span>
+                  </p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{lib.produto}</span>
+                  </p>
+                  <p className="whitespace-nowrap break-words">
+                    <span className="font-medium text-foreground">Armazém:</span> {lib.armazem}
+                  </p>
                 </div>
                 
                 <div className="mt-2 text-xs text-muted-foreground">
@@ -769,177 +775,212 @@ const Liberacoes = () => {
                   <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                     <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Nova Liberação</DialogTitle>
                   </DialogHeader>
-                  <div className="py-4 px-1 space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="pedido" className="text-sm font-medium">Número do Pedido *</Label>
-                      <Input
-                        id="pedido"
-                        value={novaLiberacao.pedido}
-                        onChange={(e) => {
-                          setNovaLiberacao((s) => ({ ...s, pedido: e.target.value }));
-                          markAsChanged(); // ✅ Marcar como alterado
-                        }}
-                        placeholder="Ex: PED-2024-001"
-                        disabled={isCreating}
-                        className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
-                      {temProdutosDisponiveis ? (
-                        <Select 
-                          value={novaLiberacao.produto} 
-                          onValueChange={(v) => {
-                            setNovaLiberacao((s) => ({ ...s, produto: v, quantidade: "" }));
-                            markAsChanged(); // ✅ Marcar como alterado
-                          }}
-                          disabled={isCreating}
-                        >
-                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
-                            <SelectValue placeholder="Selecione o produto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {produtos?.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <EmptyStateCard
-                          title="Nenhum produto cadastrado"
-                          description="Para criar liberações, você precisa cadastrar produtos primeiro."
-                          actionText="Cadastrar Produto"
-                          actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
-                        />
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
-                      {temArmazensDisponiveis ? (
-                        <Select 
-                          value={novaLiberacao.armazem} 
-                          onValueChange={(v) => {
-                            setNovaLiberacao((s) => ({ ...s, armazem: v, quantidade: "" }));
-                            markAsChanged(); // ✅ Marcar como alterado
-                          }}
-                          disabled={isCreating}
-                        >
-                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
-                            <SelectValue placeholder="Selecione o armazém" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {armazens?.map((a) => (
-                              <SelectItem key={a.id} value={a.id}>
-                                <span className="break-words">{a.cidade}{a.estado ? "/" + a.estado : ""} - {a.nome}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <EmptyStateCard
-                          title="Nenhum armazém cadastrado"
-                          description="Para criar liberações, você precisa cadastrar armazéns primeiro."
-                          actionText="Cadastrar Armazém"
-                          actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
-                        />
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="cliente" className="text-sm font-medium">Cliente *</Label>
-                      {temClientesDisponiveis ? (
-                        <Select 
-                          value={novaLiberacao.cliente_id} 
-                          onValueChange={(v) => {
-                            setNovaLiberacao((s) => ({ ...s, cliente_id: v }));
-                            markAsChanged(); // ✅ Marcar como alterado
-                          }}
-                          disabled={isCreating}
-                        >
-                          <SelectTrigger id="cliente" className="min-h-[44px] max-md:min-h-[44px]">
-                            <SelectValue placeholder="Selecione o cliente" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {clientesData?.map((cliente) => (
-                              <SelectItem key={cliente.id} value={cliente.id}>
-                                <span className="break-words">{cliente.nome} - {cliente.cnpj_cpf}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <EmptyStateCard
-                          title="Nenhum cliente cadastrado"
-                          description="Para criar liberações, você precisa cadastrar clientes primeiro."
-                          actionText="Cadastrar Cliente"
-                          actionUrl="https://logi-sys-shiy.vercel.app/clientes?modal=novo"
-                        />
-                      )}
-                    </div>
-                    
-                    {novaLiberacao.produto && novaLiberacao.armazem && temEstoqueCadastrado === false && (
-                      <EmptyStateCard
-                        title="Estoque não cadastrado"
-                        description="Este produto não possui estoque cadastrado no armazém selecionado. É necessário registrar uma entrada de estoque primeiro."
-                        actionText="Registrar Estoque"
-                        actionUrl={`https://logi-sys-shiy.vercel.app/estoque?modal=novo&produto=${novaLiberacao.produto}&armazem=${novaLiberacao.armazem}`}
-                      />
-                    )}
-                    
-                    {temProdutosDisponiveis && temArmazensDisponiveis && temClientesDisponiveis && temEstoqueCadastrado && (
-                      <div className="space-y-2">
-                        <Label htmlFor="quantidade" className="text-sm font-medium">Quantidade (t) *</Label>
-                        {novaLiberacao.produto && novaLiberacao.armazem && (
-                          <div className="text-sm text-muted-foreground mb-1">
-                            {validandoEstoque ? (
-                              <span className="flex items-center gap-1">
-                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                                Verificando estoque...
-                              </span>
-                            ) : (
-                              <span className={quantidadeEstoque > 0 ? "text-green-600" : "text-red-600"}>
-                                Estoque disponível: {quantidadeEstoque.toLocaleString('pt-BR')}t
-                              </span>
-                            )}
-                          </div>
+                  <div className="py-4 px-1 space-y-6">
+                    {!temProdutosDisponiveis || !temArmazensDisponiveis || !temClientesDisponiveis ? (
+                      <div className="space-y-4">
+                        {!temProdutosDisponiveis && (
+                          <EmptyStateCard
+                            title="Nenhum produto cadastrado"
+                            description="Para criar liberações, você precisa cadastrar produtos primeiro."
+                            actionText="Cadastrar Produto"
+                            actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
+                          />
                         )}
-                        <Input
-                          id="quantidade"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={quantidadeEstoque || undefined}
-                          value={novaLiberacao.quantidade}
-                          onChange={(e) => {
-                            setNovaLiberacao((s) => ({ ...s, quantidade: e.target.value }));
-                            markAsChanged(); // ✅ Marcar como alterado
-                          }}
-                          placeholder="0.00"
-                          className={`min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base ${
-                            novaLiberacao.quantidade && !quantidadeValida 
-                              ? "border-red-500 focus:border-red-500" 
-                              : novaLiberacao.quantidade && quantidadeValida
-                              ? "border-green-500 focus:border-green-500"
-                              : ""
-                          }`}
-                          disabled={isCreating}
-                        />
-                        {novaLiberacao.quantidade && !quantidadeValida && (
-                          <p className="text-xs text-red-600">
-                            {Number(novaLiberacao.quantidade) > quantidadeEstoque 
-                              ? `Quantidade excede o estoque disponível (${quantidadeEstoque.toLocaleString('pt-BR')}t)`
-                              : "Quantidade deve ser maior que zero"
-                            }
-                          </p>
+                        {!temArmazensDisponiveis && (
+                          <EmptyStateCard
+                            title="Nenhum armazém cadastrado"
+                            description="Para criar liberações, você precisa cadastrar armazéns primeiro."
+                            actionText="Cadastrar Armazém"
+                            actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
+                          />
+                        )}
+                        {!temClientesDisponiveis && (
+                          <EmptyStateCard
+                            title="Nenhum cliente cadastrado"
+                            description="Para criar liberações, você precisa cadastrar clientes primeiro."
+                            actionText="Cadastrar Cliente"
+                            actionUrl="https://logi-sys-shiy.vercel.app/clientes?modal=novo"
+                          />
                         )}
                       </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Seção 1: Pedido */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Informações do Pedido</h3>
+                          </div>
+                          <div>
+                            <Label htmlFor="pedido" className="text-sm font-medium">Número do Pedido *</Label>
+                            <Input
+                              id="pedido"
+                              value={novaLiberacao.pedido}
+                              onChange={(e) => {
+                                setNovaLiberacao((s) => ({ ...s, pedido: e.target.value }));
+                                markAsChanged();
+                              }}
+                              placeholder="Ex: PED-2024-001"
+                              disabled={isCreating}
+                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            />
+                          </div>
+                        </div>
+                  
+                        {/* Seção 2: Produto e Armazém */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Produto e Localização</h3>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
+                              <Select 
+                                value={novaLiberacao.produto} 
+                                onValueChange={(v) => {
+                                  setNovaLiberacao((s) => ({ ...s, produto: v, quantidade: "" }));
+                                  markAsChanged();
+                                }}
+                                disabled={isCreating}
+                              >
+                                <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
+                                  <SelectValue placeholder="Selecione o produto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {produtos?.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
+                              <Select 
+                                value={novaLiberacao.armazem} 
+                                onValueChange={(v) => {
+                                  setNovaLiberacao((s) => ({ ...s, armazem: v, quantidade: "" }));
+                                  markAsChanged();
+                                }}
+                                disabled={isCreating}
+                              >
+                                <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                                  <SelectValue placeholder="Selecione o armazém" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {armazens?.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>
+                                      <span className="break-words">{a.cidade}{a.estado ? "/" + a.estado : ""} - {a.nome}</span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                  
+                        {/* Seção 3: Cliente */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Cliente</h3>
+                          </div>
+                          <div>
+                            <Label htmlFor="cliente" className="text-sm font-medium">Cliente *</Label>
+                            <Select 
+                              value={novaLiberacao.cliente_id} 
+                              onValueChange={(v) => {
+                                setNovaLiberacao((s) => ({ ...s, cliente_id: v }));
+                                markAsChanged();
+                              }}
+                              disabled={isCreating}
+                            >
+                              <SelectTrigger id="cliente" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione o cliente" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {clientesData?.map((cliente) => (
+                                  <SelectItem key={cliente.id} value={cliente.id}>
+                                    <span className="break-words">{cliente.nome} - {cliente.cnpj_cpf}</span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                  
+                        {/* Verificação de estoque */}
+                        {novaLiberacao.produto && novaLiberacao.armazem && temEstoqueCadastrado === false && (
+                          <EmptyStateCard
+                            title="Estoque não cadastrado"
+                            description="Este produto não possui estoque cadastrado no armazém selecionado. É necessário registrar uma entrada de estoque primeiro."
+                            actionText="Registrar Estoque"
+                            actionUrl={`https://logi-sys-shiy.vercel.app/estoque?modal=novo&produto=${novaLiberacao.produto}&armazem=${novaLiberacao.armazem}`}
+                          />
+                        )}
+                  
+                        {/* Seção 4: Quantidade */}
+                        {temEstoqueCadastrado && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 border-b pb-2">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              <h3 className="text-base font-semibold text-foreground">Quantidade</h3>
+                            </div>
+                            <div>
+                              <Label htmlFor="quantidade" className="text-sm font-medium">Quantidade (t) *</Label>
+                              {novaLiberacao.produto && novaLiberacao.armazem && (
+                                <div className="text-sm text-muted-foreground mb-1">
+                                  {validandoEstoque ? (
+                                    <span className="flex items-center gap-1">
+                                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                                      Verificando estoque...
+                                    </span>
+                                  ) : (
+                                    <span className={quantidadeEstoque > 0 ? "text-green-600" : "text-red-600"}>
+                                      Estoque disponível: {quantidadeEstoque.toLocaleString('pt-BR')}t
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              <Input
+                                id="quantidade"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max={quantidadeEstoque || undefined}
+                                value={novaLiberacao.quantidade}
+                                onChange={(e) => {
+                                  setNovaLiberacao((s) => ({ ...s, quantidade: e.target.value }));
+                                  markAsChanged();
+                                }}
+                                placeholder="0.00"
+                                className={`min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base ${
+                                  novaLiberacao.quantidade && !quantidadeValida 
+                                    ? "border-red-500 focus:border-red-500" 
+                                    : novaLiberacao.quantidade && quantidadeValida
+                                    ? "border-green-500 focus:border-green-500"
+                                    : ""
+                                }`}
+                                disabled={isCreating}
+                              />
+                              {novaLiberacao.quantidade && !quantidadeValida && (
+                                <p className="text-xs text-red-600">
+                                  {Number(novaLiberacao.quantidade) > quantidadeEstoque 
+                                    ? `Quantidade excede o estoque disponível (${quantidadeEstoque.toLocaleString('pt-BR')}t)`
+                                    : "Quantidade deve ser maior que zero"
+                                  }
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                  
+                        <p className="text-xs text-muted-foreground">
+                          * Campos obrigatórios
+                        </p>
+                      </div>
                     )}
-                    
-                    <p className="text-xs text-muted-foreground">
-                      * Campos obrigatórios
-                    </p>
                   </div>
                   
                   {/* Botões no final do conteúdo */}
@@ -1180,22 +1221,23 @@ const Liberacoes = () => {
         {liberacoesFinalizadas.length > 0 && (
           <div className="space-y-4">
             <Button
-              className="flex items-center gap-2 p-0 h-auto text-lg font-semibold hover:bg-transparent btn-secondary min-h-[44px] max-md:min-h-[44px]"
               onClick={() => setSecaoFinalizadasExpandida(!secaoFinalizadasExpandida)}
+              className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
             >
-              {secaoFinalizadasExpandida ? (
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              )}
-              <ClipboardList className="h-5 w-5 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                Liberações Finalizadas ({liberacoesFinalizadas.length})
-              </span>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" />
+                <span className="text-sm font-medium">
+                  Liberações Finalizadas ({liberacoesFinalizadas.length})
+                </span>
+              </div>
+              {secaoFinalizadasExpandida ? 
+                <ChevronUp className="h-4 w-4" /> : 
+                <ChevronDown className="h-4 w-4" />
+              }
             </Button>
             
             {secaoFinalizadasExpandida && (
-              <div className="grid gap-3 ml-0 sm:ml-7">
+              <div className="grid gap-3">
                 {liberacoesFinalizadas.map(renderLiberacaoCard)}
               </div>
             )}
