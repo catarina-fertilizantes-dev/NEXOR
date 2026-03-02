@@ -825,30 +825,32 @@ const Liberacoes = () => {
                               className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                             />
                           </div>
-                                                </div>
-                                          
-                        {/* Seção 2: Produto */}
+                        </div>
+                      
+                        {/* Seção 2: Cliente */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <Package className="h-4 w-4 text-blue-600" />
-                            <h3 className="text-base font-semibold text-foreground">Produto</h3>
+                            <User className="h-4 w-4 text-purple-600" />
+                            <h3 className="text-base font-semibold text-foreground">Cliente</h3>
                           </div>
                           <div>
-                            <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
+                            <Label htmlFor="cliente" className="text-sm font-medium">Cliente *</Label>
                             <Select 
-                              value={novaLiberacao.produto} 
+                              value={novaLiberacao.cliente_id} 
                               onValueChange={(v) => {
-                                setNovaLiberacao((s) => ({ ...s, produto: v, quantidade: "" }));
+                                setNovaLiberacao((s) => ({ ...s, cliente_id: v }));
                                 markAsChanged();
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
-                                <SelectValue placeholder="Selecione o produto" />
+                              <SelectTrigger id="cliente" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione o cliente" />
                               </SelectTrigger>
                               <SelectContent>
-                                {produtos?.map((p) => (
-                                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                                {clientesData?.map((cliente) => (
+                                  <SelectItem key={cliente.id} value={cliente.id}>
+                                    <span className="break-words">{cliente.nome} - {cliente.cnpj_cpf}</span>
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -884,37 +886,35 @@ const Liberacoes = () => {
                             </Select>
                           </div>
                         </div>
-                        
-                        {/* Seção 4: Cliente */}
+                      
+                        {/* Seção 4: Produto */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <User className="h-4 w-4 text-purple-600" />
-                            <h3 className="text-base font-semibold text-foreground">Cliente</h3>
+                            <Package className="h-4 w-4 text-blue-600" />
+                            <h3 className="text-base font-semibold text-foreground">Produto</h3>
                           </div>
                           <div>
-                            <Label htmlFor="cliente" className="text-sm font-medium">Cliente *</Label>
+                            <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
                             <Select 
-                              value={novaLiberacao.cliente_id} 
+                              value={novaLiberacao.produto} 
                               onValueChange={(v) => {
-                                setNovaLiberacao((s) => ({ ...s, cliente_id: v }));
+                                setNovaLiberacao((s) => ({ ...s, produto: v, quantidade: "" }));
                                 markAsChanged();
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="cliente" className="min-h-[44px] max-md:min-h-[44px]">
-                                <SelectValue placeholder="Selecione o cliente" />
+                              <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione o produto" />
                               </SelectTrigger>
                               <SelectContent>
-                                {clientesData?.map((cliente) => (
-                                  <SelectItem key={cliente.id} value={cliente.id}>
-                                    <span className="break-words">{cliente.nome} - {cliente.cnpj_cpf}</span>
-                                  </SelectItem>
+                                {produtos?.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           </div>
                         </div>
-                  
+                      
                         {/* Verificação de estoque */}
                         {novaLiberacao.produto && novaLiberacao.armazem && temEstoqueCadastrado === false && (
                           <EmptyStateCard
@@ -924,7 +924,7 @@ const Liberacoes = () => {
                             actionUrl={`https://logi-sys-shiy.vercel.app/estoque?modal=novo&produto=${novaLiberacao.produto}&armazem=${novaLiberacao.armazem}`}
                           />
                         )}
-                  
+                      
                         {/* Seção 5: Quantidade */}
                         {temEstoqueCadastrado && (
                           <div className="space-y-4">
@@ -980,7 +980,7 @@ const Liberacoes = () => {
                             </div>
                           </div>
                         )}
-                  
+                      
                         <p className="text-xs text-muted-foreground">
                           * Campos obrigatórios
                         </p>
@@ -1147,27 +1147,35 @@ const Liberacoes = () => {
             
                   <div className="border-t"></div>
             
-                  {/* Seção 1: Informações Gerais */}
+                  {/* Seção 1: Cliente */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
-                      <Info className="h-4 w-4 text-blue-600" />
-                      <h3 className="text-base font-semibold text-foreground">Informações Gerais</h3>
+                      <User className="h-4 w-4 text-purple-600" />
+                      <h3 className="text-base font-semibold text-foreground">Cliente</h3>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
-                        <p className="text-sm font-medium break-words">{detalhesLiberacao.cliente}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Armazém</Label>
-                        <p className="text-sm font-medium break-words">{detalhesLiberacao.armazem}</p>
-                      </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Nome do Cliente</Label>
+                      <p className="text-sm font-medium break-words">{detalhesLiberacao.cliente}</p>
                     </div>
                   </div>
-            
+                  
                   <div className="border-t"></div>
-            
-                  {/* Seção 2: Produto */}
+                  
+                  {/* Seção 2: Armazém */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Building2 className="h-4 w-4 text-orange-600" />
+                      <h3 className="text-base font-semibold text-foreground">Armazém</h3>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Local do Armazém</Label>
+                      <p className="text-sm font-medium break-words">{detalhesLiberacao.armazem}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t"></div>
+                  
+                  {/* Seção 3: Produto */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
                       <Package className="h-4 w-4 text-blue-600" />
@@ -1178,10 +1186,10 @@ const Liberacoes = () => {
                       <p className="text-sm font-medium break-words">{detalhesLiberacao.produto}</p>
                     </div>
                   </div>
-            
+                  
                   <div className="border-t"></div>
-            
-                  {/* Seção 3: Quantidades */}
+                  
+                  {/* Seção 4: Quantidades */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
                       <Package className="h-4 w-4 text-green-600" />
