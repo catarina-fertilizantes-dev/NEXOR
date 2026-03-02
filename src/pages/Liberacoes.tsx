@@ -808,7 +808,7 @@ const Liberacoes = () => {
                         {/* Seção 1: Pedido */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <FileText className="h-4 w-4 text-gray-600" />
                             <h3 className="text-base font-semibold text-foreground">Informações do Pedido</h3>
                           </div>
                           <div>
@@ -825,12 +825,12 @@ const Liberacoes = () => {
                               className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                             />
                           </div>
-                        </div>
-                  
+                                                </div>
+                                          
                         {/* Seção 2: Produto */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <Package className="h-4 w-4 text-blue-600" />
                             <h3 className="text-base font-semibold text-foreground">Produto</h3>
                           </div>
                           <div>
@@ -858,7 +858,7 @@ const Liberacoes = () => {
                         {/* Seção 3: Armazém */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <Building2 className="h-4 w-4 text-orange-600" />
                             <h3 className="text-base font-semibold text-foreground">Armazém</h3>
                           </div>
                           <div>
@@ -888,7 +888,7 @@ const Liberacoes = () => {
                         {/* Seção 4: Cliente */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
+                            <User className="h-4 w-4 text-purple-600" />
                             <h3 className="text-base font-semibold text-foreground">Cliente</h3>
                           </div>
                           <div>
@@ -929,7 +929,7 @@ const Liberacoes = () => {
                         {temEstoqueCadastrado && (
                           <div className="space-y-4">
                             <div className="flex items-center gap-2 border-b pb-2">
-                              <Package className="h-4 w-4 text-muted-foreground" />
+                              <Package className="h-4 w-4 text-green-600" />
                               <h3 className="text-base font-semibold text-foreground">Quantidade</h3>
                             </div>
                             <div>
@@ -1150,7 +1150,7 @@ const Liberacoes = () => {
                   {/* Seção 1: Informações Gerais */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
-                      <Info className="h-4 w-4 text-muted-foreground" />
+                      <Info className="h-4 w-4 text-blue-600" />
                       <h3 className="text-base font-semibold text-foreground">Informações Gerais</h3>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1170,7 +1170,7 @@ const Liberacoes = () => {
                   {/* Seção 2: Produto */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <Package className="h-4 w-4 text-blue-600" />
                       <h3 className="text-base font-semibold text-foreground">Produto</h3>
                     </div>
                     <div>
@@ -1184,7 +1184,7 @@ const Liberacoes = () => {
                   {/* Seção 3: Quantidades */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <Package className="h-4 w-4 text-green-600" />
                       <h3 className="text-base font-semibold text-foreground">Quantidades</h3>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
