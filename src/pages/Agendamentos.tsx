@@ -1548,6 +1548,24 @@ const Agendamentos = () => {
               </DialogHeader>
               
               <div className="py-4 px-1 space-y-6">
+                {/* Data de Retirada e Status - No topo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Data de Retirada:</Label>
+                    <p className="font-semibold text-sm md:text-base">{detalhesAgendamento.data}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Status:</Label>
+                    <div className="mt-1">
+                      <Badge className={`${getStatusColor(detalhesAgendamento.status)}`}>
+                        {getStatusLabel(detalhesAgendamento.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border-t"></div>
+                
                 {/* Seção 1: Informações Gerais */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b pb-2">
@@ -1567,22 +1585,14 @@ const Agendamentos = () => {
                       <Label className="text-sm font-medium text-muted-foreground">Quantidade</Label>
                       <p className="text-sm font-medium">{detalhesAgendamento.quantidade.toLocaleString('pt-BR')}t</p>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Data de Retirada</Label>
-                      <p className="text-sm font-medium">{detalhesAgendamento.data}</p>
-                    </div>
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-muted-foreground">Armazém</Label>
                       <p className="text-sm font-medium">{detalhesAgendamento.armazem}</p>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                      <Badge className={`${getStatusColor(detalhesAgendamento.status)} text-xs px-2 py-1 w-fit`}>
-                        {getStatusLabel(detalhesAgendamento.status)}
-                      </Badge>
-                    </div>
                   </div>
                 </div>
+                
+                <div className="border-t"></div>
 
                 {/* Seção 2: Veículo e Carretas */}
                 <div className="space-y-4">
