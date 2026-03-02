@@ -1302,30 +1302,36 @@ const CarregamentoDetalhe = () => {
           <h2 className="text-base font-semibold mb-4">Informações do Carregamento</h2>
           
           <div className="space-y-4">
-            {/* ✅ USAR DADOS DIRETOS - SEM agendamento. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <span className="text-xs text-muted-foreground">Pedido:</span>
-                <p className="font-semibold text-sm break-words">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Produto:</span>
-                <p className="font-semibold text-sm break-words">{carregamento?.produto_nome || "N/A"}</p>
-              </div>
-            </div>
-  
-            <div className="border-t"></div>
-  
-            {/* ✅ Seção: Cliente e Produto */}
+            {/* Seção: Pedido e Cliente */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 border-b pb-2">
                 <User className="h-4 w-4 text-purple-600" />
-                <h3 className="text-sm font-semibold text-foreground">Cliente e Produto</h3>
+                <h3 className="text-sm font-semibold text-foreground">Pedido e Cliente</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
+                  <span className="text-xs text-muted-foreground">Pedido:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
+                </div>
+                <div>
                   <span className="text-xs text-muted-foreground">Cliente:</span>
                   <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+          
+            <div className="border-t"></div>
+          
+            {/* Seção: Produto */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Package className="h-4 w-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-foreground">Produto</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Produto:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.produto_nome || "N/A"}</p>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">Quantidade:</span>
