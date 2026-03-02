@@ -915,36 +915,6 @@ const Liberacoes = () => {
                           </div>
                         </div>
                   
-                        {/* Seção 3: Cliente */}
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 border-b pb-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <h3 className="text-base font-semibold text-foreground">Cliente</h3>
-                          </div>
-                          <div>
-                            <Label htmlFor="cliente" className="text-sm font-medium">Cliente *</Label>
-                            <Select 
-                              value={novaLiberacao.cliente_id} 
-                              onValueChange={(v) => {
-                                setNovaLiberacao((s) => ({ ...s, cliente_id: v }));
-                                markAsChanged();
-                              }}
-                              disabled={isCreating}
-                            >
-                              <SelectTrigger id="cliente" className="min-h-[44px] max-md:min-h-[44px]">
-                                <SelectValue placeholder="Selecione o cliente" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {clientesData?.map((cliente) => (
-                                  <SelectItem key={cliente.id} value={cliente.id}>
-                                    <span className="break-words">{cliente.nome} - {cliente.cnpj_cpf}</span>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                  
                         {/* Verificação de estoque */}
                         {novaLiberacao.produto && novaLiberacao.armazem && temEstoqueCadastrado === false && (
                           <EmptyStateCard
