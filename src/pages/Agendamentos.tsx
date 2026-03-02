@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight } from "lucide-react";
+import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -902,9 +902,15 @@ const Agendamentos = () => {
               <div className="flex-1 min-w-0 space-y-1">
                 <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {ag.pedido}</h3>
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p><span className="font-semibold">Cliente:</span> <span className="break-words">{ag.cliente}</span></p>
-                  <p><span className="font-semibold">Produto:</span> <span className="break-words">{ag.produto}</span></p>
-                  <p className="break-words"><span className="font-semibold">Armazém:</span> {ag.armazem}</p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{ag.cliente}</span>
+                  </p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{ag.produto}</span>
+                  </p>
+                  <p className="whitespace-nowrap break-words">
+                    <span className="font-medium text-foreground">Armazém:</span> {ag.armazem}
+                  </p>
                 </div>
                 
                 <div className="mt-2 text-xs text-muted-foreground">
@@ -929,13 +935,13 @@ const Agendamentos = () => {
               <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="truncate">{formatPlaca(ag.placa)}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{ag.motorista}</span>
+              <span className="truncate" title={ag.motorista}>{ag.motorista}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{formatCPF(ag.documento)}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="truncate" title={ag.transportadora}>{ag.transportadora || "N/A"}</span>
             </div>
           </div>
   
@@ -1074,7 +1080,10 @@ const Agendamentos = () => {
                       <div className="space-y-6">
                         {/* Seção 1: Liberação e Quantidade */}
                         <div className="space-y-4">
-                          <h3 className="text-base font-semibold text-foreground border-b pb-2">📦 Produto e Quantidade</h3>
+                        <div className="flex items-center gap-2 border-b pb-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <h3 className="text-base font-semibold text-foreground">Produto e Quantidade</h3>
+                        </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <Label htmlFor="liberacao" className="text-sm font-medium">Liberação *</Label>
@@ -1163,7 +1172,10 @@ const Agendamentos = () => {
 
                         {/* Seção 2: Veículo e Carretas */}
                         <div className="space-y-4">
-                          <h3 className="text-base font-semibold text-foreground border-b pb-2">🚛 Veículo e Carretas</h3>
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <Truck className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Veículo e Carretas</h3>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="placa" className="text-sm font-medium">Placa do Veículo *</Label>
@@ -1219,7 +1231,10 @@ const Agendamentos = () => {
 
                         {/* Seção 3: Motorista */}
                         <div className="space-y-4">
-                          <h3 className="text-base font-semibold text-foreground border-b pb-2">👤 Motorista</h3>
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Motorista</h3>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="motorista" className="text-sm font-medium">Nome do Motorista *</Label>
@@ -1256,7 +1271,10 @@ const Agendamentos = () => {
 
                         {/* ✅ SEÇÃO 4: TRANSPORTADORA */}
                         <div className="space-y-4">
-                          <h3 className="text-base font-semibold text-foreground border-b pb-2">🏢 Transportadora</h3>
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Transportadora</h3>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="transportadora" className="text-sm font-medium">Nome da Transportadora *</Label>
@@ -1293,7 +1311,10 @@ const Agendamentos = () => {
 
                         {/* ✅ SEÇÃO 5: OBSERVAÇÕES */}
                         <div className="space-y-4">
-                          <h3 className="text-base font-semibold text-foreground border-b pb-2">📝 Observações</h3>
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Observações</h3>
+                          </div>
                           <div>
                             <Label htmlFor="observacoes" className="text-sm font-medium">Observações (opcional)</Label>
                             <Input
@@ -1315,6 +1336,10 @@ const Agendamentos = () => {
                             <p className="text-sm text-red-800 dark:text-red-200">{formError}</p>
                           </div>
                         )}
+
+                        <p className="text-xs text-muted-foreground">
+                          * Campos obrigatórios
+                        </p>
                       </div>
                     )}
 
@@ -1424,15 +1449,18 @@ const Agendamentos = () => {
           {/* Agendamentos Ativos */}
           {agendamentosAtivos.length > 0 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                Agendamentos Ativos ({agendamentosAtivos.length})
-              </h2>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">
+                  Agendamentos Ativos ({agendamentosAtivos.length})
+                </h2>
+              </div>
               <div className="grid gap-4">
                 {agendamentosAtivos.map(renderAgendamentoCard)}
               </div>
             </div>
           )}
-
+          
           {/* Agendamentos Finalizados */}
           {agendamentosFinalizados.length > 0 && (
             <div className="space-y-4">
@@ -1440,9 +1468,12 @@ const Agendamentos = () => {
                 onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
                 className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
               >
-                <span className="text-sm font-medium">
-                  Agendamentos Finalizados ({agendamentosFinalizados.length})
-                </span>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="text-sm font-medium">
+                    Agendamentos Finalizados ({agendamentosFinalizados.length})
+                  </span>
+                </div>
                 {secaoFinalizadosExpandida ? 
                   <ChevronUp className="h-4 w-4" /> : 
                   <ChevronDown className="h-4 w-4" />
@@ -1519,7 +1550,10 @@ const Agendamentos = () => {
               <div className="py-4 px-1 space-y-6">
                 {/* Seção 1: Informações Gerais */}
                 <div className="space-y-4">
-                  <h3 className="text-base font-semibold text-foreground border-b pb-2">📋 Informações Gerais</h3>
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-base font-semibold text-foreground">Informações Gerais</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
@@ -1552,7 +1586,10 @@ const Agendamentos = () => {
 
                 {/* Seção 2: Veículo e Carretas */}
                 <div className="space-y-4">
-                  <h3 className="text-base font-semibold text-foreground border-b pb-2">🚛 Veículo e Carretas</h3>
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Truck className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-base font-semibold text-foreground">Veículo e Carretas</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Placa do Veículo</Label>
@@ -1575,7 +1612,10 @@ const Agendamentos = () => {
 
                 {/* Seção 3: Motorista */}
                 <div className="space-y-4">
-                  <h3 className="text-base font-semibold text-foreground border-b pb-2">👤 Motorista</h3>
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-base font-semibold text-foreground">Motorista</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Nome</Label>
@@ -1590,7 +1630,10 @@ const Agendamentos = () => {
 
                 {/* ✅ Seção 4: Transportadora */}
                 <div className="space-y-4">
-                  <h3 className="text-base font-semibold text-foreground border-b pb-2">🏢 Transportadora</h3>
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-base font-semibold text-foreground">Transportadora</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Nome da Transportadora</Label>
@@ -1610,7 +1653,10 @@ const Agendamentos = () => {
                 {/* ✅ Seção 5: Observações */}
                 {detalhesAgendamento.observacoes && (
                   <div className="space-y-4">
-                    <h3 className="text-base font-semibold text-foreground border-b pb-2">📝 Observações</h3>
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-base font-semibold text-foreground">Observações</h3>
+                    </div>
                     <div>
                       <p className="text-sm">{detalhesAgendamento.observacoes}</p>
                     </div>
@@ -1619,7 +1665,10 @@ const Agendamentos = () => {
 
                 {/* Seção 6: Status do Carregamento */}
                 <div className="space-y-4">
-                  <h3 className="text-base font-semibold text-foreground border-b pb-2">📦 Status do Carregamento</h3>
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-base font-semibold text-foreground">Status do Carregamento</h3>
+                  </div>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Progresso</span>
@@ -1633,30 +1682,18 @@ const Agendamentos = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">{detalhesAgendamento.tooltip_carregamento}</p>
                     
-                    {/* Botão para acessar carregamento */}
-                    <div className="pt-2">
-                      <Button
-                        onClick={() => {
-                          window.location.href = `/carregamentos?agendamento=${detalhesAgendamento.id}`;
-                        }}
-                        className="w-full btn-secondary min-h-[44px] max-md:min-h-[44px]"
-                      >
-                        <ChevronRight className="h-4 w-4 mr-2" />
-                        Acessar Carregamento
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </div>
               
-              <DialogFooter className="border-t pt-4">
+              <div className="pt-4 border-t border-border bg-background flex justify-end">
                 <Button
                   onClick={() => setDetalhesAgendamento(null)}
-                  className="w-full btn-secondary min-h-[44px] max-md:min-h-[44px]"
+                  className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-secondary"
                 >
                   Fechar
                 </Button>
-              </DialogFooter>
+              </div>
             </DialogContent>
           </Dialog>
         )}
