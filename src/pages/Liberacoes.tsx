@@ -1210,7 +1210,32 @@ const Liberacoes = () => {
                       </div>
                     </div>
                   </div>
-                </>
+                  
+                  <div className="border-t"></div>
+                  
+                  {/* Seção 5: Status de Agendamentos */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Calendar className="h-4 w-4 text-indigo-600" />
+                      <h3 className="text-base font-semibold text-foreground">Status de Agendamentos</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Progresso</span>
+                        <span className="text-sm font-medium">{detalhesLiberacao.percentualAgendado}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
+                        <div 
+                          className="bg-blue-500 h-3 rounded-full transition-all duration-300" 
+                          style={{ width: `${detalhesLiberacao.percentualAgendado}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {getAgendamentoBarTooltip(detalhesLiberacao.percentualAgendado, detalhesLiberacao.quantidadeAgendada, detalhesLiberacao.quantidade)}
+                      </p>
+                    </div>
+                  </div>
+                  </>
               )}
             </div>
             <div className="pt-4 border-t border-border bg-background flex justify-end">
