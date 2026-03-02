@@ -33,9 +33,30 @@ import {
   X,
   FileText,
   AlertCircle,
-  Info
+  Info,
+  Building2
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// ✅ Funções de formatação
+function formatPlaca(placa: string) {
+  if (!placa) return "N/A";
+  let up = placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (up.length === 7) {
+    if (/[A-Z]{3}[0-9][A-Z][0-9]{2}/.test(up)) {
+      return up.replace(/^([A-Z]{3})([0-9][A-Z][0-9]{2})$/, "$1-$2");
+    }
+    return up.replace(/^([A-Z]{3})([0-9]{4})$/, "$1-$2");
+  }
+  return up;
+}
+
+function formatCNPJ(cnpj: string): string {
+  if (!cnpj) return "N/A";
+  const cleaned = cnpj.replace(/\D/g, "").slice(0, 14);
+  if (cleaned.length < 14) return cnpj;
+  return cleaned.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
 
 const ETAPAS = [
   {
@@ -285,152 +306,6 @@ const CarregamentoDetalhe = () => {
 
   const { data: carregamento, isLoading, error } = useQuery({
     queryKey: ["carregamento-detalhe", id, clienteId, armazemId, representanteId, userRole],
-    // ==========================================
-    // 🔄 BACKUP - CÓDIGO ORIGINAL (ROLLBACK)
-    // ==========================================
-    /*
-    queryFn: async () => {
-      console.log("🔍 [DEBUG] CarregamentoDetalhe query executando:");
-      console.log("- id:", id);
-      console.log("- userRole:", userRole);
-      console.log("- clienteId:", clienteId);
-      console.log("- armazemId:", armazemId);
-      console.log("- representanteId:", representanteId);
-      
-      if (userRole === "representante" && representanteId) {
-        console.log("🔍 [DEBUG] Usando query para representante");
-        const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', {
-          p_user_role: userRole,
-          p_user_id: user?.id,
-          p_cliente_id: clienteId || null,
-          p_armazem_id: armazemId || null,
-          p_representante_id: representanteId || null,
-          p_carregamento_id: id
-        });
-    
-        if (error) {
-          console.log("🔍 [DEBUG] Erro na query representante:", error);
-          throw error;
-        }
-        
-        if (data && data.length > 0) {
-          const item = data[0];
-          console.log("🔍 [DEBUG] Dados representante encontrados:", item);
-          return {
-            id: item.id,
-            etapa_atual: item.etapa_atual,
-            numero_nf: item.numero_nf,
-            data_chegada: item.data_chegada,
-            created_at: item.created_at,
-            cliente_id: item.cliente_id,
-            armazem_id: item.armazem_id,
-            observacao_chegada: item.observacao_chegada,
-            observacao_inicio: item.observacao_inicio,
-            observacao_carregando: item.observacao_carregando,
-            observacao_finalizacao: item.observacao_finalizacao,
-            observacao_documentacao: item.observacao_documentacao,
-            data_inicio: item.data_inicio,
-            data_carregando: item.data_carregando,
-            data_finalizacao: item.data_finalizacao,
-            data_documentacao: item.data_documentacao,
-            docs_retorno_url: item.docs_retorno_url,
-            docs_retorno_xml_url: item.docs_retorno_xml_url,
-            docs_venda_url: item.docs_venda_url,
-            docs_venda_xml_url: item.docs_venda_xml_url,
-            docs_remessa_url: item.docs_remessa_url,
-            docs_remessa_xml_url: item.docs_remessa_xml_url,
-            etapa_5a_status: item.etapa_5a_status || 'pendente',
-            etapa_5b_status: item.etapa_5b_status || 'pendente',
-            etapa_5c_status: item.etapa_5c_status || 'pendente',
-            url_foto_chegada: item.url_foto_chegada,
-            url_foto_inicio: item.url_foto_inicio,
-            url_foto_carregando: item.url_foto_carregando,
-            url_foto_finalizacao: item.url_foto_finalizacao,
-            agendamento_id: item.agendamento_id,
-            agendamento_data_retirada: item.agendamento_data_retirada,
-            agendamento_quantidade: item.agendamento_quantidade,
-            agendamento_placa_caminhao: item.agendamento_placa_caminhao,
-            agendamento_motorista_nome: item.agendamento_motorista_nome,
-            agendamento_motorista_documento: item.agendamento_motorista_documento,
-            cliente_nome: item.cliente_nome,
-            liberacao_pedido_interno: item.liberacao_pedido_interno,
-            produto_nome: item.produto_nome
-          };
-        }
-        
-        console.log("🔍 [DEBUG] Nenhum dado encontrado para representante");
-        return null;
-      }
-    
-      console.log("�� [DEBUG] Usando query direta (não representante)");
-      let query = supabase
-        .from("carregamentos")
-        .select(`
-          id,
-          etapa_atual,
-          numero_nf,
-          data_chegada,
-          created_at,
-          cliente_id,
-          armazem_id,
-          observacao_chegada,
-          observacao_inicio,
-          observacao_carregando,
-          observacao_finalizacao,
-          observacao_documentacao,
-          data_inicio,
-          data_carregando,
-          data_finalizacao,
-          data_documentacao,
-          docs_retorno_url,
-          docs_retorno_xml_url,
-          docs_venda_url,
-          docs_venda_xml_url,
-          docs_remessa_url,
-          docs_remessa_xml_url,
-          etapa_5a_status,
-          etapa_5b_status,
-          etapa_5c_status,
-          url_foto_chegada,
-          url_foto_inicio,
-          url_foto_carregando,
-          url_foto_finalizacao,
-          agendamento:agendamentos!carregamentos_agendamento_id_fkey (
-            id,
-            data_retirada,
-            quantidade,
-            cliente:clientes!agendamentos_cliente_id_fkey (
-              nome
-            ),
-            placa_caminhao,
-            motorista_nome,
-            motorista_documento,
-            liberacao:liberacoes!agendamentos_liberacao_id_fkey (
-              pedido_interno,
-              produto:produtos!liberacoes_produto_id_fkey (
-                nome
-              )
-            )
-          )
-        `)
-        .eq("id", id);
-    
-      if (userRole === "cliente" && clienteId) {
-        console.log("🔍 [DEBUG] Aplicando filtro de cliente:", clienteId);
-        query = query.eq("cliente_id", clienteId);
-      } else if (userRole === "armazem" && armazemId) {
-        console.log("🔍 [DEBUG] Aplicando filtro de armazém:", armazemId);
-        query = query.eq("armazem_id", armazemId);
-      }
-    
-      const { data, error } = await query.single();
-      
-      console.log("🔍 [DEBUG] Resultado query direta:", { data, error });
-      
-      if (error) throw error;
-      return data;
-    },
-    */
     queryFn: async () => {
       console.log("🔍 [DEBUG] ========== INÍCIO QUERY CARREGAMENTO ==========");
       console.log("🔍 [DEBUG] Parâmetros de entrada:");
@@ -508,11 +383,15 @@ const CarregamentoDetalhe = () => {
         url_foto_inicio: item.url_foto_inicio,
         url_foto_carregando: item.url_foto_carregando,
         url_foto_finalizacao: item.url_foto_finalizacao,
-        // ✅ CAMPOS CORRETOS DA FUNÇÃO UNIVERSAL
+        // ✅ CAMPOS CORRETOS DA FUNÇÃO UNIVERSAL - INCLUINDO NOVOS CAMPOS
         agendamento_id: item.agendamento_id,
         agendamento_data_retirada: item.agendamento_data_retirada,
         agendamento_quantidade: item.agendamento_quantidade,
         agendamento_placa_caminhao: item.agendamento_placa_caminhao,
+        agendamento_placa_carreta_1: item.agendamento_placa_carreta_1,
+        agendamento_placa_carreta_2: item.agendamento_placa_carreta_2,
+        agendamento_transportadora: item.agendamento_transportadora,
+        agendamento_cnpj_transportadora: item.agendamento_cnpj_transportadora,
         agendamento_motorista_nome: item.agendamento_motorista_nome,
         agendamento_motorista_documento: item.agendamento_motorista_documento,
         cliente_nome: item.cliente_nome,
@@ -1414,9 +1293,6 @@ const CarregamentoDetalhe = () => {
     console.log("🔍 [DEBUG] carregamento?.agendamento_quantidade:", carregamento?.agendamento_quantidade);
     console.log("🔍 [DEBUG] carregamento?.liberacao_pedido_interno:", carregamento?.liberacao_pedido_interno);
     
-    // ❌ REMOVER: const agendamento = carregamento?.agendamento;
-    // ✅ USAR: dados diretos do carregamento
-    
     const etapaAtual = carregamento?.etapa_atual ?? 1;
     const etapaInfo = getEtapaInfo(etapaAtual);
   
@@ -1440,34 +1316,96 @@ const CarregamentoDetalhe = () => {
   
             <div className="border-t"></div>
   
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <span className="text-xs text-muted-foreground">Cliente:</span>
-                <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
+            {/* ✅ Seção: Cliente e Produto */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <User className="h-4 w-4 text-purple-600" />
+                <h3 className="text-sm font-semibold text-foreground">Cliente e Produto</h3>
               </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Quantidade:</span>
-                <p className="font-semibold text-sm">{carregamento?.agendamento_quantidade ?? "N/A"} ton</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Placa:</span>
-                <p className="font-semibold text-sm break-words">{carregamento?.agendamento_placa_caminhao || "N/A"}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Motorista:</span>
-                <p className="font-semibold text-sm break-words">
-                  {carregamento?.agendamento_motorista_nome || "N/A"}
-                  {carregamento?.agendamento_motorista_documento && (
-                    <span className="block text-xs text-muted-foreground font-normal">
-                      CPF: {carregamento.agendamento_motorista_documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
-                    </span>
-                  )}
-                </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Cliente:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Quantidade:</span>
+                  <p className="font-semibold text-sm">{carregamento?.agendamento_quantidade ?? "N/A"} ton</p>
+                </div>
               </div>
             </div>
-  
+
             <div className="border-t"></div>
-  
+
+            {/* ✅ Seção: Veículo e Carretas */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Truck className="h-4 w-4 text-green-600" />
+                <h3 className="text-sm font-semibold text-foreground">Veículo e Carretas</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Placa do Veículo:</span>
+                  <p className="font-semibold text-sm break-words">{formatPlaca(carregamento?.agendamento_placa_caminhao || "")}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Placa da Carreta 1:</span>
+                  <p className="font-semibold text-sm break-words">{formatPlaca(carregamento?.agendamento_placa_carreta_1 || "")}</p>
+                </div>
+                {carregamento?.agendamento_placa_carreta_2 && (
+                  <div className="sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">Placa da Carreta 2:</span>
+                    <p className="font-semibold text-sm break-words">{formatPlaca(carregamento.agendamento_placa_carreta_2)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t"></div>
+
+            {/* ✅ Seção: Motorista */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <User className="h-4 w-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-foreground">Motorista</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Nome:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.agendamento_motorista_nome || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">CPF:</span>
+                  <p className="font-semibold text-sm">
+                    {carregamento?.agendamento_motorista_documento 
+                      ? carregamento.agendamento_motorista_documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t"></div>
+
+            {/* ✅ Seção: Transportadora */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Building2 className="h-4 w-4 text-orange-600" />
+                <h3 className="text-sm font-semibold text-foreground">Transportadora</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Nome da Transportadora:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.agendamento_transportadora || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">CNPJ:</span>
+                  <p className="font-semibold text-sm">{formatCNPJ(carregamento?.agendamento_cnpj_transportadora || "")}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t"></div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <span className="text-xs text-muted-foreground">Data Agendada:</span>
