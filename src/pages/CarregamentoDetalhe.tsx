@@ -34,7 +34,8 @@ import {
   FileText,
   AlertCircle,
   Info,
-  Building2
+  Building2,
+  Package
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
