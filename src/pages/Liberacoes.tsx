@@ -827,56 +827,91 @@ const Liberacoes = () => {
                           </div>
                         </div>
                   
-                        {/* Seção 2: Produto e Armazém */}
+                        {/* Seção 2: Produto */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
                             <Package className="h-4 w-4 text-muted-foreground" />
-                            <h3 className="text-base font-semibold text-foreground">Produto e Localização</h3>
+                            <h3 className="text-base font-semibold text-foreground">Produto</h3>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
-                              <Select 
-                                value={novaLiberacao.produto} 
-                                onValueChange={(v) => {
-                                  setNovaLiberacao((s) => ({ ...s, produto: v, quantidade: "" }));
-                                  markAsChanged();
-                                }}
-                                disabled={isCreating}
-                              >
-                                <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
-                                  <SelectValue placeholder="Selecione o produto" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {produtos?.map((p) => (
-                                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            
-                            <div>
-                              <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
-                              <Select 
-                                value={novaLiberacao.armazem} 
-                                onValueChange={(v) => {
-                                  setNovaLiberacao((s) => ({ ...s, armazem: v, quantidade: "" }));
-                                  markAsChanged();
-                                }}
-                                disabled={isCreating}
-                              >
-                                <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
-                                  <SelectValue placeholder="Selecione o armazém" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {armazens?.map((a) => (
-                                    <SelectItem key={a.id} value={a.id}>
-                                      <span className="break-words">{a.cidade}{a.estado ? "/" + a.estado : ""} - {a.nome}</span>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                          <div>
+                            <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
+                            <Select 
+                              value={novaLiberacao.produto} 
+                              onValueChange={(v) => {
+                                setNovaLiberacao((s) => ({ ...s, produto: v, quantidade: "" }));
+                                markAsChanged();
+                              }}
+                              disabled={isCreating}
+                            >
+                              <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione o produto" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {produtos?.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        {/* Seção 3: Armazém */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Armazém</h3>
+                          </div>
+                          <div>
+                            <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
+                            <Select 
+                              value={novaLiberacao.armazem} 
+                              onValueChange={(v) => {
+                                setNovaLiberacao((s) => ({ ...s, armazem: v, quantidade: "" }));
+                                markAsChanged();
+                              }}
+                              disabled={isCreating}
+                            >
+                              <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione o armazém" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {armazens?.map((a) => (
+                                  <SelectItem key={a.id} value={a.id}>
+                                    <span className="break-words">{a.cidade}{a.estado ? "/" + a.estado : ""} - {a.nome}</span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        {/* Seção 4: Cliente */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Cliente</h3>
+                          </div>
+                          <div>
+                            <Label htmlFor="cliente" className="text-sm font-medium">Cliente *</Label>
+                            <Select 
+                              value={novaLiberacao.cliente_id} 
+                              onValueChange={(v) => {
+                                setNovaLiberacao((s) => ({ ...s, cliente_id: v }));
+                                markAsChanged();
+                              }}
+                              disabled={isCreating}
+                            >
+                              <SelectTrigger id="cliente" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione o cliente" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {clientesData?.map((cliente) => (
+                                  <SelectItem key={cliente.id} value={cliente.id}>
+                                    <span className="break-words">{cliente.nome} - {cliente.cnpj_cpf}</span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                   
@@ -1121,9 +1156,10 @@ const Liberacoes = () => {
                 Pedido: {detalhesLiberacao?.pedido}
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4 px-1 space-y-4">
+            <div className="py-4 px-1 space-y-6">
               {detalhesLiberacao && (
                 <>
+                  {/* Data de Criação e Status - No topo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Data de Criação:</Label>
@@ -1138,39 +1174,62 @@ const Liberacoes = () => {
                       </div>
                     </div>
                   </div>
-
+            
                   <div className="border-t"></div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Cliente:</Label>
-                      <p className="font-semibold text-sm md:text-base break-words">{detalhesLiberacao.cliente}</p>
+            
+                  {/* Seção 1: Informações Gerais */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-base font-semibold text-foreground">Informações Gerais</h3>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Armazém:</Label>
-                      <p className="font-semibold text-sm md:text-base break-words">{detalhesLiberacao.armazem}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
+                        <p className="text-sm font-medium break-words">{detalhesLiberacao.cliente}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Armazém</Label>
+                        <p className="text-sm font-medium break-words">{detalhesLiberacao.armazem}</p>
+                      </div>
                     </div>
                   </div>
-
+            
                   <div className="border-t"></div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Produto:</Label>
-                    <p className="font-semibold text-sm md:text-base break-words">{detalhesLiberacao.produto}</p>
+            
+                  {/* Seção 2: Produto */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-base font-semibold text-foreground">Produto</h3>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Nome do Produto</Label>
+                      <p className="text-sm font-medium break-words">{detalhesLiberacao.produto}</p>
+                    </div>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Quantidade Liberada:</Label>
-                      <p className="font-semibold text-base md:text-lg">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
+            
+                  <div className="border-t"></div>
+            
+                  {/* Seção 3: Quantidades */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-base font-semibold text-foreground">Quantidades</h3>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Quantidade Agendada:</Label>
-                      <p className="font-semibold text-base md:text-lg text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Quantidade Retirada:</Label>
-                      <p className="font-semibold text-base md:text-lg text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Liberada</Label>
+                        <p className="text-base md:text-lg font-semibold">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Agendada</Label>
+                        <p className="text-base md:text-lg font-semibold text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Retirada</Label>
+                        <p className="text-base md:text-lg font-semibold text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
+                      </div>
                     </div>
                   </div>
                 </>
