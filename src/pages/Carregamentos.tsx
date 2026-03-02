@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, Clock, User, ChevronRight } from "lucide-react";
+import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, Calendar, User, ChevronRight, Building2, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
@@ -90,6 +90,7 @@ interface CarregamentoItem {
   placa: string;
   motorista: string;
   documento: string;
+  transportadora: string;
   data_retirada: string;
   etapa_atual: number;
   fotosTotal: number;
@@ -203,6 +204,7 @@ const Carregamentos = () => {
           placa: item.placa_caminhao || "N/A",
           motorista: item.motorista_nome || "N/A",
           documento: item.motorista_documento || "N/A",
+          transportadora: item.transportadora || "N/A",
           data_retirada: item.data_retirada || "N/A",
           etapa_atual: etapaAtual,
           fotosTotal: fotosCount,
@@ -240,6 +242,7 @@ const Carregamentos = () => {
           placa: item.agendamento?.placa_caminhao || "N/A",
           motorista: item.agendamento?.motorista_nome || "N/A",
           documento: item.agendamento?.motorista_documento || "N/A",
+          transportadora: item.agendamento?.transportadora || "N/A",
           data_retirada: item.agendamento?.data_retirada || "N/A",
           etapa_atual: etapaAtual,
           fotosTotal: fotosCount,
@@ -351,9 +354,15 @@ const Carregamentos = () => {
               <div className="flex-1 min-w-0 space-y-1">
                 <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {carr.pedido}</h3>
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p><span className="font-semibold">Cliente:</span> <span className="break-words">{carr.cliente}</span></p>
-                  <p><span className="font-semibold">Produto:</span> <span className="break-words">{carr.produto}</span></p>
-                  <p className="break-words"><span className="font-semibold">Armazém:</span> {carr.armazem}</p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{carr.cliente}</span>
+                  </p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{carr.produto}</span>
+                  </p>
+                  <p className="whitespace-nowrap break-words">
+                    <span className="font-medium text-foreground">Armazém:</span> {carr.armazem}
+                  </p>
                 </div>
                 
                 <div className="mt-2 text-xs text-muted-foreground">
@@ -378,20 +387,20 @@ const Carregamentos = () => {
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="truncate">{carr.data_retirada !== "N/A" ? new Date(carr.data_retirada).toLocaleDateString("pt-BR") : "N/A"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="truncate">{formatPlaca(carr.placa)}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate">{carr.motorista}</span>
+                <span className="truncate" title={carr.motorista}>{carr.motorista}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate">{formatCPF(carr.documento)}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="truncate" title={carr.transportadora}>{carr.transportadora || "N/A"}</span>
               </div>
             </div>
           </Link>
@@ -612,22 +621,23 @@ const Carregamentos = () => {
         {carregamentosFinalizados.length > 0 && (
           <div className="space-y-4">
             <Button
-              className="flex items-center gap-2 p-0 h-auto text-lg font-semibold hover:bg-transparent btn-secondary min-h-[44px] max-md:min-h-[44px]"
               onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
+              className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
             >
-              {secaoFinalizadosExpandida ? (
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              )}
-              <Truck className="h-5 w-5 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                Carregamentos Finalizados ({carregamentosFinalizados.length})
-              </span>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" />
+                <span className="text-sm font-medium">
+                  Carregamentos Finalizados ({carregamentosFinalizados.length})
+                </span>
+              </div>
+              {secaoFinalizadosExpandida ? 
+                <ChevronUp className="h-4 w-4" /> : 
+                <ChevronDown className="h-4 w-4" />
+              }
             </Button>
             
             {secaoFinalizadosExpandida && (
-              <div className="grid gap-3 ml-0 sm:ml-7">
+              <div className="grid gap-4">
                 {carregamentosFinalizados.map(renderCarregamentoCard)}
               </div>
             )}
