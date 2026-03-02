@@ -1081,7 +1081,7 @@ const Agendamentos = () => {
                         {/* Seção 1: Liberação e Quantidade */}
                         <div className="space-y-4">
                         <div className="flex items-center gap-2 border-b pb-2">
-                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <Package className="h-4 w-4 text-blue-600" />
                           <h3 className="text-base font-semibold text-foreground">Produto e Quantidade</h3>
                         </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1173,7 +1173,7 @@ const Agendamentos = () => {
                         {/* Seção 2: Veículo e Carretas */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <Truck className="h-4 w-4 text-muted-foreground" />
+                            <Truck className="h-4 w-4 text-green-600" />
                             <h3 className="text-base font-semibold text-foreground">Veículo e Carretas</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1232,7 +1232,7 @@ const Agendamentos = () => {
                         {/* Seção 3: Motorista */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
+                            <User className="h-4 w-4 text-purple-600" />
                             <h3 className="text-base font-semibold text-foreground">Motorista</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1272,7 +1272,7 @@ const Agendamentos = () => {
                         {/* ✅ SEÇÃO 4: TRANSPORTADORA */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <Building2 className="h-4 w-4 text-orange-600" />
                             <h3 className="text-base font-semibold text-foreground">Transportadora</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1312,7 +1312,7 @@ const Agendamentos = () => {
                         {/* ✅ SEÇÃO 5: OBSERVAÇÕES */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <FileText className="h-4 w-4 text-gray-600" />
                             <h3 className="text-base font-semibold text-foreground">Observações</h3>
                           </div>
                           <div>
