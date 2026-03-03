@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, ChevronRight, CheckCircle, Package, Building2, User, FileText } from "lucide-react";
+import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, ChevronRight, CheckCircle, Package, Building2, User, FileText, Edit3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -111,7 +111,7 @@ const Liberacoes = () => {
   const { hasRole, userRole, user } = useAuth();
   const { clientesDoRepresentante, representanteId } = usePermissions();
 
-  // ✅ Hook para controle de mudanças não salvas
+  // ✅ Hook para controle de mudanças não salvas - PRINCIPAL
   const {
     hasUnsavedChanges,
     showAlert,
@@ -123,10 +123,17 @@ const Liberacoes = () => {
     cancelClose
   } = useUnsavedChanges();
 
-  // 🆕 Estados para alteração de armazém
-  const [showAlterarArmazem, setShowAlterarArmazem] = useState(false);
-  const [novoArmazemId, setNovoArmazemId] = useState("");
-  const [isAlterandoArmazem, setIsAlterandoArmazem] = useState(false);
+  // 🆕 Hook separado para modal de alteração de armazém
+  const {
+    hasUnsavedChanges: hasUnsavedChangesArmazem,
+    showAlert: showAlertArmazem,
+    markAsChanged: markAsChangedArmazem,
+    markAsSaved: markAsSavedArmazem,
+    reset: resetUnsavedChangesArmazem,
+    handleClose: handleCloseArmazem,
+    confirmClose: confirmCloseArmazem,
+    cancelClose: cancelCloseArmazem
+  } = useUnsavedChanges();
 
   useEffect(() => {
     if (userRole === "armazem") {
@@ -152,6 +159,13 @@ const Liberacoes = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [detalhesLiberacao, setDetalhesLiberacao] = useState<LiberacaoItem | null>(null);
   const [secaoFinalizadasExpandida, setSecaoFinalizadasExpandida] = useState(false);
+
+  // 🆕 Estados para alteração de armazém
+  const [showAlterarArmazem, setShowAlterarArmazem] = useState(false);
+  const [novoArmazemId, setNovoArmazemId] = useState("");
+  const [isAlterandoArmazem, setIsAlterandoArmazem] = useState(false);
+  const [estoqueNovoArmazem, setEstoqueNovoArmazem] = useState<number>(0);
+  const [validandoEstoqueNovoArmazem, setValidandoEstoqueNovoArmazem] = useState(false);
 
   const { data: currentCliente } = useQuery({
     queryKey: ["current-cliente", user?.id],
@@ -187,8 +201,6 @@ const Liberacoes = () => {
   const { data: liberacoesData, isLoading, error } = useQuery({
     queryKey: ["liberacoes", currentCliente?.id, currentArmazem?.id, representanteId, userRole],
     queryFn: async () => {
-
-      
       // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
       const { data, error } = await supabase.rpc('get_liberacoes_universal', {
         p_user_role: userRole,
@@ -250,6 +262,45 @@ const Liberacoes = () => {
       return data || [];
     },
   });
+
+  // 🆕 Função para validar estoque no novo armazém
+  const validarEstoqueNovoArmazem = async (produtoId: string, armazemId: string) => {
+    if (!produtoId || !armazemId) {
+      setEstoqueNovoArmazem(0);
+      return;
+    }
+    
+    setValidandoEstoqueNovoArmazem(true);
+    try {
+      const { data: estoqueData, error } = await supabase
+        .from("estoque")
+        .select("quantidade")
+        .eq("produto_id", produtoId)
+        .eq("armazem_id", armazemId)
+        .maybeSingle();
+
+      if (error) {
+        setEstoqueNovoArmazem(0);
+        return;
+      }
+
+      setEstoqueNovoArmazem(estoqueData?.quantidade || 0);
+      
+    } catch (error) {
+      setEstoqueNovoArmazem(0);
+    } finally {
+      setValidandoEstoqueNovoArmazem(false);
+    }
+  };
+
+  // 🆕 Effect para validar estoque quando selecionar novo armazém
+  useEffect(() => {
+    if (detalhesLiberacao?.produto_id && novoArmazemId) {
+      validarEstoqueNovoArmazem(detalhesLiberacao.produto_id, novoArmazemId);
+    } else {
+      setEstoqueNovoArmazem(0);
+    }
+  }, [detalhesLiberacao?.produto_id, novoArmazemId]);
 
   // ✅ USEMEMO HÍBRIDO - SUPORTA FUNÇÃO UNIVERSAL E FALLBACK
   const liberacoes = useMemo(() => {
@@ -496,24 +547,45 @@ const Liberacoes = () => {
     setQuantidadeEstoque(0);
     setTemEstoqueCadastrado(null);
     setValidandoEstoque(false);
-    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
+    resetUnsavedChanges();
   };
 
-  // ✅ Função para fechar modal com verificação
+  // ✅ Função para fechar modal principal com verificação
   const handleCloseModal = () => {
     handleClose(() => {
       setDialogOpen(false);
-      resetFormNovaLiberacao(); // ✅ Limpar dados ao fechar
+      resetFormNovaLiberacao();
     });
   };
 
-  // 🆕 Função para alterar armazém
+  // 🆕 Função para fechar modal de alteração de armazém com verificação
+  const handleCloseModalArmazem = () => {
+    handleCloseArmazem(() => {
+      setShowAlterarArmazem(false);
+      setNovoArmazemId("");
+      setEstoqueNovoArmazem(0);
+      resetUnsavedChangesArmazem();
+    });
+  };
+
+  // 🆕 Função para alterar armazém ATUALIZADA
   const handleAlterarArmazem = async () => {
     if (!detalhesLiberacao || !novoArmazemId) {
       toast({
         variant: "destructive",
         title: "Erro",
         description: "Selecione um armazém"
+      });
+      return;
+    }
+
+    const quantidadeDisponivel = detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada;
+    
+    if (estoqueNovoArmazem < quantidadeDisponivel) {
+      toast({
+        variant: "destructive",
+        title: "Estoque insuficiente",
+        description: `O armazém selecionado possui apenas ${estoqueNovoArmazem.toLocaleString('pt-BR')}t em estoque, mas são necessárias ${quantidadeDisponivel.toLocaleString('pt-BR')}t.`
       });
       return;
     }
@@ -537,10 +609,14 @@ const Liberacoes = () => {
           description: `De: ${data.detalhes.armazem_anterior} → Para: ${data.detalhes.armazem_novo}`
         });
         
+        markAsSavedArmazem(); // ✅ Marcar como salvo
+        
         // Fechar modais e resetar
         setShowAlterarArmazem(false);
         setNovoArmazemId("");
+        setEstoqueNovoArmazem(0);
         setDetalhesLiberacao(null);
+        resetUnsavedChangesArmazem();
         
         // Invalidar queries
         queryClient.invalidateQueries({ queryKey: ["liberacoes"] });
@@ -818,11 +894,19 @@ const Liberacoes = () => {
     <TooltipProvider>
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         
-        {/* ✅ Componente de alerta */}
+        {/* ✅ Componentes de alerta */}
         <UnsavedChangesAlert 
           open={showAlert}
           onConfirm={confirmClose}
           onCancel={cancelClose}
+        />
+
+        <UnsavedChangesAlert 
+          open={showAlertArmazem}
+          onConfirm={confirmCloseArmazem}
+          onCancel={cancelCloseArmazem}
+          title="Descartar alterações?"
+          description="Você selecionou um novo armazém mas não salvou. Tem certeza que deseja sair?"
         />
 
         <PageHeader
@@ -1123,7 +1207,7 @@ const Liberacoes = () => {
           </div>
         </div>
 
-        {/* Filtros otimizados para mobile */}
+        {/* Filtros completos - Mobile otimizado */}
         {filtersOpen && (
           <div className="rounded-md border p-3 space-y-4">
             <div>
@@ -1191,7 +1275,7 @@ const Liberacoes = () => {
           </div>
         )}
 
-        {/* Modal de detalhes otimizado para mobile */}
+        {/* Modal de detalhes ATUALIZADO */}
         <Dialog open={!!detalhesLiberacao} onOpenChange={open => !open && setDetalhesLiberacao(null)}>
           <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[90vh] overflow-y-auto my-4 md:my-8">
             <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
@@ -1235,15 +1319,32 @@ const Liberacoes = () => {
                   
                   <div className="border-t"></div>
                   
-                  {/* Seção 2: Armazém */}
+                  {/* 🆕 Seção: Armazém ATUALIZADA com botão ao lado */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
                       <Building2 className="h-4 w-4 text-orange-600" />
                       <h3 className="text-base font-semibold text-foreground">Armazém</h3>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Local do Armazém</Label>
-                      <p className="text-sm font-medium break-words">{detalhesLiberacao.armazem}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <Label className="text-sm font-medium text-muted-foreground">Local do Armazém</Label>
+                        <p className="text-sm font-medium break-words">{detalhesLiberacao.armazem}</p>
+                      </div>
+                      
+                      {/* 🆕 Botão Alterar ao lado - seguindo padrão da página Clientes */}
+                      {(hasRole("admin") || hasRole("logistica")) && 
+                       detalhesLiberacao.status !== 'totalmente_agendada' && 
+                       !detalhesLiberacao.finalizada && (
+                        <Button
+                          size="sm"
+                          onClick={() => setShowAlterarArmazem(true)}
+                          className="h-8 px-2 text-xs min-h-[32px] btn-secondary shrink-0 ml-3"
+                          disabled={isAlterandoArmazem}
+                        >
+                          <Edit3 className="h-3 w-3 mr-1" />
+                          Alterar
+                        </Button>
+                      )}
                     </div>
                   </div>
                   
@@ -1309,48 +1410,6 @@ const Liberacoes = () => {
                       </p>
                     </div>
                   </div>
-
-                  {/* 🆕 Seção: Alterar Armazém (apenas para admin/logística) */}
-                  {(hasRole("admin") || hasRole("logistica")) && 
-                   detalhesLiberacao && 
-                   detalhesLiberacao.status !== 'totalmente_agendada' && 
-                   !detalhesLiberacao.finalizada && (
-                    <>
-                      <div className="border-t"></div>
-                      
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 border-b pb-2">
-                          <Building2 className="h-4 w-4 text-orange-600" />
-                          <h3 className="text-base font-semibold text-foreground">Alterar Armazém</h3>
-                        </div>
-                        
-                        <div className="p-3 border border-blue-200 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200">
-                                Redirecionar próximos agendamentos
-                              </h4>
-                              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                                Agendamentos existentes mantêm o armazém atual. 
-                                Novos agendamentos serão direcionados para o novo armazém.
-                              </p>
-                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
-                                Quantidade disponível: {(detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada).toLocaleString('pt-BR')}t
-                              </p>
-                            </div>
-                            <Button 
-                              size="sm" 
-                              onClick={() => setShowAlterarArmazem(true)}
-                              className="btn-secondary shrink-0"
-                              disabled={isAlterandoArmazem}
-                            >
-                              Alterar
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </>
               )}
             </div>
@@ -1365,8 +1424,14 @@ const Liberacoes = () => {
           </DialogContent>
         </Dialog>
 
-        {/* 🆕 Modal de Alteração de Armazém */}
-        <Dialog open={showAlterarArmazem} onOpenChange={setShowAlterarArmazem}>
+        {/* 🆕 Modal de Alteração de Armazém COMPLETAMENTE REFORMULADO */}
+        <Dialog open={showAlterarArmazem} onOpenChange={(open) => {
+          if (!open) {
+            handleCloseModalArmazem(); // ✅ Usar função com verificação
+          } else {
+            setShowAlterarArmazem(open);
+          }
+        }}>
           <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-lg max-h-[calc(100vh-8rem)] overflow-y-auto my-4">
             <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
               <DialogTitle className="text-lg pr-2 mt-1">Alterar Armazém da Liberação</DialogTitle>
@@ -1378,6 +1443,7 @@ const Liberacoes = () => {
             <div className="py-4 px-1 space-y-4">
               {detalhesLiberacao && (
                 <>
+                  {/* 🆕 Informações movidas para dentro do modal */}
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
@@ -1404,33 +1470,67 @@ const Liberacoes = () => {
                     </div>
                     
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Quantidade que será transferida:</Label>
+                      <Label className="text-sm font-medium text-muted-foreground">Quantidade disponível para retirada:</Label>
                       <p className="font-semibold text-sm text-blue-600">
                         {(detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada).toLocaleString('pt-BR')}t
                       </p>
                     </div>
                   </div>
 
-                  <div className="border-t pt-4">
-                    <Label htmlFor="novo-armazem" className="text-sm font-medium">
-                      Novo Armazém *
-                    </Label>
-                    <Select
-                      value={novoArmazemId}
-                      onValueChange={setNovoArmazemId}
-                      disabled={isAlterandoArmazem}
-                    >
-                      <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1">
-                        <SelectValue placeholder="Selecione o novo armazém" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => (
-                          <SelectItem key={armazem.id} value={armazem.id}>
-                            {armazem.nome} - {armazem.cidade}/{armazem.estado}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="border-t pt-4 space-y-3">
+                    <div>
+                      <Label htmlFor="novo-armazem" className="text-sm font-medium">
+                        Novo Armazém *
+                      </Label>
+                      <Select
+                        value={novoArmazemId}
+                        onValueChange={(value) => {
+                          setNovoArmazemId(value);
+                          markAsChangedArmazem(); // ✅ Marcar como alterado
+                        }}
+                        disabled={isAlterandoArmazem}
+                      >
+                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1">
+                          <SelectValue placeholder="Selecione o novo armazém" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => (
+                            <SelectItem key={armazem.id} value={armazem.id}>
+                              {armazem.nome} - {armazem.cidade}/{armazem.estado}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 🆕 Exibir estoque do armazém selecionado */}
+                    {novoArmazemId && (
+                      <div className="mt-2">
+                        {validandoEstoqueNovoArmazem ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Verificando estoque...
+                          </div>
+                        ) : (
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Estoque disponível no novo armazém: </span>
+                            <span className={`font-semibold ${
+                              estoqueNovoArmazem >= (detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada)
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              {estoqueNovoArmazem.toLocaleString('pt-BR')}t
+                            </span>
+                            
+                            {estoqueNovoArmazem < (detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada) && (
+                              <p className="text-xs text-red-600 mt-1">
+                                ⚠️ Estoque insuficiente! São necessárias {(detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada).toLocaleString('pt-BR')}t
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -1438,14 +1538,16 @@ const Liberacoes = () => {
             
             <ModalFooter 
               variant="double"
-              onClose={() => {
-                setShowAlterarArmazem(false);
-                setNovoArmazemId("");
-              }}
+              onClose={() => handleCloseModalArmazem()}
               onConfirm={handleAlterarArmazem}
               confirmText="Confirmar Alteração"
               isLoading={isAlterandoArmazem}
-              disabled={!novoArmazemId || isAlterandoArmazem}
+              disabled={
+                !novoArmazemId || 
+                isAlterandoArmazem || 
+                validandoEstoqueNovoArmazem ||
+                (detalhesLiberacao && estoqueNovoArmazem < (detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada))
+              }
             />
           </DialogContent>
         </Dialog>
