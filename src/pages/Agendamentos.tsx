@@ -165,7 +165,6 @@ function formatCPF(cpf: string) {
   return cleaned.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
 }
 
-// ✅ NOVAS FUNÇÕES PARA CNPJ
 function maskCNPJ(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (digits.length <= 14) {
@@ -196,7 +195,6 @@ const parseDate = (d: string) => {
 
 type AgendamentoStatus = "pendente" | "em_andamento" | "concluido";
 
-// ✅ INTERFACE ATUALIZADA
 interface AgendamentoItem {
   id: string;
   cliente: string;
@@ -213,7 +211,6 @@ interface AgendamentoItem {
   armazem_id: string | null;
   liberacao_id: string | null;
   updated_at: string;
-  // ✅ NOVOS CAMPOS:
   placa_carreta_1: string;
   placa_carreta_2: string | null;
   transportadora: string;
@@ -227,7 +224,6 @@ interface AgendamentoItem {
   finalizado: boolean;
 }
 
-// ✅ VALIDAÇÃO ATUALIZADA
 const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
   const errors = [];
   if (!ag.liberacao) errors.push("Liberação");
@@ -240,17 +236,14 @@ const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
   
   if (!ag.data || isNaN(Date.parse(ag.data))) errors.push("Data");
   
-  // Validação placa do caminhão
   const placaSemMascara = (ag.placa ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
   if (placaSemMascara.length < 7) errors.push("Placa do veículo");
   if (!validatePlaca(placaSemMascara)) errors.push("Formato da placa inválido");
   
-  // ✅ VALIDAÇÃO PLACA CARRETA 1 (obrigatória)
   const placaCarreta1SemMascara = (ag.placaCarreta1 ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
   if (placaCarreta1SemMascara.length < 7) errors.push("Placa da Carreta 1");
   if (!validatePlaca(placaCarreta1SemMascara)) errors.push("Formato da Placa da Carreta 1 inválido");
   
-  // ✅ VALIDAÇÃO PLACA CARRETA 2 (opcional, mas se preenchida deve ser válida)
   if (ag.placaCarreta2 && ag.placaCarreta2.trim()) {
     const placaCarreta2SemMascara = ag.placaCarreta2.replace(/[^A-Z0-9]/gi, "").toUpperCase();
     if (placaCarreta2SemMascara.length < 7) errors.push("Placa da Carreta 2 incompleta");
@@ -260,10 +253,8 @@ const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
   if (!ag.motorista || ag.motorista.trim().length < 3) errors.push("Nome do motorista");
   if (!ag.documento || ag.documento.replace(/\D/g, "").length !== 11) errors.push("Documento (CPF) do motorista");
   
-  // ✅ VALIDAÇÃO TRANSPORTADORA (obrigatória)
   if (!ag.transportadora || ag.transportadora.trim().length < 3) errors.push("Nome da transportadora");
   
-  // ✅ VALIDAÇÃO CNPJ TRANSPORTADORA (obrigatória)
   const cnpjLimpo = (ag.cnpjTransportadora ?? "").replace(/\D/g, "");
   if (cnpjLimpo.length !== 14) errors.push("CNPJ da transportadora");
   
@@ -282,9 +273,8 @@ const Agendamentos = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasRole, userRole, user } = useAuth();
-  const { representanteId, clientesDoRepresentante } = usePermissions();
+  const { clienteId, armazemId, representanteId, clientesDoRepresentante } = usePermissions();
   
-  // ✅ Hook para controle de mudanças não salvas
   const {
     hasUnsavedChanges,
     showAlert,
@@ -301,52 +291,21 @@ const Agendamentos = () => {
   const [detalhesAgendamento, setDetalhesAgendamento] = useState<AgendamentoItem | null>(null);
   const [secaoFinalizadosExpandida, setSecaoFinalizadosExpandida] = useState(false);
 
-  const { data: currentCliente } = useQuery({
-    queryKey: ["current-cliente", user?.id],
-    queryFn: async () => {
-      if (!user || userRole !== "cliente") return null;
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user && userRole === "cliente",
-  });
-
-  const { data: currentArmazem } = useQuery({
-    queryKey: ["current-armazem", user?.id],
-    queryFn: async () => {
-      if (!user || userRole !== "armazem") return null;
-      const { data, error } = await supabase
-        .from("armazens")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user && userRole === "armazem",
-  });
-
-  // 🚀 MIGRAÇÃO PARA FUNÇÃO UNIVERSAL
   const { data: agendamentosData, isLoading, error } = useQuery({
-    queryKey: ["agendamentos", currentCliente?.id, currentArmazem?.id, representanteId, userRole],
+    queryKey: ["agendamentos", clienteId, armazemId, representanteId, userRole],
     queryFn: async () => {
       console.log("🔍 [DEBUG] Query agendamentos executando:");
       console.log("- userRole:", userRole);
       console.log("- representanteId:", representanteId);
-      console.log("- currentCliente?.id:", currentCliente?.id);
+      console.log("- clienteId:", clienteId);
+      console.log("- armazemId:", armazemId);
       console.log("- user:", user);
       
-      // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
       const { data, error } = await supabase.rpc('get_agendamentos_universal', {
         p_user_role: userRole,
         p_user_id: user?.id,
-        p_cliente_id: currentCliente?.id || null,
-        p_armazem_id: currentArmazem?.id || null,
+        p_cliente_id: clienteId || null,
+        p_armazem_id: armazemId || null,
         p_representante_id: representanteId || null
       });
       
@@ -360,8 +319,8 @@ const Agendamentos = () => {
       if (!user || !userRole) return false;
       if (userRole === "admin" || userRole === "logistica") return true;
       
-      const clienteOk = userRole !== "cliente" || (currentCliente !== undefined);
-      const armazemOk = userRole !== "armazem" || (currentArmazem !== undefined);
+      const clienteOk = userRole !== "cliente" || (clienteId !== undefined);
+      const armazemOk = userRole !== "armazem" || (armazemId !== undefined);
       const representanteOk = userRole !== "representante" || (representanteId !== undefined);
       
       console.log("🔍 [DEBUG] Enabled check:", { clienteOk, armazemOk, representanteOk });
@@ -388,16 +347,13 @@ const Agendamentos = () => {
     enabled: !!user,
   });
 
-  // ✅ USEMEMO ATUALIZADO COM NOVOS CAMPOS
   const agendamentos = useMemo(() => {
     if (!agendamentosData) return [];
     
     return agendamentosData.map((item: any): AgendamentoItem => {
-      // ✅ Verificar se vem da função universal (tem campos calculados)
       const isFromFunction = !!item.cliente_nome;
       
       if (isFromFunction) {
-        // ✅ Dados já calculados da função universal
         const etapaAtual = item.etapa_atual ?? 1;
         const statusInfo = getStatusCarregamento(etapaAtual);
         const finalizado = item.status === 'concluido';
@@ -418,7 +374,6 @@ const Agendamentos = () => {
           armazem_id: item.armazem_id,
           liberacao_id: item.liberacao_id,
           updated_at: item.updated_at,
-          // ✅ NOVOS CAMPOS:
           placa_carreta_1: item.placa_carreta_1 || "",
           placa_carreta_2: item.placa_carreta_2 || null,
           transportadora: item.transportadora || "",
@@ -432,7 +387,6 @@ const Agendamentos = () => {
           finalizado,
         };
       } else {
-        // ❌ Fallback para dados da query tradicional (não deveria acontecer)
         let etapaAtual = 1;
         const carregamento = item.carregamentos?.[0];
         etapaAtual = carregamento?.etapa_atual ?? 1;
@@ -458,7 +412,6 @@ const Agendamentos = () => {
           armazem_id: item.liberacao?.armazem?.id,
           liberacao_id: item.liberacao?.id,
           updated_at: item.updated_at,
-          // ✅ NOVOS CAMPOS (fallback):
           placa_carreta_1: item.placa_carreta_1 || "",
           placa_carreta_2: item.placa_carreta_2 || null,
           transportadora: item.transportadora || "",
@@ -477,7 +430,6 @@ const Agendamentos = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // ✅ ESTADO ATUALIZADO
   const [novoAgendamento, setNovoAgendamento] = useState({
     liberacao: "",
     quantidade: "",
@@ -485,7 +437,6 @@ const Agendamentos = () => {
     placa: "",
     motorista: "",
     documento: "",
-    // ✅ NOVOS CAMPOS:
     placaCarreta1: "",
     placaCarreta2: "",
     transportadora: "",
@@ -497,21 +448,19 @@ const Agendamentos = () => {
   const [quantidadeDisponivel, setQuantidadeDisponivel] = useState<number>(0);
   const [validandoQuantidade, setValidandoQuantidade] = useState(false);
 
-  // 🚀 MIGRAÇÃO PARA FUNÇÃO UNIVERSAL - LIBERAÇÕES DISPONÍVEIS
   const { data: liberacoesDisponiveis } = useQuery({
-    queryKey: ["liberacoes-disponiveis", currentCliente?.id, representanteId, userRole],
+    queryKey: ["liberacoes-disponiveis", clienteId, representanteId, userRole],
     queryFn: async () => {
       console.log("🔍 [DEBUG] Query liberacoes-disponiveis executando:");
       console.log("- userRole:", userRole);
       console.log("- representanteId:", representanteId);
-      console.log("- currentCliente?.id:", currentCliente?.id);
+      console.log("- clienteId:", clienteId);
       
-      // 🚀 USAR FUNÇÃO UNIVERSAL PARA LIBERAÇÕES DISPONÍVEIS
       const { data, error } = await supabase.rpc('get_liberacoes_universal', {
         p_user_role: userRole,
         p_user_id: user?.id,
-        p_cliente_id: currentCliente?.id || null,
-        p_armazem_id: null, // Para agendamentos, não filtramos por armazém específico
+        p_cliente_id: clienteId || null,
+        p_armazem_id: null,
         p_representante_id: representanteId || null
       });
       
@@ -519,7 +468,6 @@ const Agendamentos = () => {
       
       if (error) throw error;
       
-      // Filtrar apenas liberações disponíveis e calcular disponibilidade
       const liberacoesDisponiveis = (data || []).filter((lib: any) => 
         lib.status === 'disponivel' || lib.status === 'parcialmente_agendada'
       );
@@ -549,7 +497,7 @@ const Agendamentos = () => {
       if (!user || !userRole) return false;
       if (userRole === "admin" || userRole === "logistica") return true;
       
-      const clienteOk = userRole !== "cliente" || (currentCliente !== undefined);
+      const clienteOk = userRole !== "cliente" || (clienteId !== undefined);
       const representanteOk = userRole !== "representante" || (representanteId !== undefined);
       
       console.log("🔍 [DEBUG] Liberações enabled check:", { clienteOk, representanteOk });
@@ -566,7 +514,6 @@ const Agendamentos = () => {
     }
   }, [canCreate]);
 
-  // ✅ RESET FORM ATUALIZADO
   const resetFormNovoAgendamento = () => {
     setNovoAgendamento({
       liberacao: "",
@@ -575,7 +522,6 @@ const Agendamentos = () => {
       placa: "",
       motorista: "",
       documento: "",
-      // ✅ NOVOS CAMPOS:
       placaCarreta1: "",
       placaCarreta2: "",
       transportadora: "",
@@ -585,14 +531,13 @@ const Agendamentos = () => {
     setFormError("");
     setQuantidadeDisponivel(0);
     setValidandoQuantidade(false);
-    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
+    resetUnsavedChanges();
   };
 
-  // ✅ Função para fechar modal com verificação
   const handleCloseModal = () => {
     handleClose(() => {
       setDialogOpen(false);
-      resetFormNovoAgendamento(); // ✅ Limpar dados ao fechar
+      resetFormNovoAgendamento();
     });
   };
 
@@ -639,7 +584,6 @@ const Agendamentos = () => {
     }
   };
 
-  // ✅ FUNÇÃO CREATE ATUALIZADA
   const handleCreateAgendamento = async () => {
     setFormError("");
     const erros = validateAgendamento(novoAgendamento, quantidadeDisponivel);
@@ -665,7 +609,6 @@ const Agendamentos = () => {
       const placaSemMascara = (novoAgendamento.placa ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
       const cpfSemMascara = (novoAgendamento.documento ?? "").replace(/\D/g, "");
       
-      // ✅ NOVOS CAMPOS LIMPOS
       const placaCarreta1SemMascara = (novoAgendamento.placaCarreta1 ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
       const placaCarreta2SemMascara = novoAgendamento.placaCarreta2 
         ? novoAgendamento.placaCarreta2.replace(/[^A-Z0-9]/gi, "").toUpperCase() 
@@ -678,7 +621,6 @@ const Agendamentos = () => {
 
       const { data: userData } = await supabase.auth.getUser();
       
-      // ✅ INSERT ATUALIZADO COM NOVOS CAMPOS
       const { data: agendData, error: errAgend } = await supabase
         .from("agendamentos")
         .insert({
@@ -688,7 +630,6 @@ const Agendamentos = () => {
           placa_caminhao: placaSemMascara,
           motorista_nome: novoAgendamento.motorista.trim(),
           motorista_documento: cpfSemMascara,
-          // ✅ NOVOS CAMPOS:
           placa_carreta_1: placaCarreta1SemMascara,
           placa_carreta_2: placaCarreta2SemMascara,
           transportadora: novoAgendamento.transportadora.trim(),
@@ -734,7 +675,7 @@ const Agendamentos = () => {
         return;
       }
 
-      markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
+      markAsSaved();
 
       toast({
         title: "Agendamento criado com sucesso!",
@@ -869,9 +810,7 @@ const Agendamentos = () => {
     <Card key={ag.id} className="transition-all hover:shadow-md cursor-pointer">
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          {/* Layout Mobile-First: Badge no topo em mobile, ao lado em desktop */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            {/* Badge - Primeiro em mobile, à direita em desktop */}
             <div className="flex justify-start sm:order-2 sm:justify-end">
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
@@ -891,7 +830,6 @@ const Agendamentos = () => {
               </Tooltip>
             </div>
   
-            {/* Conteúdo principal - Segundo em mobile, à esquerda em desktop */}
             <div 
               className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
               onClick={() => setDetalhesAgendamento(ag)}
@@ -922,7 +860,6 @@ const Agendamentos = () => {
             </div>
           </div>
   
-          {/* Grid de informações - Sempre abaixo do conteúdo principal */}
           <div 
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2"
             onClick={() => setDetalhesAgendamento(ag)}
@@ -945,7 +882,6 @@ const Agendamentos = () => {
             </div>
           </div>
   
-          {/* Barra de progresso - Sempre na parte inferior */}
           <div 
             className="pt-2 border-t"
             onClick={() => setDetalhesAgendamento(ag)}
@@ -1036,7 +972,6 @@ const Agendamentos = () => {
     <TooltipProvider>
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         
-        {/* ✅ Componente de alerta */}
         <UnsavedChangesAlert 
           open={showAlert}
           onConfirm={confirmClose}
@@ -1052,7 +987,7 @@ const Agendamentos = () => {
               <Dialog open={dialogOpen} onOpenChange={(open) => {
                 if (!open && isCreating) return;
                 if (!open) {
-                  handleCloseModal(); // ✅ Usar nova função
+                  handleCloseModal();
                 } else {
                   setDialogOpen(open);
                 }
@@ -1064,7 +999,6 @@ const Agendamentos = () => {
                   </Button>
                 </DialogTrigger>
                 
-                {/* ✅ MODAL ATUALIZADO COM NOVOS CAMPOS */}
                 <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-4xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
                   <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                     <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Novo Agendamento</DialogTitle>
@@ -1078,7 +1012,6 @@ const Agendamentos = () => {
                       renderEmptyLiberacoesCard()
                     ) : (
                       <div className="space-y-6">
-                        {/* Seção 1: Liberação e Quantidade */}
                         <div className="space-y-4">
                         <div className="flex items-center gap-2 border-b pb-2">
                           <Package className="h-4 w-4 text-blue-600" />
@@ -1091,7 +1024,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.liberacao}
                                 onValueChange={(value) => {
                                   setNovoAgendamento({ ...novoAgendamento, liberacao: value });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                   atualizarQuantidadeDisponivel(value);
                                 }}
                                 disabled={isCreating}
@@ -1134,7 +1067,7 @@ const Agendamentos = () => {
                                   value={novoAgendamento.quantidade}
                                   onChange={(e) => {
                                     setNovoAgendamento({ ...novoAgendamento, quantidade: e.target.value });
-                                    markAsChanged(); // ✅ Marcar como alterado
+                                    markAsChanged();
                                   }}
                                   placeholder="0.00"
                                   disabled={isCreating || validandoQuantidade}
@@ -1161,7 +1094,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.data}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, data: e.target.value });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 disabled={isCreating}
                                 className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
@@ -1170,7 +1103,6 @@ const Agendamentos = () => {
                           </div>
                         </div>
 
-                        {/* Seção 2: Veículo e Carretas */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
                             <Truck className="h-4 w-4 text-green-600" />
@@ -1184,7 +1116,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.placa}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, placa: maskPlaca(e.target.value) });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 placeholder="ABC-1234"
                                 maxLength={8}
@@ -1193,7 +1125,6 @@ const Agendamentos = () => {
                               />
                             </div>
                             
-                            {/* ✅ NOVO CAMPO: PLACA CARRETA 1 */}
                             <div>
                               <Label htmlFor="placaCarreta1" className="text-sm font-medium">Placa da Carreta 1 *</Label>
                               <Input
@@ -1201,7 +1132,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.placaCarreta1}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, placaCarreta1: maskPlaca(e.target.value) });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 placeholder="ABC-1234"
                                 maxLength={8}
@@ -1210,7 +1141,6 @@ const Agendamentos = () => {
                               />
                             </div>
                             
-                            {/* ✅ NOVO CAMPO: PLACA CARRETA 2 (OPCIONAL) */}
                             <div>
                               <Label htmlFor="placaCarreta2" className="text-sm font-medium">Placa da Carreta 2 (opcional)</Label>
                               <Input
@@ -1218,7 +1148,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.placaCarreta2}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, placaCarreta2: maskPlaca(e.target.value) });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 placeholder="ABC-1234"
                                 maxLength={8}
@@ -1229,7 +1159,6 @@ const Agendamentos = () => {
                           </div>
                         </div>
 
-                        {/* Seção 3: Motorista */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
                             <User className="h-4 w-4 text-purple-600" />
@@ -1243,7 +1172,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.motorista}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, motorista: e.target.value });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 placeholder="Nome completo"
                                 disabled={isCreating}
@@ -1258,7 +1187,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.documento}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, documento: maskCPF(e.target.value) });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 placeholder="000.000.000-00"
                                 maxLength={14}
@@ -1269,7 +1198,6 @@ const Agendamentos = () => {
                           </div>
                         </div>
 
-                        {/* ✅ SEÇÃO 4: TRANSPORTADORA */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
                             <Building2 className="h-4 w-4 text-orange-600" />
@@ -1283,7 +1211,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.transportadora}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, transportadora: e.target.value });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 placeholder="Nome da empresa transportadora"
                                 disabled={isCreating}
@@ -1298,7 +1226,7 @@ const Agendamentos = () => {
                                 value={novoAgendamento.cnpjTransportadora}
                                 onChange={(e) => {
                                   setNovoAgendamento({ ...novoAgendamento, cnpjTransportadora: maskCNPJ(e.target.value) });
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  markAsChanged();
                                 }}
                                 placeholder="00.000.000/0000-00"
                                 maxLength={18}
@@ -1309,7 +1237,6 @@ const Agendamentos = () => {
                           </div>
                         </div>
 
-                        {/* ✅ SEÇÃO 5: OBSERVAÇÕES */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
                             <FileText className="h-4 w-4 text-gray-600" />
@@ -1322,7 +1249,7 @@ const Agendamentos = () => {
                               value={novoAgendamento.observacoes}
                               onChange={(e) => {
                                 setNovoAgendamento({ ...novoAgendamento, observacoes: e.target.value });
-                                markAsChanged(); // ✅ Marcar como alterado
+                                markAsChanged();
                               }}
                               placeholder="Informações adicionais sobre o agendamento"
                               disabled={isCreating}
@@ -1343,7 +1270,6 @@ const Agendamentos = () => {
                       </div>
                     )}
 
-                    {/* Botões no final do conteúdo */}
                     <ModalFooter 
                       variant="double"
                       onClose={() => handleCloseModal()}
@@ -1360,7 +1286,6 @@ const Agendamentos = () => {
           }
         />
 
-        {/* Barra de filtros - Mobile otimizada */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Input 
@@ -1398,7 +1323,6 @@ const Agendamentos = () => {
           </div>
         </div>
 
-        {/* Filtros expandidos - Mobile otimizado */}
         {filtersOpen && (
           <div className="rounded-md border p-3 space-y-4">
             <div>
@@ -1444,9 +1368,7 @@ const Agendamentos = () => {
           </div>
         )}
 
-        {/* Lista de agendamentos */}
         <div className="space-y-6">
-          {/* Agendamentos Ativos */}
           {agendamentosAtivos.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -1461,7 +1383,6 @@ const Agendamentos = () => {
             </div>
           )}
           
-          {/* Agendamentos Finalizados */}
           {agendamentosFinalizados.length > 0 && (
             <div className="space-y-4">
               <Button
@@ -1488,7 +1409,6 @@ const Agendamentos = () => {
             </div>
           )}
 
-          {/* Estado vazio */}
           {agendamentos.length === 0 && (
             <Card>
               <CardContent className="p-6 text-center">
@@ -1513,7 +1433,6 @@ const Agendamentos = () => {
             </Card>
           )}
 
-          {/* Estado de filtros sem resultados */}
           {agendamentos.length > 0 && showingCount === 0 && (
             <Card>
               <CardContent className="p-6 text-center">
@@ -1534,7 +1453,6 @@ const Agendamentos = () => {
           )}
         </div>
 
-        {/* ✅ MODAL DE DETALHES ATUALIZADO */}
         {detalhesAgendamento && (
           <Dialog open={!!detalhesAgendamento} onOpenChange={() => setDetalhesAgendamento(null)}>
             <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-4xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
@@ -1548,7 +1466,6 @@ const Agendamentos = () => {
               </DialogHeader>
               
               <div className="py-4 px-1 space-y-6">
-                {/* Data de Retirada e Status - No topo */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">Data de Retirada:</Label>
@@ -1566,7 +1483,6 @@ const Agendamentos = () => {
                 
                 <div className="border-t"></div>
                 
-                {/* Seção 1: Informações Gerais */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b pb-2">
                     <Info className="h-4 w-4 text-blue-600" />
@@ -1594,7 +1510,6 @@ const Agendamentos = () => {
                 
                 <div className="border-t"></div>
 
-                {/* Seção 2: Veículo e Carretas */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b pb-2">
                     <Truck className="h-4 w-4 text-green-600" />
@@ -1620,7 +1535,6 @@ const Agendamentos = () => {
                   </div>
                 </div>
 
-                {/* Seção 3: Motorista */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b pb-2">
                     <User className="h-4 w-4 text-purple-600" />
@@ -1638,7 +1552,6 @@ const Agendamentos = () => {
                   </div>
                 </div>
 
-                {/* ✅ Seção 4: Transportadora */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b pb-2">
                     <Building2 className="h-4 w-4 text-orange-600" />
@@ -1660,7 +1573,6 @@ const Agendamentos = () => {
                   </div>
                 </div>
 
-                {/* ✅ Seção 5: Observações */}
                 {detalhesAgendamento.observacoes && (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-b pb-2">
@@ -1673,7 +1585,6 @@ const Agendamentos = () => {
                   </div>
                 )}
 
-                {/* Seção 6: Status do Carregamento */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b pb-2">
                     <Package className="h-4 w-4 text-indigo-600" />
@@ -1691,7 +1602,6 @@ const Agendamentos = () => {
                       ></div>
                     </div>
                     <p className="text-sm text-muted-foreground">{detalhesAgendamento.tooltip_carregamento}</p>
-                    
                   </div>
                 </div>
               </div>
