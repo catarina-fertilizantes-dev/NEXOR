@@ -602,26 +602,37 @@ const Liberacoes = () => {
   
     try {
       const { data: userData } = await supabase.auth.getUser();
-      console.log('🔍 [DEBUG] userData:', userData);
+      console.log('🔍 [DEBUG] userData completo:', JSON.stringify(userData, null, 2));
+      console.log('🔍 [DEBUG] userData.user?.id:', userData.user?.id);
       
       const parametros = {
         p_liberacao_id: detalhesLiberacao.id,
         p_novo_armazem_id: novoArmazemId,
         p_user_id: userData.user?.id
       };
-      console.log('🔍 [DEBUG] Parâmetros enviados:', parametros);
+      console.log('🔍 [DEBUG] Parâmetros enviados:', JSON.stringify(parametros, null, 2));
       console.log('🔍 [DEBUG] Tipos dos parâmetros:', {
         p_liberacao_id: typeof detalhesLiberacao.id,
         p_novo_armazem_id: typeof novoArmazemId,
-        p_user_id: typeof userData.user?.id
+        p_user_id: typeof userData.user?.id,
+        p_liberacao_id_value: detalhesLiberacao.id,
+        p_novo_armazem_id_value: novoArmazemId,
+        p_user_id_value: userData.user?.id
       });
       
+      console.log('🔍 [DEBUG] Chamando função SQL...');
       const { data, error } = await supabase.rpc('alterar_armazem_liberacao', parametros);
   
-      console.log('🔍 [DEBUG] Resposta da função:', { data, error });
+      console.log('🔍 [DEBUG] Resposta da função - data:', JSON.stringify(data, null, 2));
+      console.log('🔍 [DEBUG] Resposta da função - error:', JSON.stringify(error, null, 2));
   
       if (error) {
-        console.error('❌ [DEBUG] Erro da função SQL:', error);
+        console.error('❌ [DEBUG] Erro completo:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         throw error;
       }
 
