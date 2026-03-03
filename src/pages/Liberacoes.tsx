@@ -570,7 +570,12 @@ const Liberacoes = () => {
 
   // 🆕 Função para alterar armazém ATUALIZADA
   const handleAlterarArmazem = async () => {
+    console.log('🔍 [DEBUG] Iniciando alteração de armazém');
+    console.log('�� [DEBUG] detalhesLiberacao:', detalhesLiberacao);
+    console.log('🔍 [DEBUG] novoArmazemId:', novoArmazemId);
+    
     if (!detalhesLiberacao || !novoArmazemId) {
+      console.log('❌ [DEBUG] Validação falhou - dados faltando');
       toast({
         variant: "destructive",
         title: "Erro",
@@ -578,10 +583,13 @@ const Liberacoes = () => {
       });
       return;
     }
-
+  
     const quantidadeDisponivel = detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada;
+    console.log('🔍 [DEBUG] quantidadeDisponivel:', quantidadeDisponivel);
+    console.log('🔍 [DEBUG] estoqueNovoArmazem:', estoqueNovoArmazem);
     
     if (estoqueNovoArmazem < quantidadeDisponivel) {
+      console.log('❌ [DEBUG] Estoque insuficiente');
       toast({
         variant: "destructive",
         title: "Estoque insuficiente",
@@ -589,19 +597,33 @@ const Liberacoes = () => {
       });
       return;
     }
-
+  
     setIsAlterandoArmazem(true);
-
+  
     try {
       const { data: userData } = await supabase.auth.getUser();
+      console.log('🔍 [DEBUG] userData:', userData);
       
-      const { data, error } = await supabase.rpc('alterar_armazem_liberacao', {
+      const parametros = {
         p_liberacao_id: detalhesLiberacao.id,
         p_novo_armazem_id: novoArmazemId,
         p_user_id: userData.user?.id
+      };
+      console.log('🔍 [DEBUG] Parâmetros enviados:', parametros);
+      console.log('🔍 [DEBUG] Tipos dos parâmetros:', {
+        p_liberacao_id: typeof detalhesLiberacao.id,
+        p_novo_armazem_id: typeof novoArmazemId,
+        p_user_id: typeof userData.user?.id
       });
-
-      if (error) throw error;
+      
+      const { data, error } = await supabase.rpc('alterar_armazem_liberacao', parametros);
+  
+      console.log('🔍 [DEBUG] Resposta da função:', { data, error });
+  
+      if (error) {
+        console.error('❌ [DEBUG] Erro da função SQL:', error);
+        throw error;
+      }
 
       if (data.success) {
         toast({
