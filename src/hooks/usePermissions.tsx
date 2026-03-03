@@ -108,11 +108,26 @@ export const usePermissions = () => {
 
       // Armazém
       if (userRole === 'armazem') {
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log("🏢 [USE_PERMISSIONS] BUSCANDO ARMAZÉM");
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log("  ├─ userRole:", userRole);
+        console.log("  └─ user.id:", user.id);
+        
         const { data, error } = await supabase
           .from("armazens")
           .select("id")
           .eq("user_id", user.id)
           .single();
+
+          console.log("📦 [USE_PERMISSIONS] RESULTADO DA QUERY ARMAZÉM:");
+          if (error) {
+            console.error("  ❌ ERRO:", error.message);
+          } else {
+            console.log("  ✅ Armazém encontrado:", data?.id);
+          }
+          console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        
         setArmazemId(data?.id ?? null);
       } else {
         setArmazemId(null);
