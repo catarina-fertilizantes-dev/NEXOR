@@ -343,6 +343,7 @@ const Agendamentos = () => {
       return data || [];
     },
     refetchInterval: 30000,
+    refetchOnMount: true,  // ⬅️ ✅ ADICIONE ESTA LINHA
     enabled: (() => {
       console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       console.log("🔒 [AGENDAMENTOS] VERIFICAÇÃO DE ENABLED");
