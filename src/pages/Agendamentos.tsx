@@ -294,38 +294,105 @@ const Agendamentos = () => {
   const { data: agendamentosData, isLoading, error } = useQuery({
     queryKey: ["agendamentos", clienteId, armazemId, representanteId, userRole],
     queryFn: async () => {
-      console.log("🔍 [DEBUG] Query agendamentos executando:");
-      console.log("- userRole:", userRole);
-      console.log("- representanteId:", representanteId);
-      console.log("- clienteId:", clienteId);
-      console.log("- armazemId:", armazemId);
-      console.log("- user:", user);
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🔍 [AGENDAMENTOS] INÍCIO DA QUERY");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       
-      const { data, error } = await supabase.rpc('get_agendamentos_universal', {
+      console.log("📊 [AGENDAMENTOS] PARÂMETROS EXTRAÍDOS:");
+      console.log("  ├─ userRole:", userRole, "| Tipo:", typeof userRole);
+      console.log("  ├─ clienteId:", clienteId, "| Tipo:", typeof clienteId);
+      console.log("  ├─ armazemId:", armazemId, "| Tipo:", typeof armazemId);
+      console.log("  ├─ representanteId:", representanteId, "| Tipo:", typeof representanteId);
+      console.log("  └─ user?.id:", user?.id, "| Tipo:", typeof user?.id);
+      
+      console.log("🚀 [AGENDAMENTOS] PARÂMETROS ENVIADOS PARA RPC:");
+      const params = {
         p_user_role: userRole,
         p_user_id: user?.id,
         p_cliente_id: clienteId || null,
         p_armazem_id: armazemId || null,
         p_representante_id: representanteId || null
-      });
+      };
+      console.log("  ", JSON.stringify(params, null, 2));
       
-      console.log("🔍 [DEBUG] Resultado função universal:", { data, error });
+      console.log("⏳ [AGENDAMENTOS] Executando RPC get_agendamentos_universal...");
+      const { data, error } = await supabase.rpc('get_agendamentos_universal', params);
+      
+      console.log("📦 [AGENDAMENTOS] RESULTADO DA RPC:");
+      if (error) {
+        console.error("❌ [AGENDAMENTOS] ERRO NA RPC:", error);
+        console.error("  ├─ Message:", error.message);
+        console.error("  ├─ Code:", error.code);
+        console.error("  └─ Details:", error.details);
+      } else {
+        console.log("✅ [AGENDAMENTOS] RPC executada com sucesso");
+        console.log("  ├─ Quantidade de registros:", data?.length || 0);
+        if (data && data.length > 0) {
+          console.log("  ├─ Primeiro registro:", JSON.stringify(data[0], null, 2));
+          console.log("  └─ Armazéns únicos encontrados:", 
+            [...new Set(data.map((d: any) => `${d.armazem_nome} (${d.armazem_id})`))].join(", ")
+          );
+        } else {
+          console.log("  └─ ⚠️ NENHUM REGISTRO RETORNADO!");
+        }
+      }
+      
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       
       if (error) throw error;
       return data || [];
     },
     refetchInterval: 30000,
     enabled: (() => {
-      if (!user || !userRole) return false;
-      if (userRole === "admin" || userRole === "logistica") return true;
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🔒 [AGENDAMENTOS] VERIFICAÇÃO DE ENABLED");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      
+      console.log("📋 [AGENDAMENTOS] VALORES ATUAIS:");
+      console.log("  ├─ user:", user?.id ? `Presente (${user.id})` : "❌ AUSENTE");
+      console.log("  ├─ userRole:", userRole || "❌ AUSENTE");
+      console.log("  ├─ clienteId:", clienteId !== undefined ? clienteId : "❌ UNDEFINED");
+      console.log("  ├─ armazemId:", armazemId !== undefined ? armazemId : "❌ UNDEFINED");
+      console.log("  └─ representanteId:", representanteId !== undefined ? representanteId : "❌ UNDEFINED");
+      
+      if (!user || !userRole) {
+        console.log("❌ [AGENDAMENTOS] ENABLED = FALSE (user ou userRole ausente)");
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        return false;
+      }
+      
+      if (userRole === "admin" || userRole === "logistica") {
+        console.log("✅ [AGENDAMENTOS] ENABLED = TRUE (admin/logistica tem acesso total)");
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        return true;
+      }
       
       const clienteOk = userRole !== "cliente" || (clienteId !== undefined);
       const armazemOk = userRole !== "armazem" || (armazemId !== undefined);
       const representanteOk = userRole !== "representante" || (representanteId !== undefined);
       
-      console.log("🔍 [DEBUG] Enabled check:", { clienteOk, armazemOk, representanteOk });
+      console.log("🔍 [AGENDAMENTOS] VALIDAÇÕES POR ROLE:");
+      console.log("  ├─ clienteOk:", clienteOk, 
+        `(userRole !== "cliente" [${userRole !== "cliente"}] || clienteId !== undefined [${clienteId !== undefined}])`);
+      console.log("  ├─ armazemOk:", armazemOk, 
+        `(userRole !== "armazem" [${userRole !== "armazem"}] || armazemId !== undefined [${armazemId !== undefined}])`);
+      console.log("  └─ representanteOk:", representanteOk, 
+        `(userRole !== "representante" [${userRole !== "representante"}] || representanteId !== undefined [${representanteId !== undefined}])`);
       
-      return clienteOk && armazemOk && representanteOk;
+      const result = clienteOk && armazemOk && representanteOk;
+      
+      if (result) {
+        console.log("✅ [AGENDAMENTOS] ENABLED = TRUE (todas validações passaram)");
+      } else {
+        console.log("❌ [AGENDAMENTOS] ENABLED = FALSE (alguma validação falhou)");
+        if (!clienteOk) console.log("  └─ ⚠️ Falhou: clienteOk");
+        if (!armazemOk) console.log("  └─ ⚠️ Falhou: armazemOk");
+        if (!representanteOk) console.log("  └─ ⚠️ Falhou: representanteOk");
+      }
+      
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      
+      return result;
     })(),
   });
 
