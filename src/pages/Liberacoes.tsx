@@ -1082,7 +1082,9 @@ const Liberacoes = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 {armazens?.map((a) => (
-                                  <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+                                  <SelectItem key={a.id} value={a.id}>
+                                    {a.nome} - {a.cidade}/{a.estado}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -1538,7 +1540,9 @@ const Liberacoes = () => {
                         </SelectTrigger>
                         <SelectContent>
                           {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => (
-                            <SelectItem key={armazem.id} value={armazem.id}>{armazem.nome}</SelectItem>
+                            <SelectItem key={armazem.id} value={armazem.id}>
+                              {armazem.nome} - {armazem.cidade}/{armazem.estado}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
