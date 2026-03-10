@@ -1097,10 +1097,20 @@ const Agendamentos = () => {
                                 }}
                                 disabled={isCreating}
                               >
-                                <SelectTrigger id="liberacao" className="min-h-[44px] max-md:min-h-[44px]">
-                                  <SelectValue placeholder="Selecione uma liberação" />
+                                <SelectTrigger id="liberacao" className="min-h-[44px] max-md:min-h-[44px] text-left">
+                                  {novoAgendamento.liberacao && liberacoesDisponiveis ? (
+                                    <span className="truncate">
+                                      {(() => {
+                                        const lib = liberacoesDisponiveis.find(l => l.id === novoAgendamento.liberacao);
+                                        if (!lib) return "Selecione uma liberação";
+                                        return `${lib.pedido_interno} – ${lib.quantidade_disponivel_real}t – ${lib.clientes?.nome} – ${lib.produto?.nome}`;
+                                      })()}
+                                    </span>
+                                  ) : (
+                                    <SelectValue placeholder="Selecione uma liberação" />
+                                  )}
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="max-h-[300px]">
                                   {liberacoesDisponiveis?.map((lib) => (
                                     <SelectItem key={lib.id} value={lib.id}>
                                       <div className="flex flex-col gap-1 py-1">
