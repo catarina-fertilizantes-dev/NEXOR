@@ -300,7 +300,7 @@ const Liberacoes = () => {
     } else {
       setEstoqueNovoArmazem(0);
     }
-  }, [detalhesLiberacao?.produto_id, novoArmazemId]);
+  }, [detalhesLiberacao, novoArmazemId]);
 
   // ✅ USEMEMO HÍBRIDO - SUPORTA FUNÇÃO UNIVERSAL E FALLBACK
   const liberacoes = useMemo(() => {
