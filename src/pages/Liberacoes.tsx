@@ -414,13 +414,6 @@ const Liberacoes = () => {
       return data || [];
     },
   });
-
-  // 🆕 FUNÇÃO AUXILIAR PARA EXIBIÇÃO DE ARMAZÉM
-  const getArmazemDisplay = () => {
-    if (!novaLiberacao.armazem || !armazens) return "Selecione o armazém";
-    const selected = armazens.find(a => a.id === novaLiberacao.armazem);
-    return selected ? `${selected.nome} - ${selected.cidade}/${selected.estado}` : "Selecione o armazém";
-  };
   
   const { data: clientesData } = useQuery({
     queryKey: ["clientes-ativos"],
@@ -1093,7 +1086,7 @@ const Liberacoes = () => {
                                   const localizacao = `${a.cidade}${a.estado ? "/" + a.estado : ""}`;
                                   const maxNomeLength = Math.max(15, 60 - localizacao.length - 5);
                                   const nomeTruncado = nomeArmazem.length > maxNomeLength 
-                                    ? nomeArmazem.substring(0, maxNomeLength).trim() + "..." 
+                                    ? `${nomeArmazem.substring(0, maxNomeLength).trim()}...` 
                                     : nomeArmazem;
                                   
                                   return (
@@ -1563,7 +1556,7 @@ const Liberacoes = () => {
                             const localizacao = `${armazem.cidade}${armazem.estado ? "/" + armazem.estado : ""}`;
                             const maxNomeLength = Math.max(15, 60 - localizacao.length - 5);
                             const nomeTruncado = nomeArmazem.length > maxNomeLength
-                              ? nomeArmazem.substring(0, maxNomeLength).trim() + "..."
+                              ? `${nomeArmazem.substring(0, maxNomeLength).trim()}...`
                               : nomeArmazem;
                             
                             return (
