@@ -1070,23 +1070,10 @@ const Liberacoes = () => {
                                     const selected = armazens.find(a => a.id === novaLiberacao.armazem);
                                     if (!selected) return <SelectValue placeholder="Selecione o armazém" />;
                                     
-                                    const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
-                                    
                                     return (
-                                      <>
-                                        {/* Mobile: apenas nome */}
-                                        <span className="md:hidden truncate">
-                                          {selected.nome}
-                                        </span>
-                                        
-                                        {/* Desktop: nome truncado + localização */}
-                                        <span className="hidden md:inline truncate">
-                                          {selected.nome}
-                                          <span className="ml-1 flex-shrink-0 whitespace-nowrap">
-                                            - {localizacao}
-                                          </span>
-                                        </span>
-                                      </>
+                                      <span className="truncate">
+                                        {selected.nome} - {selected.cidade}/{selected.estado}
+                                      </span>
                                     );
                                   })()
                                 ) : (
@@ -1566,23 +1553,10 @@ const Liberacoes = () => {
                               const selected = armazensDisponiveis.find(a => a.id === novoArmazemId);
                               if (!selected) return <SelectValue placeholder="Selecione o novo armazém" />;
                               
-                              const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
-                              
                               return (
-                                <>
-                                  {/* Mobile: apenas nome */}
-                                  <span className="md:hidden truncate">
-                                    {selected.nome}
-                                  </span>
-                                  
-                                  {/* Desktop: nome truncado + localização */}
-                                  <span className="hidden md:inline truncate">
-                                    {selected.nome}
-                                    <span className="ml-1 flex-shrink-0 whitespace-nowrap">
-                                      - {localizacao}
-                                    </span>
-                                  </span>
-                                </>
+                                <span className="truncate">
+                                  {selected.nome} - {selected.cidade}/{selected.estado}
+                                </span>
                               );
                             })()
                           ) : (
