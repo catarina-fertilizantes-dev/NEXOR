@@ -1071,13 +1071,24 @@ const Liberacoes = () => {
                                     if (!selected) return <SelectValue placeholder="Selecione o armazém" />;
                                     
                                     const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
-                                    const maxNomeLength = Math.max(15, 70 - localizacao.length - 8);
-                                    const nomeTruncado = selected.nome.length > maxNomeLength
-                                      ? selected.nome.substring(0, maxNomeLength).trim() + "..."
-                                      : selected.nome;
                                     
                                     return (
-                                      <span className="truncate block w-full">{nomeTruncado} - {localizacao}</span>
+                                      <div className="flex items-center gap-1 w-full min-w-0">
+                                        {/* Mobile: apenas nome */}
+                                        <span className="md:hidden truncate flex-1 min-w-0">
+                                          {selected.nome}
+                                        </span>
+                                        
+                                        {/* Desktop: nome + localização */}
+                                        <span className="hidden md:flex items-center gap-1 w-full min-w-0">
+                                          <span className="truncate flex-1 min-w-0">
+                                            {selected.nome}
+                                          </span>
+                                          <span className="flex-shrink-0 whitespace-nowrap">
+                                            - {localizacao}
+                                          </span>
+                                        </span>
+                                      </div>
                                     );
                                   })()
                                 ) : (
@@ -1558,13 +1569,24 @@ const Liberacoes = () => {
                               if (!selected) return <SelectValue placeholder="Selecione o novo armazém" />;
                               
                               const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
-                              const maxNomeLength = Math.max(15, 70 - localizacao.length - 8);
-                              const nomeTruncado = selected.nome.length > maxNomeLength
-                                ? selected.nome.substring(0, maxNomeLength).trim() + "..."
-                                : selected.nome;
                               
                               return (
-                                <span className="truncate block w-full">{nomeTruncado} - {localizacao}</span>
+                                <div className="flex items-center gap-1 w-full min-w-0">
+                                  {/* Mobile: apenas nome */}
+                                  <span className="md:hidden truncate flex-1 min-w-0">
+                                    {selected.nome}
+                                  </span>
+                                  
+                                  {/* Desktop: nome + localização */}
+                                  <span className="hidden md:flex items-center gap-1 w-full min-w-0">
+                                    <span className="truncate flex-1 min-w-0">
+                                      {selected.nome}
+                                    </span>
+                                    <span className="flex-shrink-0 whitespace-nowrap">
+                                      - {localizacao}
+                                    </span>
+                                  </span>
+                                </div>
                               );
                             })()
                           ) : (
