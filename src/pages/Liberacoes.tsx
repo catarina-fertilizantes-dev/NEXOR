@@ -1077,10 +1077,10 @@ const Liberacoes = () => {
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                              <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] text-left">
                                 <SelectValue placeholder="Selecione o armazém" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-h-[300px]">
                                 {armazens?.map((a) => (
                                   <SelectItem key={a.id} value={a.id}>
                                     {a.nome} - {a.cidade}/{a.estado}
@@ -1535,10 +1535,10 @@ const Liberacoes = () => {
                         }}
                         disabled={isAlterandoArmazem}
                       >
-                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1">
+                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1 text-left">
                           <SelectValue placeholder="Selecione o novo armazém" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[300px]">
                           {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => (
                             <SelectItem key={armazem.id} value={armazem.id}>
                               {armazem.nome} - {armazem.cidade}/{armazem.estado}
