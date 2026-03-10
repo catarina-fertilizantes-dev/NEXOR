@@ -1066,14 +1066,30 @@ const Liberacoes = () => {
                               disabled={isCreating}
                             >
                               <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
-                                <SelectValue placeholder="Selecione o armazém" />
+                                {novaLiberacao.armazem && armazens ? (
+                                  (() => {
+                                    const selected = armazens.find(a => a.id === novaLiberacao.armazem);
+                                    if (!selected) return <SelectValue placeholder="Selecione o armazém" />;
+                                    
+                                    const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
+                                    const maxNomeLength = Math.max(20, 80 - localizacao.length - 5);
+                                    const nomeTruncado = selected.nome.length > maxNomeLength
+                                      ? selected.nome.substring(0, maxNomeLength).trim() + "..."
+                                      : selected.nome;
+                                    
+                                    return (
+                                      <span className="truncate">{nomeTruncado} - {localizacao}</span>
+                                    );
+                                  })()
+                                ) : (
+                                  <SelectValue placeholder="Selecione o armazém" />
+                                )}
                               </SelectTrigger>
                               <SelectContent>
                                 {armazens?.map((a) => {
                                   const nomeArmazem = a.nome || "";
                                   const localizacao = `${a.cidade}${a.estado ? "/" + a.estado : ""}`;
-                                  // Truncamento dinâmico: ~60 caracteres disponíveis no dropdown
-                                  const maxNomeLength = Math.max(20, 60 - localizacao.length - 5); // 5 para " - "
+                                  const maxNomeLength = Math.max(20, 60 - localizacao.length - 5);
                                   const nomeTruncado = nomeArmazem.length > maxNomeLength 
                                     ? nomeArmazem.substring(0, maxNomeLength).trim() + "..." 
                                     : nomeArmazem;
