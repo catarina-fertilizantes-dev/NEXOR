@@ -1078,7 +1078,13 @@ const Liberacoes = () => {
                               disabled={isCreating}
                             >
                               <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
-                                <SelectValue placeholder="Selecione o armazém" />
+                                {novaLiberacao.armazem && armazens ? (
+                                  <span className="truncate">
+                                    {armazens.find(a => a.id === novaLiberacao.armazem)?.nome || "Selecione o armazém"}
+                                  </span>
+                                ) : (
+                                  <SelectValue placeholder="Selecione o armazém" />
+                                )}
                               </SelectTrigger>
                               <SelectContent>
                                 {armazens?.map((a) => {
@@ -1548,7 +1554,13 @@ const Liberacoes = () => {
                         disabled={isAlterandoArmazem}
                       >
                         <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1">
-                          <SelectValue placeholder="Selecione o novo armazém" />
+                          {novoArmazemId && armazensDisponiveis ? (
+                            <span className="truncate">
+                              {armazensDisponiveis.find(a => a.id === novoArmazemId)?.nome || "Selecione o novo armazém"}
+                            </span>
+                          ) : (
+                            <SelectValue placeholder="Selecione o novo armazém" />
+                          )}
                         </SelectTrigger>
                         <SelectContent>
                           {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => {
