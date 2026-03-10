@@ -1068,15 +1068,42 @@ const Liberacoes = () => {
                                 <SelectValue placeholder="Selecione o armazém" />
                               </SelectTrigger>
                               <SelectContent>
-                                {armazens?.map((a) => (
-                                  <SelectItem key={a.id} value={a.id}>
-                                    <span className="break-words">{a.cidade}{a.estado ? "/" + a.estado : ""} - {a.nome}</span>
-                                  </SelectItem>
-                                ))}
+                                {armazens?.map((a) => {
+                                  const nomeArmazem = a.nome || "";
+                                  const localizacao = `${a.cidade}${a.estado ? "/" + a.estado : ""}`;
+                                  // Truncamento dinâmico: ~60 caracteres disponíveis no dropdown
+                                  const maxNomeLength = Math.max(20, 60 - localizacao.length - 5); // 5 para " - "
+                                  const nomeTruncado = nomeArmazem.length > maxNomeLength 
+                                    ? nomeArmazem.substring(0, maxNomeLength).trim() + "..." 
+                                    : nomeArmazem;
+                                  
+                                  return (
+                                    <SelectItem key={a.id} value={a.id}>
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="font-medium text-sm break-words">{nomeTruncado}</span>
+                                        <span className="text-xs text-muted-foreground">{localizacao}</span>
+                                      </div>
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectContent>
                             </Select>
+                            {novaLiberacao.armazem && armazens && (
+                              <div className="mt-2 px-2 py-1.5 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-800 dark:text-blue-200">
+                                <span className="font-medium">Armazém selecionado:</span>
+                                {(() => {
+                                  const selected = armazens.find(a => a.id === novaLiberacao.armazem);
+                                  if (!selected) return " -";
+                                  const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
+                                  const maxNomeLength = Math.max(25, 70 - localizacao.length - 5);
+                                  const nomeTruncado = selected.nome.length > maxNomeLength
+                                    ? selected.nome.substring(0, maxNomeLength).trim() + "..."
+                                    : selected.nome;
+                                  return ` ${nomeTruncado} - ${localizacao}`;
+                                })()}
+                              </div>
+                            )}
                           </div>
-                        </div>
                       
                         {/* Seção 4: Produto */}
                         <div className="space-y-4">
