@@ -1054,7 +1054,6 @@ const Liberacoes = () => {
                             <Building2 className="h-4 w-4 text-orange-600" />
                             <h3 className="text-base font-semibold text-foreground">Armazém</h3>
                           </div>
-                        
                           <div>
                             <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
                             <Select 
@@ -1065,37 +1064,20 @@ const Liberacoes = () => {
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
-                                {novaLiberacao.armazem && armazens ? (
-                                  (() => {
-                                    const selected = armazens.find(a => a.id === novaLiberacao.armazem);
-                                    if (!selected) return <SelectValue placeholder="Selecione o armazém" />;
-                                    
-                                    const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
-                                    const maxNomeLength = Math.max(20, 80 - localizacao.length - 5);
-                                    const nomeTruncado = selected.nome.length > maxNomeLength
-                                      ? selected.nome.substring(0, maxNomeLength).trim() + "..."
-                                      : selected.nome;
-                                    
-                                    return (
-                                      <span className="truncate">{nomeTruncado} - {localizacao}</span>
-                                    );
-                                  })()
-                                ) : (
-                                  <SelectValue placeholder="Selecione o armazém" />
-                                )}
+                              <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] overflow-hidden">
+                                <SelectValue placeholder="Selecione o armazém" />
                               </SelectTrigger>
                               <SelectContent>
                                 {armazens?.map((a) => {
                                   const nomeArmazem = a.nome || "";
                                   const localizacao = `${a.cidade}${a.estado ? "/" + a.estado : ""}`;
-                                  const maxNomeLength = Math.max(20, 60 - localizacao.length - 5);
+                                  const maxNomeLength = Math.max(15, 70 - localizacao.length - 8);
                                   const nomeTruncado = nomeArmazem.length > maxNomeLength 
                                     ? nomeArmazem.substring(0, maxNomeLength).trim() + "..." 
                                     : nomeArmazem;
                                   
                                   return (
-                                    <SelectItem key={a.id} value={a.id}>
+                                    <SelectItem key={a.id} value={`${nomeTruncado} - ${localizacao}`}>
                                       <div className="flex flex-col gap-0.5">
                                         <span className="font-medium text-sm break-words">{nomeTruncado}</span>
                                         <span className="text-xs text-muted-foreground">{localizacao}</span>
@@ -1552,37 +1534,20 @@ const Liberacoes = () => {
                         }}
                         disabled={isAlterandoArmazem}
                       >
-                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1">
-                          {novoArmazemId && armazensDisponiveis ? (
-                            (() => {
-                              const selected = armazensDisponiveis.find(a => a.id === novoArmazemId);
-                              if (!selected) return <SelectValue placeholder="Selecione o novo armazém" />;
-                              
-                              const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
-                              const maxNomeLength = Math.max(20, 80 - localizacao.length - 5);
-                              const nomeTruncado = selected.nome.length > maxNomeLength
-                                ? selected.nome.substring(0, maxNomeLength).trim() + "..."
-                                : selected.nome;
-                              
-                              return (
-                                <span className="truncate">{nomeTruncado} - {localizacao}</span>
-                              );
-                            })()
-                          ) : (
-                            <SelectValue placeholder="Selecione o novo armazém" />
-                          )}
+                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1 overflow-hidden">
+                          <SelectValue placeholder="Selecione o novo armazém" />
                         </SelectTrigger>
                         <SelectContent>
                           {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => {
                             const nomeArmazem = armazem.nome || "";
                             const localizacao = `${armazem.cidade}${armazem.estado ? "/" + armazem.estado : ""}`;
-                            const maxNomeLength = Math.max(20, 60 - localizacao.length - 5);
+                            const maxNomeLength = Math.max(15, 70 - localizacao.length - 8);
                             const nomeTruncado = nomeArmazem.length > maxNomeLength
                               ? nomeArmazem.substring(0, maxNomeLength).trim() + "..."
                               : nomeArmazem;
                             
                             return (
-                              <SelectItem key={armazem.id} value={armazem.id}>
+                              <SelectItem key={armazem.id} value={`${nomeTruncado} - ${localizacao}`}>
                                 <div className="flex flex-col gap-0.5">
                                   <span className="font-medium text-sm break-words">{nomeTruncado}</span>
                                   <span className="text-xs text-muted-foreground">{localizacao}</span>
