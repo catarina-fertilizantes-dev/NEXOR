@@ -1104,7 +1104,7 @@ const Liberacoes = () => {
                               </div>
                             )}
                           </div>
-                      
+                        </div>
                         {/* Seção 4: Produto */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b pb-2">
