@@ -1064,7 +1064,7 @@ const Liberacoes = () => {
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] overflow-hidden">
+                              <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
                                 {novaLiberacao.armazem && armazens ? (
                                   (() => {
                                     const selected = armazens.find(a => a.id === novaLiberacao.armazem);
@@ -1073,22 +1073,20 @@ const Liberacoes = () => {
                                     const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
                                     
                                     return (
-                                      <div className="flex items-center gap-1 w-full min-w-0">
+                                      <>
                                         {/* Mobile: apenas nome */}
-                                        <span className="md:hidden truncate flex-1 min-w-0">
+                                        <span className="md:hidden truncate">
                                           {selected.nome}
                                         </span>
                                         
-                                        {/* Desktop: nome + localização */}
-                                        <span className="hidden md:flex items-center gap-1 w-full min-w-0">
-                                          <span className="truncate flex-1 min-w-0">
-                                            {selected.nome}
-                                          </span>
-                                          <span className="flex-shrink-0 whitespace-nowrap">
+                                        {/* Desktop: nome truncado + localização */}
+                                        <span className="hidden md:inline truncate">
+                                          {selected.nome}
+                                          <span className="ml-1 flex-shrink-0 whitespace-nowrap">
                                             - {localizacao}
                                           </span>
                                         </span>
-                                      </div>
+                                      </>
                                     );
                                   })()
                                 ) : (
@@ -1562,7 +1560,7 @@ const Liberacoes = () => {
                         }}
                         disabled={isAlterandoArmazem}
                       >
-                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1 overflow-hidden">
+                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1">
                           {novoArmazemId && armazensDisponiveis ? (
                             (() => {
                               const selected = armazensDisponiveis.find(a => a.id === novoArmazemId);
@@ -1571,22 +1569,20 @@ const Liberacoes = () => {
                               const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
                               
                               return (
-                                <div className="flex items-center gap-1 w-full min-w-0">
+                                <>
                                   {/* Mobile: apenas nome */}
-                                  <span className="md:hidden truncate flex-1 min-w-0">
+                                  <span className="md:hidden truncate">
                                     {selected.nome}
                                   </span>
                                   
-                                  {/* Desktop: nome + localização */}
-                                  <span className="hidden md:flex items-center gap-1 w-full min-w-0">
-                                    <span className="truncate flex-1 min-w-0">
-                                      {selected.nome}
-                                    </span>
-                                    <span className="flex-shrink-0 whitespace-nowrap">
+                                  {/* Desktop: nome truncado + localização */}
+                                  <span className="hidden md:inline truncate">
+                                    {selected.nome}
+                                    <span className="ml-1 flex-shrink-0 whitespace-nowrap">
                                       - {localizacao}
                                     </span>
                                   </span>
-                                </div>
+                                </>
                               );
                             })()
                           ) : (
