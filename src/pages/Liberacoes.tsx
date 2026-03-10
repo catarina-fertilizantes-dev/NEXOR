@@ -263,6 +263,19 @@ const Liberacoes = () => {
     },
   });
 
+  // 🆕 FUNÇÕES AUXILIARES PARA EXIBIÇÃO DE ARMAZÉM
+  const getArmazemDisplay = () => {
+    if (!novaLiberacao.armazem || !armazens) return "Selecione o armazém";
+    const selected = armazens.find(a => a.id === novaLiberacao.armazem);
+    return selected ? `${selected.nome} - ${selected.cidade}/${selected.estado}` : "Selecione o armazém";
+  };
+
+  const getNovoArmazemDisplay = () => {
+    if (!novoArmazemId || !armazensDisponiveis) return "Selecione o novo armazém";
+    const selected = armazensDisponiveis.find(a => a.id === novoArmazemId);
+    return selected ? `${selected.nome} - ${selected.cidade}/${selected.estado}` : "Selecione o novo armazém";
+  };
+
   // 🆕 Função para validar estoque no novo armazém
   const validarEstoqueNovoArmazem = async (produtoId: string, armazemId: string) => {
     if (!produtoId || !armazemId) {
@@ -401,6 +414,13 @@ const Liberacoes = () => {
       return data || [];
     },
   });
+
+  // 🆕 FUNÇÃO AUXILIAR PARA EXIBIÇÃO DE ARMAZÉM
+  const getArmazemDisplay = () => {
+    if (!novaLiberacao.armazem || !armazens) return "Selecione o armazém";
+    const selected = armazens.find(a => a.id === novaLiberacao.armazem);
+    return selected ? `${selected.nome} - ${selected.cidade}/${selected.estado}` : "Selecione o armazém";
+  };
   
   const { data: clientesData } = useQuery({
     queryKey: ["clientes-ativos"],
@@ -1065,20 +1085,7 @@ const Liberacoes = () => {
                               disabled={isCreating}
                             >
                               <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
-                                {novaLiberacao.armazem && armazens ? (
-                                  (() => {
-                                    const selected = armazens.find(a => a.id === novaLiberacao.armazem);
-                                    if (!selected) return <SelectValue placeholder="Selecione o armazém" />;
-                                    
-                                    return (
-                                      <span className="truncate">
-                                        {selected.nome} - {selected.cidade}/{selected.estado}
-                                      </span>
-                                    );
-                                  })()
-                                ) : (
-                                  <SelectValue placeholder="Selecione o armazém" />
-                                )}
+                                <SelectValue placeholder="Selecione o armazém" />
                               </SelectTrigger>
                               <SelectContent>
                                 {armazens?.map((a) => {
@@ -1548,20 +1555,7 @@ const Liberacoes = () => {
                         disabled={isAlterandoArmazem}
                       >
                         <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1">
-                          {novoArmazemId && armazensDisponiveis ? (
-                            (() => {
-                              const selected = armazensDisponiveis.find(a => a.id === novoArmazemId);
-                              if (!selected) return <SelectValue placeholder="Selecione o novo armazém" />;
-                              
-                              return (
-                                <span className="truncate">
-                                  {selected.nome} - {selected.cidade}/{selected.estado}
-                                </span>
-                              );
-                            })()
-                          ) : (
-                            <SelectValue placeholder="Selecione o novo armazém" />
-                          )}
+                          <SelectValue placeholder="Selecione o novo armazém" />
                         </SelectTrigger>
                         <SelectContent>
                           {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => {
