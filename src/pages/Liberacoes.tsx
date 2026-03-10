@@ -1054,6 +1054,7 @@ const Liberacoes = () => {
                             <Building2 className="h-4 w-4 text-orange-600" />
                             <h3 className="text-base font-semibold text-foreground">Armazém</h3>
                           </div>
+                        
                           <div>
                             <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
                             <Select 
@@ -1088,21 +1089,6 @@ const Liberacoes = () => {
                                 })}
                               </SelectContent>
                             </Select>
-                            {novaLiberacao.armazem && armazens && (
-                              <div className="mt-2 px-2 py-1.5 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-800 dark:text-blue-200">
-                                <span className="font-medium">Armazém selecionado:</span>
-                                {(() => {
-                                  const selected = armazens.find(a => a.id === novaLiberacao.armazem);
-                                  if (!selected) return " -";
-                                  const localizacao = `${selected.cidade}${selected.estado ? "/" + selected.estado : ""}`;
-                                  const maxNomeLength = Math.max(25, 70 - localizacao.length - 5);
-                                  const nomeTruncado = selected.nome.length > maxNomeLength
-                                    ? selected.nome.substring(0, maxNomeLength).trim() + "..."
-                                    : selected.nome;
-                                  return ` ${nomeTruncado} - ${localizacao}`;
-                                })()}
-                              </div>
-                            )}
                           </div>
                         </div>
                         {/* Seção 4: Produto */}
