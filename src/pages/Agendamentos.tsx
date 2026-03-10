@@ -1086,51 +1086,80 @@ const Agendamentos = () => {
                           <h3 className="text-base font-semibold text-foreground">Produto e Quantidade</h3>
                         </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                              <Label htmlFor="liberacao" className="text-sm font-medium">Liberação *</Label>
-                              <Select
-                                value={novoAgendamento.liberacao}
-                                onValueChange={(value) => {
-                                  setNovoAgendamento({ ...novoAgendamento, liberacao: value });
-                                  markAsChanged();
-                                  atualizarQuantidadeDisponivel(value);
-                                }}
-                                disabled={isCreating}
-                              >
-                                <SelectTrigger id="liberacao" className="min-h-[44px] max-md:min-h-[44px] text-left">
-                                  {novoAgendamento.liberacao && liberacoesDisponiveis ? (
-                                    <span className="truncate">
-                                      {(() => {
-                                        const lib = liberacoesDisponiveis.find(l => l.id === novoAgendamento.liberacao);
-                                        if (!lib) return "Selecione uma liberação";
-                                        return `${lib.pedido_interno} – ${lib.quantidade_disponivel_real}t – ${lib.clientes?.nome} – ${lib.produto?.nome}`;
-                                      })()}
-                                    </span>
-                                  ) : (
-                                    <SelectValue placeholder="Selecione uma liberação" />
-                                  )}
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[300px]">
-                                  {liberacoesDisponiveis?.map((lib) => (
-                                    <SelectItem key={lib.id} value={lib.id}>
-                                      <div className="flex flex-col gap-1 py-1">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-semibold">{lib.pedido_interno}</span>
-                                          <Badge variant="outline" className="text-xs">
-                                            {lib.quantidade_disponivel_real}t disponível
-                                          </Badge>
+                            <div className="md:col-span-2 space-y-3">
+                              <div>
+                                <Label htmlFor="liberacao" className="text-sm font-medium">Liberação *</Label>
+                                <Select
+                                  value={novoAgendamento.liberacao}
+                                  onValueChange={(value) => {
+                                    setNovoAgendamento({ ...novoAgendamento, liberacao: value });
+                                    markAsChanged();
+                                    atualizarQuantidadeDisponivel(value);
+                                  }}
+                                  disabled={isCreating}
+                                >
+                                  <SelectTrigger id="liberacao" className="min-h-[44px] max-md:min-h-[44px] text-left">
+                                    {novoAgendamento.liberacao && liberacoesDisponiveis ? (
+                                      <span className="truncate">
+                                        {(() => {
+                                          const lib = liberacoesDisponiveis.find(l => l.id === novoAgendamento.liberacao);
+                                          if (!lib) return "Selecione uma liberação";
+                                          return `${lib.pedido_interno} - ${lib.produto?.nome}`;
+                                        })()}
+                                      </span>
+                                    ) : (
+                                      <SelectValue placeholder="Selecione uma liberação" />
+                                    )}
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[300px]">
+                                    {liberacoesDisponiveis?.map((lib) => (
+                                      <SelectItem key={lib.id} value={lib.id}>
+                                        <div className="flex flex-col gap-1 py-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold">{lib.pedido_interno}</span>
+                                            <Badge variant="outline" className="text-xs">
+                                              {lib.quantidade_disponivel_real}t disponível
+                                            </Badge>
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            {lib.clientes?.nome} • {lib.produto?.nome}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            {lib.armazem?.nome} - {lib.armazem?.cidade}/{lib.armazem?.estado}
+                                          </div>
                                         </div>
-                                        <div className="text-xs text-muted-foreground">
-                                          {lib.clientes?.nome} • {lib.produto?.nome}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                          {lib.armazem?.nome} - {lib.armazem?.cidade}/{lib.armazem?.estado}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            
+                              {/* 🆕 CARD DESTACADO DO ARMAZÉM */}
+                              {novoAgendamento.liberacao && liberacoesDisponiveis && (
+                                (() => {
+                                  const lib = liberacoesDisponiveis.find(l => l.id === novoAgendamento.liberacao);
+                                  if (!lib) return null;
+                                  
+                                  return (
+                                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg">
+                                      <div className="flex items-start gap-3">
+                                        <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                                            Armazém de Retirada
+                                          </p>
+                                          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mt-1 break-words">
+                                            {lib.armazem?.nome}
+                                          </p>
+                                          <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                                            {lib.armazem?.cidade}/{lib.armazem?.estado}
+                                          </p>
                                         </div>
                                       </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                    </div>
+                                  );
+                                })()
+                              )}
                             </div>
                             
                             <div>
