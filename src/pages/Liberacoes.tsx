@@ -1011,7 +1011,14 @@ const Liberacoes = () => {
                                   )}
                                 </SelectTrigger>
                                 
-                                <SelectContent className="max-h-[300px]">
+                                <SelectContent 
+                                  className="max-h-[200px]"
+                                  side="bottom"
+                                  align="start"
+                                  sideOffset={8}
+                                  avoidCollisions={true}
+                                  collisionPadding={16}
+                                >
                                   {armazens?.map((a) => (
                                     <SelectItem key={a.id} value={a.id}>
                                       <div className="flex flex-col gap-1 py-1">
