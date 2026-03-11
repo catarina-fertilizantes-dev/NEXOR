@@ -293,59 +293,59 @@ const Liberacoes = () => {
   const liberacoes = useMemo(() => {
     if (!liberacoesData) return [];
     
-    return liberacoesData.map((item: any) => {
-      const isFromFunction = !!item.produto_nome;
+  return liberacoesData.map((item: any) => {
+    const isFromFunction = !!item.produto_nome;
+    
+    if (isFromFunction) {
+      return {
+        id: item.id,
+        produto: item.produto_nome,
+        cliente: item.cliente_nome,
+        quantidade: item.quantidade_liberada,
+        quantidadeRetirada: item.quantidade_retirada,
+        quantidadeAgendada: item.quantidade_agendada,
+        percentualRetirado: item.percentual_retirado,
+        percentualAgendado: item.percentual_agendado,
+        pedido: item.pedido_interno,
+        data: new Date(item.data_liberacao).toLocaleDateString("pt-BR"),
+        status: item.status,
+        armazem: `${item.armazem_nome} - ${item.armazem_cidade}/${item.armazem_estado}`,
+        produto_id: item.produto_id,
+        armazem_id: item.armazem_id,
+        created_at: item.created_at,
+        finalizada: item.finalizada || false,
+      };
+    } else {
+      const quantidadeRetirada = item.quantidade_retirada || 0;
+      const quantidadeAgendada = agendamentosData?.[item.id] || 0;
       
-      if (isFromFunction) {
-        return {
-          id: item.id,
-          produto: item.produto_nome,
-          cliente: item.cliente_nome,
-          quantidade: item.quantidade_liberada,
-          quantidadeRetirada: item.quantidade_retirada,
-          quantidadeAgendada: item.quantidade_agendada,
-          percentualRetirado: item.percentual_retirado,
-          percentualAgendado: item.percentual_agendado,
-          pedido: item.pedido_interno,
-          data: new Date(item.data_liberacao).toLocaleDateString("pt-BR"),
-          status: item.status,
-          armazem: `${item.armazem_nome} - ${item.armazem_cidade}/${item.armazem_estado}`,
-          produto_id: item.produto_id,
-          armazem_id: item.armazem_id,
-          created_at: item.created_at,
-          finalizada: item.finalizada || false,
-        };
-      } else {
-        const quantidadeRetirada = item.quantidade_retirada || 0;
-        const quantidadeAgendada = agendamentosData?.[item.id] || 0;
-        
-        const percentualRetirado = item.quantidade_liberada > 0 
-          ? Math.round((quantidadeRetirada / item.quantidade_liberada) * 100) 
-          : 0;
-        const percentualAgendado = item.quantidade_liberada > 0 
-          ? Math.round((quantidadeAgendada / item.quantidade_liberada) * 100) 
-          : 0;
-        const finalizada = quantidadeRetirada >= item.quantidade_liberada;
-        return {
-          id: item.id,
-          produto: item.produtos?.nome || "N/A",
-          cliente: item.clientes?.nome || "N/A",
-          quantidade: item.quantidade_liberada,
-          quantidadeRetirada,
-          quantidadeAgendada,
-          percentualRetirado,
-          percentualAgendado,
-          pedido: item.pedido_interno,
-          data: new Date(item.data_liberacao || item.created_at).toLocaleDateString("pt-BR"),
-          status: item.status as StatusLiberacao,
-          armazem: item.armazens ? `${item.armazens.nome} - ${item.armazens.cidade}/${item.armazens.estado}` : "N/A",
-          produto_id: item.produto_id,
-          armazem_id: item.armazem_id,
-          created_at: item.created_at,
-          finalizada,
-        };
-      }
-    });
+      const percentualRetirado = item.quantidade_liberada > 0 
+        ? Math.round((quantidadeRetirada / item.quantidade_liberada) * 100) 
+        : 0;
+      const percentualAgendado = item.quantidade_liberada > 0 
+        ? Math.round((quantidadeAgendada / item.quantidade_liberada) * 100) 
+        : 0;
+      const finalizada = quantidadeRetirada >= item.quantidade_liberada;
+      return {
+        id: item.id,
+        produto: item.produtos?.nome || "N/A",
+        cliente: item.clientes?.nome || "N/A",
+        quantidade: item.quantidade_liberada,
+        quantidadeRetirada,
+        quantidadeAgendada,
+        percentualRetirado,
+        percentualAgendado,
+        pedido: item.pedido_interno,
+        data: new Date(item.data_liberacao || item.created_at).toLocaleDateString("pt-BR"),
+        status: item.status as StatusLiberacao,
+        armazem: item.armazens ? `${item.armazens.nome} - ${item.armazens.cidade}/${item.armazens.estado}` : "N/A",
+        produto_id: item.produto_id,
+        armazem_id: item.armazem_id,
+        created_at: item.created_at,
+        finalizada,
+      };
+    }
+  });
   }, [liberacoesData, agendamentosData]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -434,7 +434,7 @@ const Liberacoes = () => {
 
   const quantidadeValida = useMemo(() => {
     const qtd = Number(novaLiberacao.quantidade);
-    return !isNaN(qtd) && qtd > 0 && qtd &lt;= quantidadeEstoque;
+    return !isNaN(qtd) && qtd > 0 && qtd <= quantidadeEstoque;
   }, [novaLiberacao.quantidade, quantidadeEstoque]);
 
   useEffect(() => {
@@ -491,7 +491,7 @@ const Liberacoes = () => {
       if (selectedArmazens.length > 0 && l.armazem && !selectedArmazens.includes(l.armazem)) return false;
       if (dateFrom) {
         const from = new Date(dateFrom);
-        if (parseDate(l.data) &lt; from) return false;
+        if (parseDate(l.data) < from) return false;
       }
       if (dateTo) {
         const to = new Date(dateTo);
@@ -500,7 +500,6 @@ const Liberacoes = () => {
       }
       return true;
     });
-
     const ativas = filtered.filter(l => !l.finalizada);
     const finalizadas = filtered.filter(l => l.finalizada);
     return { liberacoesAtivas: ativas, liberacoesFinalizadas: finalizadas };
@@ -556,8 +555,8 @@ const Liberacoes = () => {
     }
 
     const quantidadeDisponivel = detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada;
-
-    if (estoqueNovoArmazem &lt; quantidadeDisponivel) {
+    
+    if (estoqueNovoArmazem < quantidadeDisponivel) {
       toast({
         variant: "destructive",
         title: "Estoque insuficiente",
@@ -618,7 +617,7 @@ const Liberacoes = () => {
     }
 
     const qtdNum = Number(quantidade);
-    if (Number.isNaN(qtdNum) || qtdNum &lt;= 0) {
+    if (Number.isNaN(qtdNum) || qtdNum <= 0) {
       toast({ variant: "destructive", title: "Quantidade inválida" });
       return;
     }
@@ -834,7 +833,7 @@ const Liberacoes = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-        <PageHeader title="Liberações de Produtos" subtitle="Carregando..." icon={ClipboardList} actions={&lt;></>} />
+        <PageHeader title="Liberações de Produtos" subtitle="Carregando..." icon={ClipboardList} actions={<></>} />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Carregando liberações...</p>
@@ -846,7 +845,7 @@ const Liberacoes = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-        <PageHeader title="Liberações de Produtos" subtitle="Erro ao carregar dados" icon={ClipboardList} actions={&lt;></>} />
+        <PageHeader title="Liberações de Produtos" subtitle="Erro ao carregar dados" icon={ClipboardList} actions={<></>} />
         <div className="text-center">
           <p className="text-destructive">Erro: {(error as Error).message}</p>
         </div>
@@ -1271,7 +1270,7 @@ const Liberacoes = () => {
 
             <div className="py-4 px-1 space-y-6">
               {detalhesLiberacao && (
-                &lt;>
+                <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Data de Criação:</Label>
