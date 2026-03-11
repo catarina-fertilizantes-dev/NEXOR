@@ -1435,7 +1435,7 @@ const Liberacoes = () => {
             setShowAlterarArmazem(open);
           }
         }}>
-          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-lg max-h-[calc(100vh-8rem)] overflow-y-auto my-4">
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] overflow-y-auto my-4">
             <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
               <DialogTitle className="text-lg pr-2 mt-1">Alterar Armazém da Liberação</DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
