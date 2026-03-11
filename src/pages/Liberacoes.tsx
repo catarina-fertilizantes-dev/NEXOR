@@ -892,7 +892,7 @@ const Liberacoes = () => {
                   </Button>
                 </DialogTrigger>
 
-                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] overflow-y-auto my-4 md:my-8">
                   <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                     <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Nova Liberação</DialogTitle>
                   </DialogHeader>
