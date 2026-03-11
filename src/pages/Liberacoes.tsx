@@ -1077,13 +1077,33 @@ const Liberacoes = () => {
                               }}
                               disabled={isCreating}
                             >
+                              {/* ✅ PADRÃO DO LIBERAÇÃO APLICADO AQUI */}
                               <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] text-left">
-                                <SelectValue placeholder="Selecione o armazém" />
+                                {novaLiberacao.armazem && armazens ? (
+                                  <span className="truncate">
+                                    {(() => {
+                                      const armazem = armazens.find(a => a.id === novaLiberacao.armazem);
+                                      if (!armazem) return "Selecione o armazém";
+                                      return `${armazem.nome}`;
+                                    })()}
+                                  </span>
+                                ) : (
+                                  <SelectValue placeholder="Selecione o armazém" />
+                                )}
                               </SelectTrigger>
+                              
+                              {/* ✅ DROPDOWN EM 2 LINHAS */}
                               <SelectContent className="max-h-[300px]">
                                 {armazens?.map((a) => (
                                   <SelectItem key={a.id} value={a.id}>
-                                    {a.nome} - {a.cidade}/{a.estado}
+                                    <div className="flex flex-col gap-1 py-1">
+                                      {/* LINHA 1: Nome do armazém */}
+                                      <span className="font-semibold text-sm">{a.nome}</span>
+                                      {/* LINHA 2: Localização */}
+                                      <div className="text-xs text-muted-foreground">
+                                        {a.cidade}/{a.estado}
+                                      </div>
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
