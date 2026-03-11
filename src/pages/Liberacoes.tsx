@@ -1492,7 +1492,7 @@ const Liberacoes = () => {
                         }}
                         disabled={isAlterandoArmazem}
                       >
-                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1 text-left w-full max-w-full">
+                        <SelectTrigger id="novo-armazem" className="min-h-[44px] mt-1 text-left">
                           {novoArmazemId && armazensDisponiveis ? (
                             <span className="truncate">
                               {(() => {
