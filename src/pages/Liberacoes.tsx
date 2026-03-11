@@ -970,7 +970,14 @@ const Liberacoes = () => {
                                 <SelectTrigger id="cliente" className="min-h-[44px] max-md:min-h-[44px]">
                                   <SelectValue placeholder="Selecione o cliente" />
                                 </SelectTrigger>
-                                <SelectContent className="max-h-[300px]">
+                                <SelectContent 
+                                  className="max-h-[200px]"
+                                  side="bottom"
+                                  align="start"
+                                  sideOffset={8}
+                                  avoidCollisions={true}
+                                  collisionPadding={16}
+                                >
                                   {clientesData?.map((cliente) => (
                                     <SelectItem key={cliente.id} value={cliente.id}>
                                       <span className="break-words">{cliente.nome} - {cliente.cnpj_cpf}</span>
@@ -1010,7 +1017,6 @@ const Liberacoes = () => {
                                     <SelectValue placeholder="Selecione o armazém" />
                                   )}
                                 </SelectTrigger>
-                                
                                 <SelectContent 
                                   className="max-h-[200px]"
                                   side="bottom"
@@ -1046,7 +1052,7 @@ const Liberacoes = () => {
                             <div>
                               <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
                               <Select 
-                                value={novaLiberacao.produto} 
+                                value={novaLiberacao.produto}
                                 onValueChange={(v) => {
                                   setNovaLiberacao((s) => ({ ...s, produto: v, quantidade: "" }));
                                   markAsChanged();
@@ -1056,7 +1062,14 @@ const Liberacoes = () => {
                                 <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
                                   <SelectValue placeholder="Selecione o produto" />
                                 </SelectTrigger>
-                                <SelectContent className="max-h-[300px]">
+                                <SelectContent 
+                                  className="max-h-[200px]"
+                                  side="bottom"
+                                  align="start"
+                                  sideOffset={8}
+                                  avoidCollisions={true}
+                                  collisionPadding={16}
+                                >
                                   {produtos?.map((p) => (
                                     <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                                   ))}
@@ -1471,11 +1484,11 @@ const Liberacoes = () => {
                       <Label htmlFor="novo-armazem" className="text-sm font-medium">
                         Novo Armazém *
                       </Label>
-                      <Select
-                        value={novoArmazemId}
-                        onValueChange={(value) => {
-                          setNovoArmazemId(value);
-                          markAsChangedArmazem();
+                      <Select 
+                        value={novoArmazemId} 
+                        onValueChange={(v) => {
+                          setNovoArmazemId(v);
+                          setAlertArmazem(true);
                         }}
                         disabled={isAlterandoArmazem}
                       >
@@ -1492,7 +1505,14 @@ const Liberacoes = () => {
                             <SelectValue placeholder="Selecione o novo armazém" />
                           )}
                         </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
+                        <SelectContent 
+                          className="max-h-[200px]"
+                          side="bottom"
+                          align="start"
+                          sideOffset={8}
+                          avoidCollisions={true}
+                          collisionPadding={16}
+                        >
                           {armazensDisponiveis?.filter(a => a.id !== detalhesLiberacao.armazem_id).map((armazem) => (
                             <SelectItem key={armazem.id} value={armazem.id}>
                               <div className="flex flex-col gap-1 py-1">
