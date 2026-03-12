@@ -452,7 +452,7 @@ const Estoque = () => {
     }
 
     const fileExtension = file.name.toLowerCase().split('.').pop();
-    const isValidExtension = allowedExtensions.includes(`.${fileExtension}`);
+    const isValidExtension = allowedExtensions.includes(`${fileExtension}`);
     
     const isValidMimeType = allowedTypes.includes(file.type);
 
@@ -460,7 +460,7 @@ const Estoque = () => {
       toast({ 
         variant: "destructive", 
         title: "Tipo de arquivo inválido", 
-        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.` 
+        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.`
       });
       inputElement.value = '';
       setterFunction(null);
