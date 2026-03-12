@@ -805,12 +805,12 @@ const Estoque = () => {
               </DialogTrigger>
               
               {/* Modal de Entrada de Estoque - Mobile Otimizado */}
-              <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
-                <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
-                  <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
-                </DialogHeader>
+                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                  <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+                    <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
+                  </DialogHeader>
                 
-                <div className="py-4 px-1 space-y-6">
+                  <div className="py-4 px-4 space-y-6">
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
@@ -826,7 +826,14 @@ const Estoque = () => {
                           <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
                             <SelectValue placeholder="Selecione o produto" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent
+                            className="max-h-[200px]"
+                            side="bottom"
+                            align="start"
+                            sideOffset={8}
+                            avoidCollisions={true}
+                            collisionPadding={16}
+                          >
                             {produtosAtivos.map((p) => (
                               <SelectItem key={p.id} value={p.id}>
                                 {p.nome} ({p.unidade})
@@ -858,7 +865,14 @@ const Estoque = () => {
                           <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
                             <SelectValue placeholder="Selecione o armazém" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent
+                            className="max-h-[200px]"
+                            side="bottom"
+                            align="start"
+                            sideOffset={8}
+                            avoidCollisions={true}
+                            collisionPadding={16}
+                          >
                             {armazensDisponiveis.map((a) => (
                               <SelectItem key={a.id} value={a.id}>
                                 <span className="break-words">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
