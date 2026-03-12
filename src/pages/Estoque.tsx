@@ -452,7 +452,7 @@ const Estoque = () => {
     }
 
     const fileExtension = file.name.toLowerCase().split('.').pop();
-    const isValidExtension = allowedExtensions.includes(`${fileExtension}`);
+    const isValidExtension = allowedExtensions.includes(`.${fileExtension}`);
     
     const isValidMimeType = allowedTypes.includes(file.type);
 
@@ -460,7 +460,7 @@ const Estoque = () => {
       toast({ 
         variant: "destructive", 
         title: "Tipo de arquivo inválido", 
-        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.`,
+        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.` 
       });
       inputElement.value = '';
       setterFunction(null);
@@ -516,18 +516,17 @@ const Estoque = () => {
   const handleCreateProduto = async () => {
     const { produtoId, armazem, quantidade, unidade } = novoProduto;
     const qtdNum = Number(quantidade);
+
     if (!produtoId || !armazem.trim() || !quantidade) {
       toast({ variant: "destructive", title: "Preencha todos os campos obrigatórios" });
       return;
     }
-    if (!numeroRemessa.trim()) {
-      toast({ variant: "destructive", title: "Campo obrigatório", description: "Preencha o número da remessa." });
-      return;
-    }
+
     if (!notaRemessaFile) {
       toast({ variant: "destructive", title: "Documento obrigatório", description: "Anexe a nota de remessa em PDF." });
       return;
     }
+
     if (!xmlRemessaFile) {
       toast({ variant: "destructive", title: "Documento obrigatório", description: "Anexe o arquivo XML da remessa." });
       return;
@@ -653,7 +652,7 @@ const Estoque = () => {
 
       toast({
         title: "Entrada registrada com sucesso!",
-        description: `+${qtdNum}${unidade} de ${produtoSelecionado.nome} em ${armazemData.cidade}/${armazemData.estado}. Estoque atual: ${novaQuantidade}${unidade}. Documentos anexados.`,
+        description: `+${qtdNum}${unidade} de ${produtoSelecionado.nome} em ${armazemData.cidade}/${armazemData.estado}. Estoque atual: ${novaQuantidade}${unidade}. Documentos anexados.`
       });
 
       resetFormNovoProduto();
@@ -805,12 +804,12 @@ const Estoque = () => {
               </DialogTrigger>
               
               {/* Modal de Entrada de Estoque - Mobile Otimizado */}
-                <DialogContent className="w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto my-4">
-                  <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
-                    <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
-                  </DialogHeader>
+              <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+                  <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
+                </DialogHeader>
                 
-                  <div className="py-4 px-4 md:px-6 space-y-6">
+                <div className="py-4 px-1 space-y-6">
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
@@ -819,33 +818,17 @@ const Estoque = () => {
                           value={novoProduto.produtoId}
                           onValueChange={id => {
                             setNovoProduto(s => ({ ...s, produtoId: id }));
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger 
-                            id="produto" 
-                            className="min-h-[44px] w-full flex items-center justify-between text-left overflow-hidden"
-                          >
-                            <SelectValue placeholder="Selecione o produto">
-                              {novoProduto.produtoId && produtosAtivos && (
-                                <span className="block truncate max-w-[calc(100vw-8rem)] md:max-w-[600px]">
-                                  {produtosAtivos.find(p => p.id === novoProduto.produtoId)?.nome || "Selecione o produto"}
-                                </span>
-                              )}
-                            </SelectValue>
+                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
+                            <SelectValue placeholder="Selecione o produto" />
                           </SelectTrigger>
-                          <SelectContent
-                            className="max-h-[200px]"
-                            side="bottom"
-                            align="start"
-                            sideOffset={8}
-                            avoidCollisions={true}
-                            collisionPadding={16}
-                          >
+                          <SelectContent>
                             {produtosAtivos.map((p) => (
-                              <SelectItem key={p.id} value={p.id} className="truncate justify-start pl-0">
-                                <span className="truncate text-left">{p.nome} ({p.unidade})</span>
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome} ({p.unidade})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -867,41 +850,17 @@ const Estoque = () => {
                           value={novoProduto.armazem} 
                           onValueChange={(v) => {
                             setNovoProduto((s) => ({ ...s, armazem: v }));
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger 
-                            id="armazem" 
-                            className="min-h-[44px] w-full flex items-center justify-between text-left overflow-hidden"
-                          >
-                            <SelectValue placeholder="Selecione o armazém">
-                              {novoProduto.armazem && armazensDisponiveis && (
-                                <span className="block truncate max-w-[calc(100vw-8rem)] md:max-w-[600px]">
-                                  {(() => {
-                                    const armazem = armazensDisponiveis.find(a => a.id === novoProduto.armazem);
-                                    return armazem ? `${armazem.nome} - ${armazem.cidade}/${armazem.estado}` : "Selecione o armazém";
-                                  })()}
-                                </span>
-                              )}
-                            </SelectValue>
+                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                            <SelectValue placeholder="Selecione o armazém" />
                           </SelectTrigger>
-                          <SelectContent
-                            className="max-h-[200px]"
-                            side="bottom"
-                            align="start"
-                            sideOffset={8}
-                            avoidCollisions={true}
-                            collisionPadding={16}
-                          >
+                          <SelectContent>
                             {armazensDisponiveis.map((a) => (
                               <SelectItem key={a.id} value={a.id}>
-                                <div className="flex flex-col gap-1 py-1">
-                                  <span className="font-semibold text-sm">{a.nome}</span>
-                                  <div className="text-xs text-muted-foreground">
-                                    {a.cidade}/{a.estado}
-                                  </div>
-                                </div>
+                                <span className="break-words">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -930,7 +889,7 @@ const Estoque = () => {
                               value={novoProduto.quantidade}
                               onChange={(e) => {
                                 setNovoProduto((s) => ({ ...s, quantidade: e.target.value }));
-                                markAsChanged();
+                                markAsChanged(); // ✅ Marcar como alterado
                               }}
                               disabled={isCreating}
                               className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
@@ -942,15 +901,12 @@ const Estoque = () => {
                               value={novoProduto.unidade} 
                               onValueChange={(v) => {
                                 setNovoProduto((s) => ({ ...s, unidade: v as Unidade }));
-                                markAsChanged();
+                                markAsChanged(); // ✅ Marcar como alterado
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px] text-left max-w-full overflow-hidden">
-                                {novoProduto.unidade ?
-                                  <span className="truncate">{novoProduto.unidade}</span>
-                                  : <SelectValue placeholder="Selecione a unidade" />
-                                }
+                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px]">
+                                <SelectValue placeholder="Selecione a unidade" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="t">Toneladas (t)</SelectItem>
@@ -962,7 +918,7 @@ const Estoque = () => {
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                           <div className="space-y-2">
-                            <Label htmlFor="numero-remessa" className="text-sm font-medium">Número da Remessa *</Label>
+                            <Label htmlFor="numero-remessa" className="text-sm font-medium">Número da Remessa</Label>
                             <Input
                               id="numero-remessa"
                               type="text"
@@ -970,7 +926,7 @@ const Estoque = () => {
                               value={numeroRemessa}
                               onChange={(e) => {
                                 setNumeroRemessa(e.target.value);
-                                markAsChanged();
+                                markAsChanged(); // ✅ Marcar como alterado
                               }}
                               disabled={isCreating}
                               className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
@@ -985,7 +941,7 @@ const Estoque = () => {
                               value={observacoesRemessa}
                               onChange={(e) => {
                                 setObservacoesRemessa(e.target.value);
-                                markAsChanged();
+                                markAsChanged(); // ✅ Marcar como alterado
                               }}
                               disabled={isCreating}
                               className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
@@ -1024,12 +980,13 @@ const Estoque = () => {
                                   disabled={isCreating}
                                 />
                                 {notaRemessaFile && (
-                                  <Badge variant="secondary" className="text-xs break-all">
+                                  <Badge variant="secondary" className="text-xs break-all self-start">
                                     ✓ {notaRemessaFile.name}
                                   </Badge>
                                 )}
                               </div>
                             </div>
+
                             <div className="space-y-2">
                               <Label htmlFor="xml-remessa" className="flex items-center gap-2 text-sm font-medium">
                                 <FileText className="h-4 w-4" />
@@ -1054,7 +1011,7 @@ const Estoque = () => {
                                   disabled={isCreating}
                                 />
                                 {xmlRemessaFile && (
-                                  <Badge variant="secondary" className="text-xs break-all">
+                                  <Badge variant="secondary" className="text-xs break-all self-start">
                                     ✓ {xmlRemessaFile.name}
                                   </Badge>
                                 )}
@@ -1080,7 +1037,6 @@ const Estoque = () => {
                     disabled={
                       !temProdutosDisponiveis || 
                       !temArmazensDisponiveis || 
-                      !numeroRemessa.trim() ||
                       !notaRemessaFile || 
                       !xmlRemessaFile || 
                       isCreating
@@ -1409,9 +1365,5 @@ const Estoque = () => {
     </div>
   );
 };
-
-{/* Teste Última Versão: agora sim, você conseguiu acessar a versão correta */}
-
-// Última versão: 15:50
 
 export default Estoque;
