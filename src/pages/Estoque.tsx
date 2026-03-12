@@ -810,7 +810,7 @@ const Estoque = () => {
                     <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
                   </DialogHeader>
                 
-                  <div className="py-4 px-4 space-y-6">
+                  <div className="py-4 px-4 md:px-6 space-y-6">
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
