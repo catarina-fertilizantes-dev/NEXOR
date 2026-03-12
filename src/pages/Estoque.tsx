@@ -823,8 +823,20 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px] truncate justify-start">
-                            <SelectValue placeholder="Selecione o produto" />
+                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px] text-left max-w-full overflow-hidden">
+                            {novoProduto.produtoId && produtosAtivos ?
+                              (
+                                <span className="truncate">
+                                  {(() => {
+                                    const produto = produtosAtivos.find(p => p.id === novoProduto.produtoId);
+                                    if (!produto) return "Selecione o produto";
+                                    return `${produto.nome}`;
+                                  })()}
+                                </span>
+                              ) : (
+                                <SelectValue placeholder="Selecione o produto" />
+                              )
+                            }
                           </SelectTrigger>
                           <SelectContent
                             className="max-h-[200px]"
@@ -862,7 +874,7 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] text-left">
+                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] text-left max-w-full overflow-hidden">
                             {novoProduto.armazem && armazensDisponiveis ?
                               (
                                 <span className="truncate">
@@ -937,8 +949,11 @@ const Estoque = () => {
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px] truncate justify-start">
-                                <SelectValue placeholder="Selecione a unidade" />
+                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px] text-left max-w-full overflow-hidden">
+                                {novoProduto.unidade ?
+                                  <span className="truncate">{novoProduto.unidade}</span>
+                                  : <SelectValue placeholder="Selecione a unidade" />
+                                }
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="t">Toneladas (t)</SelectItem>
