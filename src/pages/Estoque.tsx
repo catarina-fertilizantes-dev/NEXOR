@@ -874,7 +874,7 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] text-left max-w-full overflow-hidden">
+                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] max-w-full overflow-hidden">
                             {novoProduto.armazem && armazensDisponiveis ?
                               (
                                 <span className="truncate">
