@@ -864,7 +864,7 @@ const Estoque = () => {
                             <SelectContent>
                               {armazensDisponiveis.map((a) => (
                                 <SelectItem key={a.id} value={a.id}>
-                                  <span className="break-words">{a.nome} — {a.cidade}{a.estado ? /${a.estado} : ""}</span>
+                                  <span className="break-words">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
