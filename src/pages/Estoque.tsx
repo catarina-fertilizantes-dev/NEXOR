@@ -460,7 +460,7 @@ const Estoque = () => {
       toast({ 
         variant: "destructive", 
         title: "Tipo de arquivo inválido", 
-        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.`
+        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.`,
       });
       inputElement.value = '';
       setterFunction(null);
@@ -653,7 +653,7 @@ const Estoque = () => {
 
       toast({
         title: "Entrada registrada com sucesso!",
-        description: `+${qtdNum}${unidade} de ${produtoSelecionado.nome} em ${armazemData.cidade}/${armazemData.estado}. Estoque atual: ${novaQuantidade}${unidade}. Documentos anexados.`
+        description: `+${qtdNum}${unidade} de ${produtoSelecionado.nome} em ${armazemData.cidade}/${armazemData.estado}. Estoque atual: ${novaQuantidade}${unidade}. Documentos anexados.`,
       });
 
       resetFormNovoProduto();
