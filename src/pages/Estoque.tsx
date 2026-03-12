@@ -862,8 +862,20 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] truncate justify-start">
-                            <SelectValue placeholder="Selecione o armazém" />
+                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] text-left">
+                            {novoProduto.armazem && armazensDisponiveis ?
+                              (
+                                <span className="truncate">
+                                  {(() => {
+                                    const armazem = armazensDisponiveis.find(a => a.id === novoProduto.armazem);
+                                    if (!armazem) return "Selecione o armazém";
+                                    return `${armazem.nome}`;
+                                  })()}
+                                </span>
+                              ) : (
+                                <SelectValue placeholder="Selecione o armazém" />
+                              )
+                            }
                           </SelectTrigger>
                           <SelectContent
                             className="max-h-[200px] min-w-[var(--radix-select-trigger-width)]"
@@ -874,8 +886,13 @@ const Estoque = () => {
                             collisionPadding={16}
                           >
                             {armazensDisponiveis.map((a) => (
-                              <SelectItem key={a.id} value={a.id} className="truncate justify-start pl-0">
-                                <span className="truncate text-left">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
+                              <SelectItem key={a.id} value={a.id}>
+                                <div className="flex flex-col gap-1 py-1">
+                                  <span className="font-semibold text-sm">{a.nome}</span>
+                                  <div className="text-xs text-muted-foreground">
+                                    {a.cidade}/{a.estado}
+                                  </div>
+                                </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
