@@ -823,11 +823,11 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
+                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px] truncate justify-start">
                             <SelectValue placeholder="Selecione o produto" />
                           </SelectTrigger>
                           <SelectContent
-                            className="max-h-[200px]"
+                            className="max-h-[200px] min-w-[var(--radix-select-trigger-width)]"
                             side="bottom"
                             align="start"
                             sideOffset={8}
@@ -835,8 +835,8 @@ const Estoque = () => {
                             collisionPadding={16}
                           >
                             {produtosAtivos.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.nome} ({p.unidade})
+                              <SelectItem key={p.id} value={p.id} className="truncate justify-start pl-0">
+                                <span className="truncate text-left">{p.nome} ({p.unidade})</span>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -862,11 +862,11 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] truncate justify-start">
                             <SelectValue placeholder="Selecione o armazém" />
                           </SelectTrigger>
                           <SelectContent
-                            className="max-h-[200px]"
+                            className="max-h-[200px] min-w-[var(--radix-select-trigger-width)]"
                             side="bottom"
                             align="start"
                             sideOffset={8}
@@ -874,8 +874,8 @@ const Estoque = () => {
                             collisionPadding={16}
                           >
                             {armazensDisponiveis.map((a) => (
-                              <SelectItem key={a.id} value={a.id}>
-                                <span className="break-words">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
+                              <SelectItem key={a.id} value={a.id} className="truncate justify-start pl-0">
+                                <span className="truncate text-left">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -920,7 +920,7 @@ const Estoque = () => {
                               }}
                               disabled={isCreating}
                             >
-                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px]">
+                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px] truncate justify-start">
                                 <SelectValue placeholder="Selecione a unidade" />
                               </SelectTrigger>
                               <SelectContent>
