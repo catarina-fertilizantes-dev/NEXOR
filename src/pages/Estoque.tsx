@@ -805,7 +805,7 @@ const Estoque = () => {
               </DialogTrigger>
               
               {/* Modal de Entrada de Estoque - Mobile Otimizado */}
-                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-4xl max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-4xl max-h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden my-4 md:my-8">
                   <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                     <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
                   </DialogHeader>
@@ -823,20 +823,21 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px] text-left max-w-full overflow-hidden">
-                            {novoProduto.produtoId && produtosAtivos ?
-                              (
-                                <span className="truncate">
-                                  {(() => {
-                                    const produto = produtosAtivos.find(p => p.id === novoProduto.produtoId);
-                                    if (!produto) return "Selecione o produto";
-                                    return `${produto.nome}`;
-                                  })()}
-                                </span>
-                              ) : (
-                                <SelectValue placeholder="Selecione o produto" />
-                              )
-                            }
+                          <SelectTrigger 
+                            id="produto" 
+                            className="min-h-[44px] max-md:min-h-[44px] w-full min-w-0 overflow-hidden text-left"
+                          >
+                            {novoProduto.produtoId && produtosAtivos ? (
+                              <span className="block w-full min-w-0 truncate">
+                                {(() => {
+                                  const produto = produtosAtivos.find(p => p.id === novoProduto.produtoId);
+                                  if (!produto) return "Selecione o produto";
+                                  return produto.nome;
+                                })()}
+                              </span>
+                            ) : (
+                              <SelectValue placeholder="Selecione o produto" />
+                            )}
                           </SelectTrigger>
                           <SelectContent
                             className="max-h-[200px]"
@@ -874,20 +875,21 @@ const Estoque = () => {
                           }}
                           disabled={isCreating}
                         >
-                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px] max-w-full overflow-hidden">
-                            {novoProduto.armazem && armazensDisponiveis ?
-                              (
-                                <span className="truncate">
-                                  {(() => {
-                                    const armazem = armazensDisponiveis.find(a => a.id === novoProduto.armazem);
-                                    if (!armazem) return "Selecione o armazém";
-                                    return `${armazem.nome}`;
-                                  })()}
-                                </span>
-                              ) : (
-                                <SelectValue placeholder="Selecione o armazém" />
-                              )
-                            }
+                          <SelectTrigger 
+                            id="armazem" 
+                            className="min-h-[44px] max-md:min-h-[44px] w-full min-w-0 overflow-hidden text-left"
+                          >
+                            {novoProduto.armazem && armazensDisponiveis ? (
+                              <span className="block w-full min-w-0 truncate">
+                                {(() => {
+                                  const armazem = armazensDisponiveis.find(a => a.id === novoProduto.armazem);
+                                  if (!armazem) return "Selecione o armazém";
+                                  return armazem.nome;
+                                })()}
+                              </span>
+                            ) : (
+                              <SelectValue placeholder="Selecione o armazém" />
+                            )}
                           </SelectTrigger>
                           <SelectContent
                             className="max-h-[200px]"
