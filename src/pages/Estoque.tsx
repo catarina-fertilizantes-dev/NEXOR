@@ -827,7 +827,7 @@ const Estoque = () => {
                             <SelectValue placeholder="Selecione o produto" />
                           </SelectTrigger>
                           <SelectContent
-                            className="max-h-[200px] min-w-[var(--radix-select-trigger-width)]"
+                            className="max-h-[200px]"
                             side="bottom"
                             align="start"
                             sideOffset={8}
@@ -878,7 +878,7 @@ const Estoque = () => {
                             }
                           </SelectTrigger>
                           <SelectContent
-                            className="max-h-[200px] min-w-[var(--radix-select-trigger-width)]"
+                            className="max-h-[200px]"
                             side="bottom"
                             align="start"
                             sideOffset={8}
