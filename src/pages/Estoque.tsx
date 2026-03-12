@@ -805,7 +805,7 @@ const Estoque = () => {
               </DialogTrigger>
               
               {/* Modal de Entrada de Estoque - Mobile Otimizado */}
-                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-4xl max-h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden my-4 md:my-8">
+                <DialogContent className="w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto my-4">
                   <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                     <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Entrada de Estoque</DialogTitle>
                   </DialogHeader>
@@ -825,19 +825,15 @@ const Estoque = () => {
                         >
                           <SelectTrigger 
                             id="produto" 
-                            className="min-h-[44px] max-md:min-h-[44px] w-full min-w-0 overflow-hidden text-left"
+                            className="min-h-[44px] w-full flex items-center justify-between text-left overflow-hidden"
                           >
-                            {novoProduto.produtoId && produtosAtivos ? (
-                              <span className="block w-full min-w-0 truncate">
-                                {(() => {
-                                  const produto = produtosAtivos.find(p => p.id === novoProduto.produtoId);
-                                  if (!produto) return "Selecione o produto";
-                                  return produto.nome;
-                                })()}
-                              </span>
-                            ) : (
-                              <SelectValue placeholder="Selecione o produto" />
-                            )}
+                            <SelectValue placeholder="Selecione o produto">
+                              {novoProduto.produtoId && produtosAtivos && (
+                                <span className="block truncate max-w-[calc(100vw-8rem)] md:max-w-[600px]">
+                                  {produtosAtivos.find(p => p.id === novoProduto.produtoId)?.nome || "Selecione o produto"}
+                                </span>
+                              )}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent
                             className="max-h-[200px]"
@@ -877,19 +873,18 @@ const Estoque = () => {
                         >
                           <SelectTrigger 
                             id="armazem" 
-                            className="min-h-[44px] max-md:min-h-[44px] w-full min-w-0 overflow-hidden text-left"
+                            className="min-h-[44px] w-full flex items-center justify-between text-left overflow-hidden"
                           >
-                            {novoProduto.armazem && armazensDisponiveis ? (
-                              <span className="block w-full min-w-0 truncate">
-                                {(() => {
-                                  const armazem = armazensDisponiveis.find(a => a.id === novoProduto.armazem);
-                                  if (!armazem) return "Selecione o armazém";
-                                  return armazem.nome;
-                                })()}
-                              </span>
-                            ) : (
-                              <SelectValue placeholder="Selecione o armazém" />
-                            )}
+                            <SelectValue placeholder="Selecione o armazém">
+                              {novoProduto.armazem && armazensDisponiveis && (
+                                <span className="block truncate max-w-[calc(100vw-8rem)] md:max-w-[600px]">
+                                  {(() => {
+                                    const armazem = armazensDisponiveis.find(a => a.id === novoProduto.armazem);
+                                    return armazem ? `${armazem.nome} - ${armazem.cidade}/${armazem.estado}` : "Selecione o armazém";
+                                  })()}
+                                </span>
+                              )}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent
                             className="max-h-[200px]"
@@ -1417,6 +1412,6 @@ const Estoque = () => {
 
 {/* Teste Última Versão: agora sim, você conseguiu acessar a versão correta */}
 
-// Última versão: 12:07
+// Última versão: 15:50
 
 export default Estoque;
