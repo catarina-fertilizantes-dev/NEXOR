@@ -813,142 +813,152 @@ const Estoque = () => {
                 <div className="py-4 px-1 space-y-6">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="produto" className="text-sm font-medium">Produto *</Label>
-                      {temProdutosDisponiveis ? (
-                        <Select
-                          value={novoProduto.produtoId}
-                          onValueChange={id => {
-                            setNovoProduto(s => ({ ...s, produtoId: id }));
-                            markAsChanged(); // ✅ Marcar como alterado
-                          }}
-                          disabled={isCreating}
-                        >
-                          <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
-                            <SelectValue placeholder="Selecione o produto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {produtosAtivos.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.nome} ({p.unidade})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <EmptyStateCard
-                          title="Nenhum produto cadastrado"
-                          description="Para registrar estoque, você precisa cadastrar produtos primeiro."
-                          actionText="Cadastrar Produto"
-                          actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
-                        />
-                      )}
+                      <Label htmlFor="produto" className="text-sm font-medium text-left">Produto *</Label>
+                      <div className="text-left">
+                        {temProdutosDisponiveis ? (
+                          <Select
+                            value={novoProduto.produtoId}
+                            onValueChange={id => {
+                              setNovoProduto(s => ({ ...s, produtoId: id }));
+                              markAsChanged();
+                            }}
+                            disabled={isCreating}
+                          >
+                            <SelectTrigger id="produto" className="min-h-[44px] max-md:min-h-[44px]">
+                              <SelectValue placeholder="Selecione o produto" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {produtosAtivos.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.nome} ({p.unidade})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <EmptyStateCard
+                            title="Nenhum produto cadastrado"
+                            description="Para registrar estoque, você precisa cadastrar produtos primeiro."
+                            actionText="Cadastrar Produto"
+                            actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
+                          />
+                        )}
+                      </div>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="armazem" className="text-sm font-medium">Armazém *</Label>
-                      {temArmazensDisponiveis ? (
-                        <Select 
-                          value={novoProduto.armazem} 
-                          onValueChange={(v) => {
-                            setNovoProduto((s) => ({ ...s, armazem: v }));
-                            markAsChanged(); // ✅ Marcar como alterado
-                          }}
-                          disabled={isCreating}
-                        >
-                          <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
-                            <SelectValue placeholder="Selecione o armazém" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {armazensDisponiveis.map((a) => (
-                              <SelectItem key={a.id} value={a.id}>
-                                <span className="break-words">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <EmptyStateCard
-                          title="Nenhum armazém cadastrado"
-                          description="Para registrar estoque, você precisa cadastrar armazéns primeiro."
-                          actionText="Cadastrar Armazém"
-                          actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
-                        />
-                      )}
+                      <Label htmlFor="armazem" className="text-sm font-medium text-left">Armazém *</Label>
+                      <div className="text-left">
+                        {temArmazensDisponiveis ? (
+                          <Select 
+                            value={novoProduto.armazem} 
+                            onValueChange={(v) => {
+                              setNovoProduto((s) => ({ ...s, armazem: v }));
+                              markAsChanged();
+                            }}
+                            disabled={isCreating}
+                          >
+                            <SelectTrigger id="armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                              <SelectValue placeholder="Selecione o armazém" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {armazensDisponiveis.map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  <span className="break-words">{a.nome} — {a.cidade}{a.estado ? /${a.estado} : ""}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <EmptyStateCard
+                            title="Nenhum armazém cadastrado"
+                            description="Para registrar estoque, você precisa cadastrar armazéns primeiro."
+                            actionText="Cadastrar Armazém"
+                            actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
+                          />
+                        )}
+                      </div>
                     </div>
                     
                     {temProdutosDisponiveis && temArmazensDisponiveis && (
                       <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div className="space-y-2">
-                            <Label htmlFor="quantidade" className="text-sm font-medium">Quantidade a adicionar *</Label>
-                            <Input
-                              id="quantidade"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="Ex: 20500.50"
-                              value={novoProduto.quantidade}
-                              onChange={(e) => {
-                                setNovoProduto((s) => ({ ...s, quantidade: e.target.value }));
-                                markAsChanged(); // ✅ Marcar como alterado
-                              }}
-                              disabled={isCreating}
-                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-                            />
+                            <Label htmlFor="quantidade" className="text-sm font-medium text-left">Quantidade a adicionar *</Label>
+                            <div className="text-left">
+                              <Input
+                                id="quantidade"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Ex: 20500.50"
+                                value={novoProduto.quantidade}
+                                onChange={(e) => {
+                                  setNovoProduto((s) => ({ ...s, quantidade: e.target.value }));
+                                  markAsChanged();
+                                }}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="unidade" className="text-sm font-medium">Unidade</Label>
-                            <Select 
-                              value={novoProduto.unidade} 
-                              onValueChange={(v) => {
-                                setNovoProduto((s) => ({ ...s, unidade: v as Unidade }));
-                                markAsChanged(); // ✅ Marcar como alterado
-                              }}
-                              disabled={isCreating}
-                            >
-                              <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px]">
-                                <SelectValue placeholder="Selecione a unidade" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="t">Toneladas (t)</SelectItem>
-                                <SelectItem value="kg">Quilos (kg)</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Label htmlFor="unidade" className="text-sm font-medium text-left">Unidade</Label>
+                            <div className="text-left">
+                              <Select 
+                                value={novoProduto.unidade} 
+                                onValueChange={(v) => {
+                                  setNovoProduto((s) => ({ ...s, unidade: v as Unidade }));
+                                  markAsChanged();
+                                }}
+                                disabled={isCreating}
+                              >
+                                <SelectTrigger id="unidade" className="min-h-[44px] max-md:min-h-[44px]">
+                                  <SelectValue placeholder="Selecione a unidade" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="t">Toneladas (t)</SelectItem>
+                                  <SelectItem value="kg">Quilos (kg)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                           <div className="space-y-2">
-                            <Label htmlFor="numero-remessa" className="text-sm font-medium">
-                              Número da Remessa *
-                            </Label>
-                            <Input
-                              id="numero-remessa"
-                              type="text"
-                              placeholder="Ex: REM-001"
-                              value={numeroRemessa}
-                              onChange={(e) => {
-                                setNumeroRemessa(e.target.value);
-                                markAsChanged(); // ✅ Marcar como alterado
-                              }}
-                              disabled={isCreating}
-                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-                            />
+                            <Label htmlFor="numero-remessa" className="text-sm font-medium text-left">Número da Remessa *</Label>
+                            <div className="text-left">
+                              <Input
+                                id="numero-remessa"
+                                type="text"
+                                placeholder="Ex: REM-001"
+                                value={numeroRemessa}
+                                onChange={(e) => {
+                                  setNumeroRemessa(e.target.value);
+                                  markAsChanged();
+                                }}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
                           </div>
                           <div className="lg:col-span-2 space-y-2">
-                            <Label htmlFor="observacoes" className="text-sm font-medium">Observações</Label>
-                            <Input
-                              id="observacoes"
-                              type="text"
-                              placeholder="Observações sobre esta remessa..."
-                              value={observacoesRemessa}
-                              onChange={(e) => {
-                                setObservacoesRemessa(e.target.value);
-                                markAsChanged(); // ✅ Marcar como alterado
-                              }}
-                              disabled={isCreating}
-                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-                            />
+                            <Label htmlFor="observacoes" className="text-sm font-medium text-left">Observações</Label>
+                            <div className="text-left">
+                              <Input
+                                id="observacoes"
+                                type="text"
+                                placeholder="Observações sobre esta remessa..."
+                                value={observacoesRemessa}
+                                onChange={(e) => {
+                                  setObservacoesRemessa(e.target.value);
+                                  markAsChanged();
+                                }}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
                           </div>
                         </div>
 
@@ -960,11 +970,11 @@ const Estoque = () => {
 
                           <div className="space-y-3">
                             <div className="space-y-2">
-                              <Label htmlFor="nota-remessa" className="flex items-center gap-2 text-sm font-medium">
+                              <Label htmlFor="nota-remessa" className="flex items-center gap-2 text-sm font-medium text-left">
                                 <FileText className="h-4 w-4" />
                                 Nota de Remessa (PDF) *
                               </Label>
-                              <div className="flex flex-col gap-2">
+                              <div className="text-left flex flex-col gap-2">
                                 <Input
                                   id="nota-remessa"
                                   type="file"
@@ -983,7 +993,7 @@ const Estoque = () => {
                                   disabled={isCreating}
                                 />
                                 {notaRemessaFile && (
-                                  <Badge variant="secondary" className="text-xs break-all self-start">
+                                  <Badge variant="secondary" className="text-xs break-all">
                                     ✓ {notaRemessaFile.name}
                                   </Badge>
                                 )}
@@ -991,11 +1001,11 @@ const Estoque = () => {
                             </div>
 
                             <div className="space-y-2">
-                              <Label htmlFor="xml-remessa" className="flex items-center gap-2 text-sm font-medium">
+                              <Label htmlFor="xml-remessa" className="flex items-center gap-2 text-sm font-medium text-left">
                                 <FileText className="h-4 w-4" />
                                 Arquivo XML da Remessa *
                               </Label>
-                              <div className="flex flex-col gap-2">
+                              <div className="text-left flex flex-col gap-2">
                                 <Input
                                   id="xml-remessa"
                                   type="file"
@@ -1014,7 +1024,7 @@ const Estoque = () => {
                                   disabled={isCreating}
                                 />
                                 {xmlRemessaFile && (
-                                  <Badge variant="secondary" className="text-xs break-all self-start">
+                                  <Badge variant="secondary" className="text-xs break-all">
                                     ✓ {xmlRemessaFile.name}
                                   </Badge>
                                 )}
