@@ -286,6 +286,18 @@ const Agendamentos = () => {
     cancelClose
   } = useUnsavedChanges();
   
+  // ✅ Hook para controle de mudanças não salvas
+  const {
+    hasUnsavedChanges,
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose
+  } = useUnsavedChanges();
+  
   const canCreate = hasRole("admin") || hasRole("logistica") || hasRole("cliente") || hasRole("representante");
   const [isCreating, setIsCreating] = useState(false);
   const [detalhesAgendamento, setDetalhesAgendamento] = useState<AgendamentoItem | null>(null);
