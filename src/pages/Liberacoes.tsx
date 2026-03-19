@@ -781,8 +781,7 @@ const Liberacoes = () => {
               </div>
             </div>
           </div>
-  
-          {/* Barra de progresso - Sempre na parte inferior */}
+
           <div 
             className="pt-2 border-t"
             onClick={() => setDetalhesLiberacao(lib)}
@@ -1151,10 +1150,6 @@ const Liberacoes = () => {
                         </p>
                       </div>
                     )}
-                    
-                    <p className="text-xs text-muted-foreground">
-                      * Campos obrigatórios
-                    </p>
                   </div>
                   
                   <ModalFooter 
@@ -1216,7 +1211,6 @@ const Liberacoes = () => {
           </div>
         </div>
 
-        {/* Filtros otimizados para mobile */}
         {filtersOpen && (
           <div className="rounded-md border p-3 space-y-4">
             <div>
