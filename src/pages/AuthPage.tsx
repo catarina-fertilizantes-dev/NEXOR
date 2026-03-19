@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/ui/password-input";
 import { useState } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -97,10 +98,9 @@ const AuthPage = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password-login" className="text-sm font-medium">Senha</Label>
-              <Input
+              <PasswordInput
                 id="password-login"
                 name="password"
-                type="password"
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

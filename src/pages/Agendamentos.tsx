@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight } from "lucide-react";
+import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -165,6 +165,29 @@ function formatCPF(cpf: string) {
   return cleaned.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
 }
 
+function maskCNPJ(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 14) {
+    let cnpj = digits.slice(0, 14);
+    if (cnpj.length > 12)
+      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
+    if (cnpj.length > 8)
+      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})$/, "$1.$2.$3/$4");
+    if (cnpj.length > 5)
+      return cnpj.replace(/^(\d{2})(\d{3})(\d{0,3})$/, "$1.$2.$3");
+    if (cnpj.length > 2)
+      return cnpj.replace(/^(\d{2})(\d{0,3})$/, "$1.$2");
+    return cnpj;
+  }
+  return value;
+}
+
+function formatCNPJ(cnpj: string): string {
+  const cleaned = (cnpj ?? "").replace(/\D/g, "").slice(0, 14);
+  if (cleaned.length < 14) return maskCNPJ(cleaned);
+  return cleaned.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
 const parseDate = (d: string) => {
   const [dd, mm, yyyy] = d.split("/");
   return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
@@ -188,7 +211,10 @@ interface AgendamentoItem {
   armazem_id: string | null;
   liberacao_id: string | null;
   updated_at: string;
-  tipo_caminhao: string | null;
+  placa_carreta_1: string;
+  placa_carreta_2: string | null;
+  transportadora: string;
+  cnpj_transportadora: string;
   observacoes: string | null;
   etapa_carregamento: number;
   status_carregamento: string;
@@ -209,11 +235,29 @@ const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
   }
   
   if (!ag.data || isNaN(Date.parse(ag.data))) errors.push("Data");
+  
   const placaSemMascara = (ag.placa ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
   if (placaSemMascara.length < 7) errors.push("Placa do veículo");
   if (!validatePlaca(placaSemMascara)) errors.push("Formato da placa inválido");
+  
+  const placaCarreta1SemMascara = (ag.placaCarreta1 ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+  if (placaCarreta1SemMascara.length < 7) errors.push("Placa da Carreta 1");
+  if (!validatePlaca(placaCarreta1SemMascara)) errors.push("Formato da Placa da Carreta 1 inválido");
+  
+  if (ag.placaCarreta2 && ag.placaCarreta2.trim()) {
+    const placaCarreta2SemMascara = ag.placaCarreta2.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    if (placaCarreta2SemMascara.length < 7) errors.push("Placa da Carreta 2 incompleta");
+    if (!validatePlaca(placaCarreta2SemMascara)) errors.push("Formato da Placa da Carreta 2 inválido");
+  }
+  
   if (!ag.motorista || ag.motorista.trim().length < 3) errors.push("Nome do motorista");
   if (!ag.documento || ag.documento.replace(/\D/g, "").length !== 11) errors.push("Documento (CPF) do motorista");
+  
+  if (!ag.transportadora || ag.transportadora.trim().length < 3) errors.push("Nome da transportadora");
+  
+  const cnpjLimpo = (ag.cnpjTransportadora ?? "").replace(/\D/g, "");
+  if (cnpjLimpo.length !== 14) errors.push("CNPJ da transportadora");
+  
   return errors;
 };
 
@@ -229,9 +273,8 @@ const Agendamentos = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasRole, userRole, user } = useAuth();
-  const { representanteId, clientesDoRepresentante } = usePermissions();
+  const { clienteId, armazemId, representanteId, clientesDoRepresentante } = usePermissions();
   
-  // ✅ Hook para controle de mudanças não salvas
   const {
     hasUnsavedChanges,
     showAlert,
@@ -248,72 +291,109 @@ const Agendamentos = () => {
   const [detalhesAgendamento, setDetalhesAgendamento] = useState<AgendamentoItem | null>(null);
   const [secaoFinalizadosExpandida, setSecaoFinalizadosExpandida] = useState(false);
 
-  const { data: currentCliente } = useQuery({
-    queryKey: ["current-cliente", user?.id],
-    queryFn: async () => {
-      if (!user || userRole !== "cliente") return null;
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user && userRole === "cliente",
-  });
-
-  const { data: currentArmazem } = useQuery({
-    queryKey: ["current-armazem", user?.id],
-    queryFn: async () => {
-      if (!user || userRole !== "armazem") return null;
-      const { data, error } = await supabase
-        .from("armazens")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user && userRole === "armazem",
-  });
-
-  // 🚀 MIGRAÇÃO PARA FUNÇÃO UNIVERSAL
   const { data: agendamentosData, isLoading, error } = useQuery({
-    queryKey: ["agendamentos", currentCliente?.id, currentArmazem?.id, representanteId, userRole],
+    queryKey: ["agendamentos", clienteId, armazemId, representanteId, userRole],
     queryFn: async () => {
-      console.log("🔍 [DEBUG] Query agendamentos executando:");
-      console.log("- userRole:", userRole);
-      console.log("- representanteId:", representanteId);
-      console.log("- currentCliente?.id:", currentCliente?.id);
-      console.log("- user:", user);
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🔍 [AGENDAMENTOS] INÍCIO DA QUERY");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       
-      // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
-      const { data, error } = await supabase.rpc('get_agendamentos_universal', {
+      console.log("📊 [AGENDAMENTOS] PARÂMETROS EXTRAÍDOS:");
+      console.log("  ├─ userRole:", userRole, "| Tipo:", typeof userRole);
+      console.log("  ├─ clienteId:", clienteId, "| Tipo:", typeof clienteId);
+      console.log("  ├─ armazemId:", armazemId, "| Tipo:", typeof armazemId);
+      console.log("  ├─ representanteId:", representanteId, "| Tipo:", typeof representanteId);
+      console.log("  └─ user?.id:", user?.id, "| Tipo:", typeof user?.id);
+      
+      console.log("🚀 [AGENDAMENTOS] PARÂMETROS ENVIADOS PARA RPC:");
+      const params = {
         p_user_role: userRole,
         p_user_id: user?.id,
-        p_cliente_id: currentCliente?.id || null,
-        p_armazem_id: currentArmazem?.id || null,
+        p_cliente_id: clienteId || null,
+        p_armazem_id: armazemId || null,
         p_representante_id: representanteId || null
-      });
+      };
+      console.log("  ", JSON.stringify(params, null, 2));
       
-      console.log("🔍 [DEBUG] Resultado função universal:", { data, error });
+      console.log("⏳ [AGENDAMENTOS] Executando RPC get_agendamentos_universal...");
+      const { data, error } = await supabase.rpc('get_agendamentos_universal', params);
+      
+      console.log("📦 [AGENDAMENTOS] RESULTADO DA RPC:");
+      if (error) {
+        console.error("❌ [AGENDAMENTOS] ERRO NA RPC:", error);
+        console.error("  ├─ Message:", error.message);
+        console.error("  ├─ Code:", error.code);
+        console.error("  └─ Details:", error.details);
+      } else {
+        console.log("✅ [AGENDAMENTOS] RPC executada com sucesso");
+        console.log("  ├─ Quantidade de registros:", data?.length || 0);
+        if (data && data.length > 0) {
+          console.log("  ├─ Primeiro registro:", JSON.stringify(data[0], null, 2));
+          console.log("  └─ Armazéns únicos encontrados:", 
+            [...new Set(data.map((d: any) => `${d.armazem_nome} (${d.armazem_id})`))].join(", ")
+          );
+        } else {
+          console.log("  └─ ⚠️ NENHUM REGISTRO RETORNADO!");
+        }
+      }
+      
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       
       if (error) throw error;
       return data || [];
     },
     refetchInterval: 30000,
+    refetchOnMount: true,  // ⬅️ ✅ ADICIONE ESTA LINHA
     enabled: (() => {
-      if (!user || !userRole) return false;
-      if (userRole === "admin" || userRole === "logistica") return true;
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🔒 [AGENDAMENTOS] VERIFICAÇÃO DE ENABLED");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       
-      const clienteOk = userRole !== "cliente" || (currentCliente !== undefined);
-      const armazemOk = userRole !== "armazem" || (currentArmazem !== undefined);
+      console.log("📋 [AGENDAMENTOS] VALORES ATUAIS:");
+      console.log("  ├─ user:", user?.id ? `Presente (${user.id})` : "❌ AUSENTE");
+      console.log("  ├─ userRole:", userRole || "❌ AUSENTE");
+      console.log("  ├─ clienteId:", clienteId !== undefined ? clienteId : "❌ UNDEFINED");
+      console.log("  ├─ armazemId:", armazemId !== undefined ? armazemId : "❌ UNDEFINED");
+      console.log("  └─ representanteId:", representanteId !== undefined ? representanteId : "❌ UNDEFINED");
+      
+      if (!user || !userRole) {
+        console.log("❌ [AGENDAMENTOS] ENABLED = FALSE (user ou userRole ausente)");
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        return false;
+      }
+      
+      if (userRole === "admin" || userRole === "logistica") {
+        console.log("✅ [AGENDAMENTOS] ENABLED = TRUE (admin/logistica tem acesso total)");
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        return true;
+      }
+      
+      const clienteOk = userRole !== "cliente" || (clienteId !== undefined);
+      const armazemOk = userRole !== "armazem" || (armazemId !== undefined);
       const representanteOk = userRole !== "representante" || (representanteId !== undefined);
       
-      console.log("🔍 [DEBUG] Enabled check:", { clienteOk, armazemOk, representanteOk });
+      console.log("🔍 [AGENDAMENTOS] VALIDAÇÕES POR ROLE:");
+      console.log("  ├─ clienteOk:", clienteOk, 
+        `(userRole !== "cliente" [${userRole !== "cliente"}] || clienteId !== undefined [${clienteId !== undefined}])`);
+      console.log("  ├─ armazemOk:", armazemOk, 
+        `(userRole !== "armazem" [${userRole !== "armazem"}] || armazemId !== undefined [${armazemId !== undefined}])`);
+      console.log("  └─ representanteOk:", representanteOk, 
+        `(userRole !== "representante" [${userRole !== "representante"}] || representanteId !== undefined [${representanteId !== undefined}])`);
       
-      return clienteOk && armazemOk && representanteOk;
+      const result = clienteOk && armazemOk && representanteOk;
+      
+      if (result) {
+        console.log("✅ [AGENDAMENTOS] ENABLED = TRUE (todas validações passaram)");
+      } else {
+        console.log("❌ [AGENDAMENTOS] ENABLED = FALSE (alguma validação falhou)");
+        if (!clienteOk) console.log("  └─ ⚠️ Falhou: clienteOk");
+        if (!armazemOk) console.log("  └─ ⚠️ Falhou: armazemOk");
+        if (!representanteOk) console.log("  └─ ⚠️ Falhou: representanteOk");
+      }
+      
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      
+      return result;
     })(),
   });
 
@@ -335,16 +415,13 @@ const Agendamentos = () => {
     enabled: !!user,
   });
 
-  // ✅ USEMEMO HÍBRIDO - SUPORTA FUNÇÃO UNIVERSAL E FALLBACK
   const agendamentos = useMemo(() => {
     if (!agendamentosData) return [];
     
     return agendamentosData.map((item: any): AgendamentoItem => {
-      // ✅ Verificar se vem da função universal (tem campos calculados)
       const isFromFunction = !!item.cliente_nome;
       
       if (isFromFunction) {
-        // ✅ Dados já calculados da função universal
         const etapaAtual = item.etapa_atual ?? 1;
         const statusInfo = getStatusCarregamento(etapaAtual);
         const finalizado = item.status === 'concluido';
@@ -365,7 +442,10 @@ const Agendamentos = () => {
           armazem_id: item.armazem_id,
           liberacao_id: item.liberacao_id,
           updated_at: item.updated_at,
-          tipo_caminhao: item.tipo_caminhao,
+          placa_carreta_1: item.placa_carreta_1 || "",
+          placa_carreta_2: item.placa_carreta_2 || null,
+          transportadora: item.transportadora || "",
+          cnpj_transportadora: item.cnpj_transportadora || "",
           observacoes: item.observacoes,
           etapa_carregamento: etapaAtual,
           status_carregamento: statusInfo.status,
@@ -375,7 +455,6 @@ const Agendamentos = () => {
           finalizado,
         };
       } else {
-        // ❌ Fallback para dados da query tradicional (não deveria acontecer)
         let etapaAtual = 1;
         const carregamento = item.carregamentos?.[0];
         etapaAtual = carregamento?.etapa_atual ?? 1;
@@ -401,7 +480,10 @@ const Agendamentos = () => {
           armazem_id: item.liberacao?.armazem?.id,
           liberacao_id: item.liberacao?.id,
           updated_at: item.updated_at,
-          tipo_caminhao: item.tipo_caminhao,
+          placa_carreta_1: item.placa_carreta_1 || "",
+          placa_carreta_2: item.placa_carreta_2 || null,
+          transportadora: item.transportadora || "",
+          cnpj_transportadora: item.cnpj_transportadora || "",
           observacoes: item.observacoes,
           etapa_carregamento: etapaAtual,
           status_carregamento: statusInfo.status,
@@ -415,6 +497,7 @@ const Agendamentos = () => {
   }, [agendamentosData]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  
   const [novoAgendamento, setNovoAgendamento] = useState({
     liberacao: "",
     quantidade: "",
@@ -422,28 +505,30 @@ const Agendamentos = () => {
     placa: "",
     motorista: "",
     documento: "",
-    tipoCaminhao: "",
+    placaCarreta1: "",
+    placaCarreta2: "",
+    transportadora: "",
+    cnpjTransportadora: "",
     observacoes: "",
   });
+  
   const [formError, setFormError] = useState("");
   const [quantidadeDisponivel, setQuantidadeDisponivel] = useState<number>(0);
   const [validandoQuantidade, setValidandoQuantidade] = useState(false);
 
-  // 🚀 MIGRAÇÃO PARA FUNÇÃO UNIVERSAL - LIBERAÇÕES DISPONÍVEIS
   const { data: liberacoesDisponiveis } = useQuery({
-    queryKey: ["liberacoes-disponiveis", currentCliente?.id, representanteId, userRole],
+    queryKey: ["liberacoes-disponiveis", clienteId, representanteId, userRole],
     queryFn: async () => {
       console.log("🔍 [DEBUG] Query liberacoes-disponiveis executando:");
       console.log("- userRole:", userRole);
       console.log("- representanteId:", representanteId);
-      console.log("- currentCliente?.id:", currentCliente?.id);
+      console.log("- clienteId:", clienteId);
       
-      // 🚀 USAR FUNÇÃO UNIVERSAL PARA LIBERAÇÕES DISPONÍVEIS
       const { data, error } = await supabase.rpc('get_liberacoes_universal', {
         p_user_role: userRole,
         p_user_id: user?.id,
-        p_cliente_id: currentCliente?.id || null,
-        p_armazem_id: null, // Para agendamentos, não filtramos por armazém específico
+        p_cliente_id: clienteId || null,
+        p_armazem_id: null,
         p_representante_id: representanteId || null
       });
       
@@ -451,7 +536,6 @@ const Agendamentos = () => {
       
       if (error) throw error;
       
-      // Filtrar apenas liberações disponíveis e calcular disponibilidade
       const liberacoesDisponiveis = (data || []).filter((lib: any) => 
         lib.status === 'disponivel' || lib.status === 'parcialmente_agendada'
       );
@@ -481,7 +565,7 @@ const Agendamentos = () => {
       if (!user || !userRole) return false;
       if (userRole === "admin" || userRole === "logistica") return true;
       
-      const clienteOk = userRole !== "cliente" || (currentCliente !== undefined);
+      const clienteOk = userRole !== "cliente" || (clienteId !== undefined);
       const representanteOk = userRole !== "representante" || (representanteId !== undefined);
       
       console.log("🔍 [DEBUG] Liberações enabled check:", { clienteOk, representanteOk });
@@ -506,20 +590,22 @@ const Agendamentos = () => {
       placa: "",
       motorista: "",
       documento: "",
-      tipoCaminhao: "",
+      placaCarreta1: "",
+      placaCarreta2: "",
+      transportadora: "",
+      cnpjTransportadora: "",
       observacoes: "",
     });
     setFormError("");
     setQuantidadeDisponivel(0);
     setValidandoQuantidade(false);
-    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
+    resetUnsavedChanges();
   };
 
-  // ✅ Função para fechar modal com verificação
   const handleCloseModal = () => {
     handleClose(() => {
       setDialogOpen(false);
-      resetFormNovoAgendamento(); // ✅ Limpar dados ao fechar
+      resetFormNovoAgendamento();
     });
   };
 
@@ -590,12 +676,19 @@ const Agendamentos = () => {
     try {
       const placaSemMascara = (novoAgendamento.placa ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
       const cpfSemMascara = (novoAgendamento.documento ?? "").replace(/\D/g, "");
+      
+      const placaCarreta1SemMascara = (novoAgendamento.placaCarreta1 ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+      const placaCarreta2SemMascara = novoAgendamento.placaCarreta2 
+        ? novoAgendamento.placaCarreta2.replace(/[^A-Z0-9]/gi, "").toUpperCase() 
+        : null;
+      const cnpjSemMascara = (novoAgendamento.cnpjTransportadora ?? "").replace(/\D/g, "");
 
       const selectedLiberacao = liberacoesDisponiveis?.find((l) => l.id === novoAgendamento.liberacao);
       const clienteIdDaLiberacao = selectedLiberacao?.cliente_id || null;
       const armazemIdDaLiberacao = selectedLiberacao?.armazem?.id || null;
 
       const { data: userData } = await supabase.auth.getUser();
+      
       const { data: agendData, error: errAgend } = await supabase
         .from("agendamentos")
         .insert({
@@ -605,7 +698,10 @@ const Agendamentos = () => {
           placa_caminhao: placaSemMascara,
           motorista_nome: novoAgendamento.motorista.trim(),
           motorista_documento: cpfSemMascara,
-          tipo_caminhao: novoAgendamento.tipoCaminhao || null,
+          placa_carreta_1: placaCarreta1SemMascara,
+          placa_carreta_2: placaCarreta2SemMascara,
+          transportadora: novoAgendamento.transportadora.trim(),
+          cnpj_transportadora: cnpjSemMascara,
           observacoes: novoAgendamento.observacoes || null,
           created_by: userData.user?.id,
           cliente_id: clienteIdDaLiberacao,
@@ -647,7 +743,7 @@ const Agendamentos = () => {
         return;
       }
 
-      markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
+      markAsSaved();
 
       toast({
         title: "Agendamento criado com sucesso!",
@@ -782,9 +878,7 @@ const Agendamentos = () => {
     <Card key={ag.id} className="transition-all hover:shadow-md cursor-pointer">
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          {/* Layout Mobile-First: Badge no topo em mobile, ao lado em desktop */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            {/* Badge - Primeiro em mobile, à direita em desktop */}
             <div className="flex justify-start sm:order-2 sm:justify-end">
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
@@ -804,7 +898,6 @@ const Agendamentos = () => {
               </Tooltip>
             </div>
   
-            {/* Conteúdo principal - Segundo em mobile, à esquerda em desktop */}
             <div 
               className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
               onClick={() => setDetalhesAgendamento(ag)}
@@ -815,9 +908,15 @@ const Agendamentos = () => {
               <div className="flex-1 min-w-0 space-y-1">
                 <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {ag.pedido}</h3>
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p><span className="font-semibold">Cliente:</span> <span className="break-words">{ag.cliente}</span></p>
-                  <p><span className="font-semibold">Produto:</span> <span className="break-words">{ag.produto}</span></p>
-                  <p className="break-words"><span className="font-semibold">Armazém:</span> {ag.armazem}</p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{ag.cliente}</span>
+                  </p>
+                  <p className="whitespace-nowrap">
+                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{ag.produto}</span>
+                  </p>
+                  <p className="whitespace-nowrap break-words">
+                    <span className="font-medium text-foreground">Armazém:</span> {ag.armazem}
+                  </p>
                 </div>
                 
                 <div className="mt-2 text-xs text-muted-foreground">
@@ -829,30 +928,28 @@ const Agendamentos = () => {
             </div>
           </div>
   
-          {/* Grid de informações - Sempre abaixo do conteúdo principal */}
           <div 
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2"
             onClick={() => setDetalhesAgendamento(ag)}
           >
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="truncate">{ag.data}</span>
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="truncate">{formatPlaca(ag.placa)}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{ag.motorista}</span>
+              <span className="truncate" title={ag.motorista}>{ag.motorista}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{formatCPF(ag.documento)}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="truncate" title={ag.transportadora}>{ag.transportadora || "N/A"}</span>
             </div>
           </div>
   
-          {/* Barra de progresso - Sempre na parte inferior */}
           <div 
             className="pt-2 border-t"
             onClick={() => setDetalhesAgendamento(ag)}
@@ -904,10 +1001,16 @@ const Agendamentos = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-        <PageHeader title="Agendamentos de Retirada" subtitle="Carregando..." icon={Calendar} actions={<></>} />
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Carregando agendamentos...</p>
+        <PageHeader
+          title="Agendamentos"
+          subtitle="Gerencie os agendamentos de retirada"
+          icon={Calendar}
+        />
+        <div className="text-center py-12">
+          <div className="flex justify-center items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="text-muted-foreground">Carregando agendamentos...</span>
+          </div>
         </div>
       </div>
     );
@@ -916,10 +1019,19 @@ const Agendamentos = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-        <PageHeader title="Agendamentos de Retirada" subtitle="Erro ao carregar dados" icon={Calendar} actions={<></>} />
-        <div className="text-center">
-          <p className="text-destructive">Erro: {(error as Error).message}</p>
-        </div>
+        <PageHeader
+          title="Agendamentos"
+          subtitle="Gerencie os agendamentos de retirada"
+          icon={Calendar}
+        />
+        <Card className="border-destructive">
+          <CardContent className="p-6">
+            <div className="text-center text-destructive">
+              <p className="font-semibold">Erro ao carregar agendamentos</p>
+              <p className="text-sm mt-2">{error instanceof Error ? error.message : "Erro desconhecido"}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -928,7 +1040,6 @@ const Agendamentos = () => {
     <TooltipProvider>
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         
-        {/* ✅ Componente de alerta */}
         <UnsavedChangesAlert 
           open={showAlert}
           onConfirm={confirmClose}
@@ -936,15 +1047,15 @@ const Agendamentos = () => {
         />
 
         <PageHeader
-          title="Agendamentos de Retirada"
-          subtitle="Gerencie os agendamentos de retirada de produtos"
+          title="Agendamentos"
+          subtitle="Gerencie os agendamentos de retirada"
           icon={Calendar}
           actions={
-            canCreate ? (
+            canCreate && (
               <Dialog open={dialogOpen} onOpenChange={(open) => {
-                if (!open && isCreating) return; // Não fechar durante criação
+                if (!open && isCreating) return;
                 if (!open) {
-                  handleCloseModal(); // ✅ Usar nova função
+                  handleCloseModal();
                 } else {
                   setDialogOpen(open);
                 }
@@ -956,213 +1067,316 @@ const Agendamentos = () => {
                   </Button>
                 </DialogTrigger>
                 
-                {/* Modal de Novo Agendamento - Mobile Otimizado */}
-                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-4xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
                   <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                     <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Novo Agendamento</DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground">
+                      Agende a retirada de produtos liberados
+                    </DialogDescription>
                   </DialogHeader>
                   
                   <div className="py-4 px-1 space-y-6">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="liberacao" className="text-sm font-medium">Liberação *</Label>
-                        {temLiberacoesDisponiveis ? (
-                          <Select
-                            value={novoAgendamento.liberacao}
-                            onValueChange={async (v) => {
-                              setNovoAgendamento((s) => ({ ...s, liberacao: v, quantidade: "" }));
-                              markAsChanged(); // ✅ Marcar como alterado
-                              await atualizarQuantidadeDisponivel(v);
-                            }}
-                            disabled={isCreating}
-                          >
-                            <SelectTrigger id="liberacao" className="min-h-[44px] max-md:min-h-[44px]">
-                              <SelectValue placeholder="Selecione a liberação" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {liberacoesDisponiveis?.map((lib: any) => {
-                                const disponivel = lib.quantidade_disponivel_real || 
-                                  (lib.quantidade_liberada - (lib.quantidade_retirada || 0));
-                                return (
-                                  <SelectItem key={lib.id} value={lib.id}>
-                                    <span className="break-words">
-                                      {lib.pedido_interno} - {lib.clientes?.nome} - {lib.produto?.nome} ({disponivel.toLocaleString('pt-BR')}t disponível) - {lib.armazem?.cidade}/{lib.armazem?.estado}
-                                    </span>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          renderEmptyLiberacoesCard()
-                        )}
-                      </div>
-
-                      {temLiberacoesDisponiveis && (
-                        <>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label htmlFor="quantidade" className="text-sm font-medium">Quantidade (t) *</Label>
-                              {novoAgendamento.liberacao && (
-                                <div className="text-sm text-muted-foreground mb-1">
-                                  {validandoQuantidade ? (
-                                    <span className="flex items-center gap-1">
-                                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                                      Verificando disponibilidade...
-                                    </span>
-                                  ) : (
-                                    <span className={quantidadeDisponivel > 0 ? "text-green-600" : "text-red-600"}>
-                                      Disponível: {quantidadeDisponivel.toLocaleString('pt-BR')}t
-                                    </span>
-                                  )}
-                                </div>
+                    {!temLiberacoesDisponiveis ? (
+                      renderEmptyLiberacoesCard()
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="space-y-4">
+                        <div className="flex items-center gap-2 border-b pb-2">
+                          <Package className="h-4 w-4 text-blue-600" />
+                          <h3 className="text-base font-semibold text-foreground">Produto e Quantidade</h3>
+                        </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2 space-y-3">
+                              <div>
+                                <Label htmlFor="liberacao" className="text-sm font-medium">Liberação *</Label>
+                                <Select
+                                  value={novoAgendamento.liberacao}
+                                  onValueChange={(value) => {
+                                    setNovoAgendamento({ ...novoAgendamento, liberacao: value });
+                                    markAsChanged();
+                                    atualizarQuantidadeDisponivel(value);
+                                  }}
+                                  disabled={isCreating}
+                                >
+                                  <SelectTrigger id="liberacao" className="min-h-[44px] max-md:min-h-[44px] text-left">
+                                    {novoAgendamento.liberacao && liberacoesDisponiveis ? (
+                                      <span className="truncate">
+                                        {(() => {
+                                          const lib = liberacoesDisponiveis.find(l => l.id === novoAgendamento.liberacao);
+                                          if (!lib) return "Selecione uma liberação";
+                                          return `${lib.pedido_interno} - ${lib.produto?.nome}`;
+                                        })()}
+                                      </span>
+                                    ) : (
+                                      <SelectValue placeholder="Selecione uma liberação" />
+                                    )}
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[300px]">
+                                    {liberacoesDisponiveis?.map((lib) => (
+                                      <SelectItem key={lib.id} value={lib.id}>
+                                        <div className="flex flex-col gap-1 py-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold">{lib.pedido_interno}</span>
+                                            <Badge variant="outline" className="text-xs">
+                                              {lib.quantidade_disponivel_real}t disponível
+                                            </Badge>
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            {lib.clientes?.nome} • {lib.produto?.nome}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            {lib.armazem?.nome} - {lib.armazem?.cidade}/{lib.armazem?.estado}
+                                          </div>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            
+                              {/* 🆕 CARD DESTACADO DO ARMAZÉM */}
+                              {novoAgendamento.liberacao && liberacoesDisponiveis && (
+                                (() => {
+                                  const lib = liberacoesDisponiveis.find(l => l.id === novoAgendamento.liberacao);
+                                  if (!lib) return null;
+                                  
+                                  return (
+                                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg">
+                                      <div className="flex items-start gap-3">
+                                        <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                                            Armazém de Retirada
+                                          </p>
+                                          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mt-1 break-words">
+                                            {lib.armazem?.nome}
+                                          </p>
+                                          <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                                            {lib.armazem?.cidade}/{lib.armazem?.estado}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                               )}
-                              <Input
-                                id="quantidade"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max={quantidadeDisponivel || undefined}
-                                value={novoAgendamento.quantidade}
-                                onChange={(e) => {
-                                  setNovoAgendamento((s) => ({ ...s, quantidade: e.target.value }));
-                                  markAsChanged(); // ✅ Marcar como alterado
-                                }}
-                                placeholder="0.00"
-                                className={`min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base ${
-                                  novoAgendamento.quantidade && !quantidadeValida 
-                                    ? "border-red-500 focus:border-red-500" 
-                                    : novoAgendamento.quantidade && quantidadeValida
-                                    ? "border-green-500 focus:border-green-500"
-                                    : ""
-                                }`}
-                                disabled={isCreating}
-                              />
-                              {novoAgendamento.quantidade && !quantidadeValida && (
-                                <p className="text-xs text-red-600">
-                                  {Number(novoAgendamento.quantidade) > quantidadeDisponivel 
-                                    ? `Quantidade excede o disponível (${quantidadeDisponivel.toLocaleString('pt-BR')}t)`
-                                    : "Quantidade deve ser maior que zero"
-                                  }
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="quantidade" className="text-sm font-medium">Quantidade (t) *</Label>
+                              <div className="relative">
+                                <Input
+                                  id="quantidade"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max={quantidadeDisponivel}
+                                  value={novoAgendamento.quantidade}
+                                  onChange={(e) => {
+                                    setNovoAgendamento({ ...novoAgendamento, quantidade: e.target.value });
+                                    markAsChanged();
+                                  }}
+                                  placeholder="0.00"
+                                  disabled={isCreating || validandoQuantidade}
+                                  className={`min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base pr-10 ${
+                                    novoAgendamento.quantidade && !quantidadeValida ? 'border-red-500' : ''
+                                  }`}
+                                />
+                                {validandoQuantidade && (
+                                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                              </div>
+                              {quantidadeDisponivel > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Disponível: <span className="font-semibold">{quantidadeDisponivel}t</span>
                                 </p>
                               )}
                             </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="data" className="text-sm font-medium">Data *</Label>
+                            
+                            <div>
+                              <Label htmlFor="data" className="text-sm font-medium">Data de Retirada *</Label>
                               <Input
                                 id="data"
                                 type="date"
                                 value={novoAgendamento.data}
                                 onChange={(e) => {
-                                  setNovoAgendamento((s) => ({ ...s, data: e.target.value }));
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  setNovoAgendamento({ ...novoAgendamento, data: e.target.value });
+                                  markAsChanged();
                                 }}
                                 disabled={isCreating}
                                 className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                               />
                             </div>
                           </div>
+                        </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="placa" className="text-sm font-medium">Placa do Veículo *</Label>
-                            <Input
-                              id="placa"
-                              value={novoAgendamento.placa}
-                              onChange={(e) => {
-                                setNovoAgendamento((s) => ({
-                                  ...s,
-                                  placa: maskPlaca(e.target.value),
-                                }));
-                                markAsChanged(); // ✅ Marcar como alterado
-                              }}
-                              placeholder="Ex: ABC-1234 ou ABC-1D23"
-                              maxLength={9}
-                              autoCapitalize="characters"
-                              spellCheck={false}
-                              inputMode="text"
-                              disabled={isCreating}
-                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-                            />
-                            <p className="text-xs text-muted-foreground">Formato antigo (ABC-1234) ou Mercosul (ABC-1D23)</p>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <Truck className="h-4 w-4 text-green-600" />
+                            <h3 className="text-base font-semibold text-foreground">Veículo e Carretas</h3>
                           </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="placa" className="text-sm font-medium">Placa do Veículo *</Label>
+                              <Input
+                                id="placa"
+                                value={novoAgendamento.placa}
+                                onChange={(e) => {
+                                  setNovoAgendamento({ ...novoAgendamento, placa: maskPlaca(e.target.value) });
+                                  markAsChanged();
+                                }}
+                                placeholder="ABC-1234"
+                                maxLength={8}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="placaCarreta1" className="text-sm font-medium">Placa da Carreta 1 *</Label>
+                              <Input
+                                id="placaCarreta1"
+                                value={novoAgendamento.placaCarreta1}
+                                onChange={(e) => {
+                                  setNovoAgendamento({ ...novoAgendamento, placaCarreta1: maskPlaca(e.target.value) });
+                                  markAsChanged();
+                                }}
+                                placeholder="ABC-1234"
+                                maxLength={8}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="placaCarreta2" className="text-sm font-medium">Placa da Carreta 2 (opcional)</Label>
+                              <Input
+                                id="placaCarreta2"
+                                value={novoAgendamento.placaCarreta2}
+                                onChange={(e) => {
+                                  setNovoAgendamento({ ...novoAgendamento, placaCarreta2: maskPlaca(e.target.value) });
+                                  markAsChanged();
+                                }}
+                                placeholder="ABC-1234"
+                                maxLength={8}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+                          </div>
+                        </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-2">
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <User className="h-4 w-4 text-purple-600" />
+                            <h3 className="text-base font-semibold text-foreground">Motorista</h3>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
                               <Label htmlFor="motorista" className="text-sm font-medium">Nome do Motorista *</Label>
                               <Input
                                 id="motorista"
                                 value={novoAgendamento.motorista}
                                 onChange={(e) => {
-                                  setNovoAgendamento((s) => ({ ...s, motorista: e.target.value }));
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  setNovoAgendamento({ ...novoAgendamento, motorista: e.target.value });
+                                  markAsChanged();
                                 }}
-                                placeholder="Ex: João Silva"
+                                placeholder="Nome completo"
                                 disabled={isCreating}
                                 className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                               />
                             </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="documento" className="text-sm font-medium">Documento (CPF) *</Label>
+                            
+                            <div>
+                              <Label htmlFor="documento" className="text-sm font-medium">CPF do Motorista *</Label>
                               <Input
                                 id="documento"
                                 value={novoAgendamento.documento}
                                 onChange={(e) => {
-                                  setNovoAgendamento((s) => ({
-                                    ...s,
-                                    documento: maskCPF(e.target.value),
-                                  }));
-                                  markAsChanged(); // ✅ Marcar como alterado
+                                  setNovoAgendamento({ ...novoAgendamento, documento: maskCPF(e.target.value) });
+                                  markAsChanged();
                                 }}
-                                placeholder="Ex: 123.456.789-00"
+                                placeholder="000.000.000-00"
                                 maxLength={14}
                                 disabled={isCreating}
                                 className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                               />
                             </div>
                           </div>
+                        </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="tipoCaminhao" className="text-sm font-medium">Tipo de Caminhão</Label>
-                            <Input
-                              id="tipoCaminhao"
-                              value={novoAgendamento.tipoCaminhao}
-                              onChange={(e) => {
-                                setNovoAgendamento((s) => ({ ...s, tipoCaminhao: e.target.value }));
-                                markAsChanged(); // ✅ Marcar como alterado
-                              }}
-                              placeholder="Ex: Bitrem, Carreta, Truck"
-                              disabled={isCreating}
-                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-                            />
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <Building2 className="h-4 w-4 text-orange-600" />
+                            <h3 className="text-base font-semibold text-foreground">Transportadora</h3>
                           </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="transportadora" className="text-sm font-medium">Nome da Transportadora *</Label>
+                              <Input
+                                id="transportadora"
+                                value={novoAgendamento.transportadora}
+                                onChange={(e) => {
+                                  setNovoAgendamento({ ...novoAgendamento, transportadora: e.target.value });
+                                  markAsChanged();
+                                }}
+                                placeholder="Nome da empresa transportadora"
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="cnpjTransportadora" className="text-sm font-medium">CNPJ da Transportadora *</Label>
+                              <Input
+                                id="cnpjTransportadora"
+                                value={novoAgendamento.cnpjTransportadora}
+                                onChange={(e) => {
+                                  setNovoAgendamento({ ...novoAgendamento, cnpjTransportadora: maskCNPJ(e.target.value) });
+                                  markAsChanged();
+                                }}
+                                placeholder="00.000.000/0000-00"
+                                maxLength={18}
+                                disabled={isCreating}
+                                className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              />
+                            </div>
+                          </div>
+                        </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="observacoes" className="text-sm font-medium">Observações</Label>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <FileText className="h-4 w-4 text-gray-600" />
+                            <h3 className="text-base font-semibold text-foreground">Observações</h3>
+                          </div>
+                          <div>
+                            <Label htmlFor="observacoes" className="text-sm font-medium">Observações (opcional)</Label>
                             <Input
                               id="observacoes"
                               value={novoAgendamento.observacoes}
                               onChange={(e) => {
-                                setNovoAgendamento((s) => ({ ...s, observacoes: e.target.value }));
-                                markAsChanged(); // ✅ Marcar como alterado
+                                setNovoAgendamento({ ...novoAgendamento, observacoes: e.target.value });
+                                markAsChanged();
                               }}
                               placeholder="Informações adicionais sobre o agendamento"
                               disabled={isCreating}
                               className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                             />
                           </div>
-                          
-                          {formError && (
-                            <div className="pt-3 text-destructive text-sm font-semibold border-t">
-                              {formError}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                        </div>
 
-                    {/* Botões no final do conteúdo */}
+                        {formError && (
+                          <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 p-3">
+                            <p className="text-sm text-red-800 dark:text-red-200">{formError}</p>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-muted-foreground">
+                          * Campos obrigatórios
+                        </p>
+                      </div>
+                    )}
+
                     <ModalFooter 
                       variant="double"
                       onClose={() => handleCloseModal()}
@@ -1170,16 +1384,15 @@ const Agendamentos = () => {
                       confirmText="Criar Agendamento"
                       confirmIcon={<Plus className="h-4 w-4" />}
                       isLoading={isCreating}
-                      disabled={!temLiberacoesDisponiveis || !quantidadeValida || validandoQuantidade}
+                      confirmDisabled={!temLiberacoesDisponiveis}
                     />
                   </div>
                 </DialogContent>
               </Dialog>
-            ) : null
+            )
           }
         />
 
-        {/* Barra de filtros - Mobile otimizada */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Input 
@@ -1216,8 +1429,7 @@ const Agendamentos = () => {
             )}
           </div>
         </div>
-        
-        {/* Filtros expandidos - Mobile otimizado */}
+
         {filtersOpen && (
           <div className="rounded-md border p-3 space-y-4">
             <div>
@@ -1246,199 +1458,271 @@ const Agendamentos = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input 
                   type="date" 
-                  value={dateFrom} 
-                  onChange={(e) => setDateFrom(e.target.value)} 
-                  className="min-h-[44px] max-md:min-h-[44px]" 
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
                   placeholder="Data inicial"
+                  className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                 />
                 <Input 
                   type="date" 
-                  value={dateTo} 
-                  onChange={(e) => setDateTo(e.target.value)} 
-                  className="min-h-[44px] max-md:min-h-[44px]" 
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
                   placeholder="Data final"
+                  className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                 />
               </div>
             </div>
           </div>
         )}
 
-        {/* Modal de Detalhes - Mobile Otimizado */}
-        <Dialog open={!!detalhesAgendamento} onOpenChange={open => !open && setDetalhesAgendamento(null)}>
-          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
-            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
-              <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Detalhes do Agendamento</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                Pedido: {detalhesAgendamento?.pedido}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4 px-1 space-y-4">
-              {detalhesAgendamento && (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Data de Retirada:</Label>
-                      <p className="font-semibold text-sm">{detalhesAgendamento.data}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Status:</Label>
-                      <Badge className={getStatusColor(detalhesAgendamento.status)}>
+        <div className="space-y-6">
+          {agendamentosAtivos.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">
+                  Agendamentos Ativos ({agendamentosAtivos.length})
+                </h2>
+              </div>
+              <div className="grid gap-4">
+                {agendamentosAtivos.map(renderAgendamentoCard)}
+              </div>
+            </div>
+          )}
+          
+          {agendamentosFinalizados.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
+                className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="text-sm font-medium">
+                    Agendamentos Finalizados ({agendamentosFinalizados.length})
+                  </span>
+                </div>
+                {secaoFinalizadosExpandida ? 
+                  <ChevronUp className="h-4 w-4" /> : 
+                  <ChevronDown className="h-4 w-4" />
+                }
+              </Button>
+              
+              {secaoFinalizadosExpandida && (
+                <div className="grid gap-4">
+                  {agendamentosFinalizados.map(renderAgendamentoCard)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {agendamentos.length === 0 && (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum agendamento encontrado</h3>
+                <p className="text-muted-foreground mb-4">
+                  {canCreate 
+                    ? "Comece criando seu primeiro agendamento de retirada."
+                    : "Aguarde a criação de agendamentos pela equipe responsável."
+                  }
+                </p>
+                {canCreate && (
+                  <Button 
+                    onClick={() => setDialogOpen(true)} 
+                    className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Novo Agendamento
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {agendamentos.length > 0 && showingCount === 0 && (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum resultado encontrado</h3>
+                <p className="text-muted-foreground mb-4">
+                  Ajuste os filtros para encontrar os agendamentos desejados.
+                </p>
+                <Button 
+                  onClick={clearFilters} 
+                  className="btn-secondary min-h-[44px] max-md:min-h-[44px]"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Limpar Filtros
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {detalhesAgendamento && (
+          <Dialog open={!!detalhesAgendamento} onOpenChange={() => setDetalhesAgendamento(null)}>
+            <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-4xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+              <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+                <DialogTitle className="text-lg md:text-xl pr-2 mt-1">
+                  Detalhes do Agendamento
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Pedido: {detalhesAgendamento.pedido}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4 px-1 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Data de Retirada:</Label>
+                    <p className="font-semibold text-sm md:text-base">{detalhesAgendamento.data}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Status:</Label>
+                    <div className="mt-1">
+                      <Badge className={`${getStatusColor(detalhesAgendamento.status)}`}>
                         {getStatusLabel(detalhesAgendamento.status)}
                       </Badge>
                     </div>
                   </div>
-
-                  <div className="border-t"></div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                </div>
+                
+                <div className="border-t"></div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <h3 className="text-base font-semibold text-foreground">Informações Gerais</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Cliente:</Label>
-                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.cliente}</p>
+                      <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
+                      <p className="text-sm font-medium">{detalhesAgendamento.cliente}</p>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">Armazém:</Label>
-                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.armazem}</p>
+                      <Label className="text-sm font-medium text-muted-foreground">Produto</Label>
+                      <p className="text-sm font-medium">{detalhesAgendamento.produto}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Quantidade</Label>
+                      <p className="text-sm font-medium">{detalhesAgendamento.quantidade.toLocaleString('pt-BR')}t</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-muted-foreground">Armazém</Label>
+                      <p className="text-sm font-medium">{detalhesAgendamento.armazem}</p>
                     </div>
                   </div>
+                </div>
+                
+                <div className="border-t"></div>
 
-                  <div className="border-t"></div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Produto:</Label>
-                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.produto}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Quantidade:</Label>
-                      <p className="font-semibold text-sm">{detalhesAgendamento.quantidade.toLocaleString('pt-BR')}t</p>
-                    </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Truck className="h-4 w-4 text-green-600" />
+                    <h3 className="text-base font-semibold text-foreground">Veículo e Carretas</h3>
                   </div>
-
-                  <div className="border-t"></div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Nome do Motorista:</Label>
-                      <p className="font-semibold text-sm break-words">{detalhesAgendamento.motorista}</p>
+                      <Label className="text-sm font-medium text-muted-foreground">Placa do Veículo</Label>
+                      <p className="text-sm font-medium">{formatPlaca(detalhesAgendamento.placa)}</p>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">CPF do Motorista:</Label>
-                      <p className="font-semibold text-sm">{formatCPF(detalhesAgendamento.documento)}</p>
+                      <Label className="text-sm font-medium text-muted-foreground">Placa da Carreta 1</Label>
+                      <p className="text-sm font-medium">
+                        {detalhesAgendamento.placa_carreta_1 ? formatPlaca(detalhesAgendamento.placa_carreta_1) : "N/A"}
+                      </p>
                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Placa do Veículo:</Label>
-                      <p className="font-semibold text-sm">{formatPlaca(detalhesAgendamento.placa)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Tipo de Caminhão:</Label>
-                      <p className="font-semibold text-sm">{detalhesAgendamento.tipo_caminhao || "—"}</p>
-                    </div>
-                  </div>
-
-                  {detalhesAgendamento.observacoes && (
-                    <>
-                      <div className="border-t"></div>
+                    {detalhesAgendamento.placa_carreta_2 && (
                       <div>
-                        <Label className="text-xs text-muted-foreground">Observações:</Label>
-                        <p className="text-sm bg-muted p-3 rounded-md mt-1 break-words">
-                          {detalhesAgendamento.observacoes}
-                        </p>
+                        <Label className="text-sm font-medium text-muted-foreground">Placa da Carreta 2</Label>
+                        <p className="text-sm font-medium">{formatPlaca(detalhesAgendamento.placa_carreta_2)}</p>
                       </div>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-            
-            <ModalFooter 
-              variant="single"
-              onClose={() => setDetalhesAgendamento(null)}
-            />
-          </DialogContent>
-        </Dialog>
+                    )}
+                  </div>
+                </div>
 
-        {/* Lista de Agendamentos - Mobile Otimizada */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Agendamentos Ativos ({agendamentosAtivos.length})</h2>
-          </div>
-          
-          <div className="grid gap-3">
-            {agendamentosAtivos.map(renderAgendamentoCard)}
-            {agendamentosAtivos.length === 0 && (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  {hasActiveFilters
-                    ? "Nenhum agendamento ativo encontrado com os filtros aplicados"
-                    : "Nenhum agendamento ativo no momento"}
-                </p>
-                {hasActiveFilters && (
-                  <Button 
-                    size="sm" 
-                    onClick={clearFilters}
-                    className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Limpar Filtros
-                  </Button>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <User className="h-4 w-4 text-purple-600" />
+                    <h3 className="text-base font-semibold text-foreground">Motorista</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Nome</Label>
+                      <p className="text-sm font-medium">{detalhesAgendamento.motorista}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">CPF</Label>
+                      <p className="text-sm font-medium">{formatCPF(detalhesAgendamento.documento)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Building2 className="h-4 w-4 text-orange-600" />
+                    <h3 className="text-base font-semibold text-foreground">Transportadora</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Nome da Transportadora</Label>
+                      <p className="text-sm font-medium">
+                        {detalhesAgendamento.transportadora || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">CNPJ</Label>
+                      <p className="text-sm font-medium">
+                        {detalhesAgendamento.cnpj_transportadora ? formatCNPJ(detalhesAgendamento.cnpj_transportadora) : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {detalhesAgendamento.observacoes && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <FileText className="h-4 w-4 text-gray-600" />
+                      <h3 className="text-base font-semibold text-foreground">Observações</h3>
+                    </div>
+                    <div>
+                      <p className="text-sm">{detalhesAgendamento.observacoes}</p>
+                    </div>
+                  </div>
                 )}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Seção de Agendamentos Finalizados - Mobile Otimizada */}
-        {agendamentosFinalizados.length > 0 && (
-          <div className="space-y-4">
-            <Button
-              className="flex items-center gap-2 p-0 h-auto text-lg font-semibold hover:bg-transparent btn-secondary min-h-[44px] max-md:min-h-[44px]"
-              onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
-            >
-              {secaoFinalizadosExpandida ? (
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              )}
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                Agendamentos Finalizados ({agendamentosFinalizados.length})
-              </span>
-            </Button>
-            
-            {secaoFinalizadosExpandida && (
-              <div className="grid gap-3 ml-0 sm:ml-7">
-                {agendamentosFinalizados.map(renderAgendamentoCard)}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Package className="h-4 w-4 text-indigo-600" />
+                    <h3 className="text-base font-semibold text-foreground">Status do Carregamento</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Progresso</span>
+                      <span className="text-sm font-medium">{detalhesAgendamento.percentual_carregamento}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
+                      <div 
+                        className="bg-purple-500 h-3 rounded-full transition-all duration-300" 
+                        style={{ width: `${detalhesAgendamento.percentual_carregamento}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{detalhesAgendamento.tooltip_carregamento}</p>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Estado vazio geral - Mobile Otimizado */}
-        {agendamentosAtivos.length === 0 && agendamentosFinalizados.length === 0 && (
-          <div className="text-center py-12">
-            <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              {hasActiveFilters
-                ? "Nenhum agendamento encontrado com os filtros aplicados"
-                : "Nenhum agendamento cadastrado ainda"}
-            </p>
-            {hasActiveFilters && (
-              <Button 
-                size="sm" 
-                onClick={clearFilters}
-                className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Limpar Filtros
-              </Button>
-            )}
-          </div>
+              
+              <div className="pt-4 border-t border-border bg-background flex justify-end">
+                <Button
+                  onClick={() => setDetalhesAgendamento(null)}
+                  className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-secondary"
+                >
+                  Fechar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </TooltipProvider>

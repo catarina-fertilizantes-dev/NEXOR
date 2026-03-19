@@ -32,8 +32,32 @@ import {
   Upload,
   X,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Info,
+  Building2,
+  Package
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// ✅ Funções de formatação
+function formatPlaca(placa: string) {
+  if (!placa) return "N/A";
+  let up = placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (up.length === 7) {
+    if (/[A-Z]{3}[0-9][A-Z][0-9]{2}/.test(up)) {
+      return up.replace(/^([A-Z]{3})([0-9][A-Z][0-9]{2})$/, "$1-$2");
+    }
+    return up.replace(/^([A-Z]{3})([0-9]{4})$/, "$1-$2");
+  }
+  return up;
+}
+
+function formatCNPJ(cnpj: string): string {
+  if (!cnpj) return "N/A";
+  const cleaned = cnpj.replace(/\D/g, "").slice(0, 14);
+  if (cleaned.length < 14) return cnpj;
+  return cleaned.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
 
 const ETAPAS = [
   {
@@ -284,142 +308,107 @@ const CarregamentoDetalhe = () => {
   const { data: carregamento, isLoading, error } = useQuery({
     queryKey: ["carregamento-detalhe", id, clienteId, armazemId, representanteId, userRole],
     queryFn: async () => {
-      console.log("🔍 [DEBUG] CarregamentoDetalhe query executando:");
+      console.log("🔍 [DEBUG] ========== INÍCIO QUERY CARREGAMENTO ==========");
+      console.log("🔍 [DEBUG] Parâmetros de entrada:");
       console.log("- id:", id);
       console.log("- userRole:", userRole);
+      console.log("- user?.id:", user?.id);
       console.log("- clienteId:", clienteId);
       console.log("- armazemId:", armazemId);
       console.log("- representanteId:", representanteId);
       
-      if (userRole === "representante" && representanteId) {
-        console.log("🔍 [DEBUG] Usando query para representante");
-        const { data, error } = await supabase.rpc('get_carregamento_detalhe_by_representante', {
-          p_representante_id: representanteId,
-          p_carregamento_id: id
-        });
-  
-        if (error) {
-          console.log("🔍 [DEBUG] Erro na query representante:", error);
-          throw error;
-        }
-        
-        if (data && data.length > 0) {
-          const item = data[0];
-          console.log("🔍 [DEBUG] Dados representante encontrados:", item);
-          return {
-            id: item.id,
-            etapa_atual: item.etapa_atual,
-            numero_nf: item.numero_nf,
-            data_chegada: item.data_chegada,
-            created_at: item.created_at,
-            cliente_id: item.cliente_id,
-            armazem_id: item.armazem_id,
-            observacao_chegada: item.observacao_chegada,
-            observacao_inicio: item.observacao_inicio,
-            observacao_carregando: item.observacao_carregando,
-            observacao_finalizacao: item.observacao_finalizacao,
-            observacao_documentacao: item.observacao_documentacao,
-            data_inicio: item.data_inicio,
-            data_carregando: item.data_carregando,
-            data_finalizacao: item.data_finalizacao,
-            data_documentacao: item.data_documentacao,
-            docs_retorno_url: item.docs_retorno_url,
-            docs_retorno_xml_url: item.docs_retorno_xml_url,
-            docs_venda_url: item.docs_venda_url,
-            docs_venda_xml_url: item.docs_venda_xml_url,
-            docs_remessa_url: item.docs_remessa_url,
-            docs_remessa_xml_url: item.docs_remessa_xml_url,
-            etapa_5a_status: item.etapa_5a_status || 'pendente',
-            etapa_5b_status: item.etapa_5b_status || 'pendente',
-            etapa_5c_status: item.etapa_5c_status || 'pendente',
-            url_foto_chegada: item.url_foto_chegada,
-            url_foto_inicio: item.url_foto_inicio,
-            url_foto_carregando: item.url_foto_carregando,
-            url_foto_finalizacao: item.url_foto_finalizacao,
-            agendamento_id: item.agendamento_id,
-            agendamento_data_retirada: item.agendamento_data_retirada,
-            agendamento_quantidade: item.agendamento_quantidade,
-            agendamento_placa_caminhao: item.agendamento_placa_caminhao,
-            agendamento_motorista_nome: item.agendamento_motorista_nome,
-            agendamento_motorista_documento: item.agendamento_motorista_documento,
-            cliente_nome: item.cliente_nome,
-            liberacao_pedido_interno: item.liberacao_pedido_interno,
-            produto_nome: item.produto_nome
-          };
-        }
-        
-        console.log("🔍 [DEBUG] Nenhum dado encontrado para representante");
+      // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
+      console.log("🔍 [DEBUG] Chamando função universal com parâmetros:");
+      const params = {
+        p_user_role: userRole,
+        p_user_id: user?.id,
+        p_cliente_id: clienteId || null,
+        p_armazem_id: armazemId || null,
+        p_representante_id: representanteId || null,
+        p_carregamento_id: id
+      };
+      console.log("🔍 [DEBUG] Parâmetros função:", params);
+      
+      const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', params);
+      
+      console.log("🔍 [DEBUG] Resultado bruto da função:");
+      console.log("- data:", data);
+      console.log("- error:", error);
+      console.log("- data?.length:", data?.length);
+      
+      if (error) {
+        console.error("❌ [ERROR] Erro na função universal:", error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log("❌ [DEBUG] Nenhum dado retornado pela função");
         return null;
       }
-  
-      console.log("🔍 [DEBUG] Usando query direta (não representante)");
-      let query = supabase
-        .from("carregamentos")
-        .select(`
-          id,
-          etapa_atual,
-          numero_nf,
-          data_chegada,
-          created_at,
-          cliente_id,
-          armazem_id,
-          observacao_chegada,
-          observacao_inicio,
-          observacao_carregando,
-          observacao_finalizacao,
-          observacao_documentacao,
-          data_inicio,
-          data_carregando,
-          data_finalizacao,
-          data_documentacao,
-          docs_retorno_url,
-          docs_retorno_xml_url,
-          docs_venda_url,
-          docs_venda_xml_url,
-          docs_remessa_url,
-          docs_remessa_xml_url,
-          etapa_5a_status,
-          etapa_5b_status,
-          etapa_5c_status,
-          url_foto_chegada,
-          url_foto_inicio,
-          url_foto_carregando,
-          url_foto_finalizacao,
-          agendamento:agendamentos!carregamentos_agendamento_id_fkey (
-            id,
-            data_retirada,
-            quantidade,
-            cliente:clientes!agendamentos_cliente_id_fkey (
-              nome
-            ),
-            placa_caminhao,
-            motorista_nome,
-            motorista_documento,
-            liberacao:liberacoes!agendamentos_liberacao_id_fkey (
-              pedido_interno,
-              produto:produtos!liberacoes_produto_id_fkey (
-                nome
-              )
-            )
-          )
-        `)
-        .eq("id", id);
-  
-      if (userRole === "cliente" && clienteId) {
-        console.log("🔍 [DEBUG] Aplicando filtro de cliente:", clienteId);
-        query = query.eq("cliente_id", clienteId);
-      } else if (userRole === "armazem" && armazemId) {
-        console.log("🔍 [DEBUG] Aplicando filtro de armazém:", armazemId);
-        query = query.eq("armazem_id", armazemId);
-      }
-  
-      const { data, error } = await query.single();
       
-      console.log("🔍 [DEBUG] Resultado query direta:", { data, error });
+      const item = data[0];
+      console.log("🔍 [DEBUG] Item encontrado (primeiros campos):");
+      console.log("- item.id:", item.id);
+      console.log("- item.agendamento_id:", item.agendamento_id);
+      console.log("- item.cliente_nome:", item.cliente_nome);
+      console.log("- item.produto_nome:", item.produto_nome);
+      console.log("- item.agendamento_quantidade:", item.agendamento_quantidade);
       
-      if (error) throw error;
-      return data;
+      const resultado = {
+        id: item.id,
+        etapa_atual: item.etapa_atual,
+        numero_nf: item.numero_nf,
+        data_chegada: item.data_chegada,
+        created_at: item.created_at,
+        cliente_id: item.cliente_id,
+        armazem_id: item.armazem_id,
+        observacao_chegada: item.observacao_chegada,
+        observacao_inicio: item.observacao_inicio,
+        observacao_carregando: item.observacao_carregando,
+        observacao_finalizacao: item.observacao_finalizacao,
+        observacao_documentacao: item.observacao_documentacao,
+        data_inicio: item.data_inicio,
+        data_carregando: item.data_carregando,
+        data_finalizacao: item.data_finalizacao,
+        data_documentacao: item.data_documentacao,
+        docs_retorno_url: item.docs_retorno_url,
+        docs_retorno_xml_url: item.docs_retorno_xml_url,
+        docs_venda_url: item.docs_venda_url,
+        docs_venda_xml_url: item.docs_venda_xml_url,
+        docs_remessa_url: item.docs_remessa_url,
+        docs_remessa_xml_url: item.docs_remessa_xml_url,
+        etapa_5a_status: item.etapa_5a_status || 'pendente',
+        etapa_5b_status: item.etapa_5b_status || 'pendente',
+        etapa_5c_status: item.etapa_5c_status || 'pendente',
+        url_foto_chegada: item.url_foto_chegada,
+        url_foto_inicio: item.url_foto_inicio,
+        url_foto_carregando: item.url_foto_carregando,
+        url_foto_finalizacao: item.url_foto_finalizacao,
+        // ✅ CAMPOS CORRETOS DA FUNÇÃO UNIVERSAL - INCLUINDO NOVOS CAMPOS
+        agendamento_id: item.agendamento_id,
+        agendamento_data_retirada: item.agendamento_data_retirada,
+        agendamento_quantidade: item.agendamento_quantidade,
+        agendamento_placa_caminhao: item.agendamento_placa_caminhao,
+        agendamento_placa_carreta_1: item.agendamento_placa_carreta_1,
+        agendamento_placa_carreta_2: item.agendamento_placa_carreta_2,
+        agendamento_transportadora: item.agendamento_transportadora,
+        agendamento_cnpj_transportadora: item.agendamento_cnpj_transportadora,
+        agendamento_motorista_nome: item.agendamento_motorista_nome,
+        agendamento_motorista_documento: item.agendamento_motorista_documento,
+        cliente_nome: item.cliente_nome,
+        liberacao_pedido_interno: item.liberacao_pedido_interno,
+        produto_nome: item.produto_nome
+      };
+      
+      console.log("🔍 [DEBUG] Objeto resultado final:");
+      console.log("- resultado.cliente_nome:", resultado.cliente_nome);
+      console.log("- resultado.produto_nome:", resultado.produto_nome);
+      console.log("- resultado.agendamento_quantidade:", resultado.agendamento_quantidade);
+      console.log("🔍 [DEBUG] ========== FIM QUERY CARREGAMENTO ==========");
+      
+      return resultado;
     },
+    
     enabled: (() => {
       if (!user || !userRole || !id) {
         console.log("🔍 [DEBUG] Query desabilitada: faltam dados básicos");
@@ -657,45 +646,26 @@ const CarregamentoDetalhe = () => {
 
   const calcularEstatisticas = () => {
     if (!carregamento) return null;
-
-    const agora = new Date();
-    const inicio = carregamento.data_chegada ? new Date(carregamento.data_chegada) : null;
-    const fim = carregamento.etapa_atual === 6 && carregamento.data_documentacao 
-      ? new Date(carregamento.data_documentacao) : null;
-
-    const tempoTotalDecorrido = inicio 
-      ? Math.round((agora.getTime() - inicio.getTime()) / 1000 / 60)
-      : 0;
-
-    const tempoTotalProcesso = inicio && fim
-      ? Math.round((fim.getTime() - inicio.getTime()) / 1000 / 60)
+  
+    // 🚛 Tempo de Espera: Chegada → Início do Carregamento
+    const tempoEspera = carregamento.data_chegada && carregamento.data_inicio
+      ? Math.round((new Date(carregamento.data_inicio).getTime() - new Date(carregamento.data_chegada).getTime()) / 1000 / 60)
       : null;
-
-    const temposPorEtapa = [];
-    const datas = [
-      carregamento.data_chegada,
-      carregamento.data_inicio,
-      carregamento.data_carregando,
-      carregamento.data_finalizacao,
-      carregamento.data_documentacao
-    ];
-
-    for (let i = 0; i < datas.length - 1; i++) {
-      if (datas[i] && datas[i + 1]) {
-        const tempo = Math.round((new Date(datas[i + 1]!).getTime() - new Date(datas[i]!).getTime()) / 1000 / 60);
-        temposPorEtapa.push(tempo);
-      }
-    }
-
-    const tempoMedioPorEtapa = temposPorEtapa.length > 0
-      ? Math.round(temposPorEtapa.reduce((a, b) => a + b, 0) / temposPorEtapa.length)
-      : 0;
-
+  
+    // ⚡ Tempo de Carregamento: Início → Finalização do Carregamento
+    const tempoCarregamento = carregamento.data_inicio && carregamento.data_finalizacao
+      ? Math.round((new Date(carregamento.data_finalizacao).getTime() - new Date(carregamento.data_inicio).getTime()) / 1000 / 60)
+      : null;
+  
+    // ⏱️ Tempo Total do Processo: Chegada → Documentação (só quando finalizado)
+    const tempoTotalProcesso = carregamento.data_chegada && carregamento.data_documentacao && carregamento.etapa_atual === 6
+      ? Math.round((new Date(carregamento.data_documentacao).getTime() - new Date(carregamento.data_chegada).getTime()) / 1000 / 60)
+      : null;
+  
     return {
-      tempoTotalDecorrido,
-      tempoTotalProcesso,
-      tempoMedioPorEtapa,
-      temposPorEtapa
+      tempoEspera,
+      tempoCarregamento,
+      tempoTotalProcesso
     };
   };
 
@@ -1318,146 +1288,248 @@ const CarregamentoDetalhe = () => {
   };
 
   const renderInformacoesProcesso = () => {
-    const agendamento = carregamento?.agendamento;
+    console.log("🔍 [DEBUG] ========== RENDER INFORMAÇÕES ==========");
+    console.log("🔍 [DEBUG] carregamento?.cliente_nome:", carregamento?.cliente_nome);
+    console.log("🔍 [DEBUG] carregamento?.produto_nome:", carregamento?.produto_nome);
+    console.log("🔍 [DEBUG] carregamento?.agendamento_quantidade:", carregamento?.agendamento_quantidade);
+    console.log("🔍 [DEBUG] carregamento?.liberacao_pedido_interno:", carregamento?.liberacao_pedido_interno);
+    
     const etapaAtual = carregamento?.etapa_atual ?? 1;
     const etapaInfo = getEtapaInfo(etapaAtual);
-
+  
     return (
       <Card className="shadow-sm">
         <CardContent className="p-4">
           <h2 className="text-base font-semibold mb-4">Informações do Carregamento</h2>
           
           <div className="space-y-4">
-            {agendamento && (
+            {/* Seção: Pedido e Cliente */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <User className="h-4 w-4 text-purple-600" />
+                <h3 className="text-sm font-semibold text-foreground">Pedido e Cliente</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Pedido:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Cliente:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+          
+            <div className="border-t"></div>
+          
+            {/* Seção: Produto */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Package className="h-4 w-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-foreground">Produto</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Produto:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.produto_nome || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Quantidade:</span>
+                  <p className="font-semibold text-sm">{carregamento?.agendamento_quantidade ?? "N/A"} ton</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t"></div>
+
+            {/* ✅ Seção: Veículo e Carretas */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Truck className="h-4 w-4 text-green-600" />
+                <h3 className="text-sm font-semibold text-foreground">Veículo e Carretas</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Placa do Veículo:</span>
+                  <p className="font-semibold text-sm break-words">{formatPlaca(carregamento?.agendamento_placa_caminhao || "")}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Placa da Carreta 1:</span>
+                  <p className="font-semibold text-sm break-words">{formatPlaca(carregamento?.agendamento_placa_carreta_1 || "")}</p>
+                </div>
+                {carregamento?.agendamento_placa_carreta_2 && (
+                  <div className="sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">Placa da Carreta 2:</span>
+                    <p className="font-semibold text-sm break-words">{formatPlaca(carregamento.agendamento_placa_carreta_2)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t"></div>
+
+            {/* ✅ Seção: Motorista */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <User className="h-4 w-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-foreground">Motorista</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Nome:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.agendamento_motorista_nome || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">CPF:</span>
+                  <p className="font-semibold text-sm">
+                    {carregamento?.agendamento_motorista_documento 
+                      ? carregamento.agendamento_motorista_documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t"></div>
+
+            {/* ✅ Seção: Transportadora */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Building2 className="h-4 w-4 text-orange-600" />
+                <h3 className="text-sm font-semibold text-foreground">Transportadora</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Nome da Transportadora:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento?.agendamento_transportadora || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">CNPJ:</span>
+                  <p className="font-semibold text-sm">{formatCNPJ(carregamento?.agendamento_cnpj_transportadora || "")}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t"></div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-muted-foreground">Data Agendada:</span>
+                <p className="font-semibold text-sm">
+                  {carregamento?.agendamento_data_retirada 
+                    ? new Date(carregamento.agendamento_data_retirada).toLocaleDateString("pt-BR")
+                    : "N/A"}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Etapa Atual:</span>
+                <div className="mt-1">
+                  <Badge className={`${etapaInfo.cor} border-0 font-medium text-xs`}>
+                    {etapaInfo.nome}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+  
+            {carregamento?.numero_nf && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Pedido:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.liberacao_pedido_interno || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Produto:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.produto_nome || "N/A"}</p>
-                  </div>
-                </div>
-
                 <div className="border-t"></div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Cliente:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.cliente_nome || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Quantidade:</span>
-                    <p className="font-semibold text-sm">{carregamento?.agendamento_quantidade ?? "N/A"} ton</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Placa:</span>
-                    <p className="font-semibold text-sm break-words">{carregamento?.agendamento_placa_caminhao || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Motorista:</span>
-                    <p className="font-semibold text-sm break-words">
-                      {carregamento?.agendamento_motorista_nome || "N/A"}
-                      {carregamento?.agendamento_motorista_documento && (
-                        <span className="block text-xs text-muted-foreground font-normal">
-                          CPF: {carregamento.agendamento_motorista_documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
-                        </span>
-                      )}
-                    </p>
-                  </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Nota Fiscal:</span>
+                  <p className="font-semibold text-sm break-words">{carregamento.numero_nf}</p>
                 </div>
-
+              </>
+            )}
+  
+            {/* Resto do código permanece igual... */}
+            {carregamento?.etapa_atual === 5 && (
+              <>
                 <div className="border-t"></div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Data Agendada:</span>
-                    <p className="font-semibold text-sm">
-                      {carregamento?.agendamento_data_retirada 
-                        ? new Date(carregamento.agendamento_data_retirada).toLocaleDateString("pt-BR")
-                        : "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Etapa Atual:</span>
-                    <div className="mt-1">
-                      <Badge className={`${etapaInfo.cor} border-0 font-medium text-xs`}>
-                        {etapaInfo.nome}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Progresso da Documentação</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Docs. Retorno:</span>
+                      <Badge className={getSubEtapaStatus('5a') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {getSubEtapaStatus('5a') === 'concluida' ? 'Concluída' : 'Pendente'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Docs. Venda:</span>
+                      <Badge className={getSubEtapaStatus('5b') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {getSubEtapaStatus('5b') === 'concluida' ? 'Concluída' : 'Pendente'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Docs. Remessa:</span>
+                      <Badge className={getSubEtapaStatus('5c') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {getSubEtapaStatus('5c') === 'concluida' ? 'Concluída' : 'Pendente'}
                       </Badge>
                     </div>
                   </div>
                 </div>
-
-                {carregamento.numero_nf && (
-                  <>
-                    <div className="border-t"></div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Nota Fiscal:</span>
-                      <p className="font-semibold text-sm break-words">{carregamento.numero_nf}</p>
-                    </div>
-                  </>
-                )}
-
-                {/* Progresso das Sub-etapas da Etapa 5 */}
-                {carregamento?.etapa_atual === 5 && (
-                  <>
-                    <div className="border-t"></div>
-                    <div>
-                      <h3 className="text-sm font-medium mb-3">Progresso da Documentação</h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Docs. Retorno:</span>
-                          <Badge className={getSubEtapaStatus('5a') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {getSubEtapaStatus('5a') === 'concluida' ? 'Concluída' : 'Pendente'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Docs. Venda:</span>
-                          <Badge className={getSubEtapaStatus('5b') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {getSubEtapaStatus('5b') === 'concluida' ? 'Concluída' : 'Pendente'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Docs. Remessa:</span>
-                          <Badge className={getSubEtapaStatus('5c') === 'concluida' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {getSubEtapaStatus('5c') === 'concluida' ? 'Concluída' : 'Pendente'}
-                          </Badge>
-                        </div>
+              </>
+            )}
+  
+            {stats && (stats.tempoEspera !== null || stats.tempoCarregamento !== null || stats.tempoTotalProcesso !== null) && (
+              <>
+                <div className="border-t"></div>
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Estatísticas de Tempo</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {stats.tempoEspera !== null && (
+                      <div>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <span className="text-xs text-muted-foreground">Tempo de Espera:</span>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">Tempo entre a chegada do caminhão no armazém e o início efetivo do carregamento</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoEspera)}</p>
                       </div>
-                    </div>
-                  </>
-                )}
-
-                {stats && (
-                  <>
-                    <div className="border-t"></div>
-                    <div>
-                      <h3 className="text-sm font-medium mb-3">Estatísticas de Tempo</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <div>
-                          <span className="text-xs text-muted-foreground">Tempo Decorrido:</span>
-                          <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalDecorrido)}</p>
-                        </div>
-                        
-                        {stats.tempoTotalProcesso && (
-                          <div>
-                            <span className="text-xs text-muted-foreground">Tempo Total:</span>
-                            <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
-                          </div>
-                        )}
-                        
-                        {stats.tempoMedioPorEtapa > 0 && (
-                          <div>
-                            <span className="text-xs text-muted-foreground">Tempo Médio/Etapa:</span>
-                            <p className="font-semibold text-sm">{formatarTempo(stats.tempoMedioPorEtapa)}</p>
-                          </div>
-                        )}
+                    )}
+                    
+                    {stats.tempoCarregamento !== null && (
+                      <div>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <span className="text-xs text-muted-foreground">Tempo de Carregamento:</span>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">Tempo da operação física de carregamento, desde o início até a finalização</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoCarregamento)}</p>
                       </div>
-                    </div>
-                  </>
-                )}
+                    )}
+                    
+                    {stats.tempoTotalProcesso !== null && (
+                      <div>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <span className="text-xs text-muted-foreground">Tempo Total do Processo:</span>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-sm">Tempo completo do processo, desde a chegada até a finalização da documentação</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -1520,60 +1592,62 @@ const CarregamentoDetalhe = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-      {/* ✅ Componente de alerta */}
-      <UnsavedChangesAlert 
-        open={showAlert}
-        onConfirm={confirmClose}
-        onCancel={cancelClose}
-        title="Descartar alterações?"
-        description="Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
-      />
-
-      <PageHeader 
-        title="Detalhes do Carregamento"
-        backButton={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleGoBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Voltar</span>
-          </Button>
-        }
-      />
-      
-      <div className="max-w-[1050px] mx-auto space-y-4 md:space-y-6">
-        {renderEtapasFluxo()}
-        {renderAreaEtapas()}
-        {renderInformacoesProcesso()}
-      </div>
+    <TooltipProvider>
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+        {/* ✅ Componente de alerta */}
+        <UnsavedChangesAlert 
+          open={showAlert}
+          onConfirm={confirmClose}
+          onCancel={cancelClose}
+          title="Descartar alterações?"
+          description="Você anexou arquivos ou digitou observações que não foram salvos. Tem certeza que deseja sair?"
+        />
   
-      {showPhotoCapture && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl">
-            {/* 🆕 Detectar mobile e renderizar componente apropriado */}
-            {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
-              <CameraCapture
-                onCapture={handlePhotoCapture}
-                onCancel={handleCancelPhotoCapture}
-                isUploading={isUploadingPhoto}
-                allowFileSelection={true}
-              />
-            ) : (
-              <PhotoCaptureMethod
-                onFileSelect={handlePhotoCapture}
-                onCancel={handleCancelPhotoCapture}
-                isUploading={isUploadingPhoto}
-                accept="image/*"
-              />
-            )}
-          </div>
+        <PageHeader 
+          title="Detalhes do Carregamento"
+          backButton={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleGoBack}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Voltar</span>
+            </Button>
+          }
+        />
+        
+        <div className="max-w-[1050px] mx-auto space-y-4 md:space-y-6">
+          {renderEtapasFluxo()}
+          {renderAreaEtapas()}
+          {renderInformacoesProcesso()}
         </div>
-      )}
-    </div>
+    
+        {showPhotoCapture && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="w-full max-w-2xl">
+              {/* 🆕 Detectar mobile e renderizar componente apropriado */}
+              {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
+                <CameraCapture
+                  onCapture={handlePhotoCapture}
+                  onCancel={handleCancelPhotoCapture}
+                  isUploading={isUploadingPhoto}
+                  allowFileSelection={true}
+                />
+              ) : (
+                <PhotoCaptureMethod
+                  onFileSelect={handlePhotoCapture}
+                  onCancel={handleCancelPhotoCapture}
+                  isUploading={isUploadingPhoto}
+                  accept="image/*"
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 };
 
