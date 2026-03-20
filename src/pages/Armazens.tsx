@@ -42,6 +42,7 @@ function maskPhoneInput(value: string): string {
     return cleaned.replace(/^(\d{0,2})/, "($1");
   return "";
 }
+
 function formatPhone(phone: string): string {
   let cleaned = phone.replace(/\D/g, "");
   if (cleaned.length === 11)
@@ -50,18 +51,21 @@ function formatPhone(phone: string): string {
     return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
   return phone;
 }
+
 function maskCEPInput(value: string): string {
   const cleaned = value.replace(/\D/g, "").slice(0, 8);
   if (cleaned.length > 5)
     return cleaned.replace(/^(\d{5})(\d{0,3})$/, "$1-$2");
   return cleaned;
 }
+
 function formatCEP(cep: string): string {
   const cleaned = cep.replace(/\D/g, "").slice(0, 8);
   if (cleaned.length === 8)
     return cleaned.replace(/^(\d{5})(\d{3})$/, "$1-$2");
   return cep;
 }
+
 function maskCpfCnpjInput(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (digits.length <= 11) {
@@ -88,6 +92,7 @@ function maskCpfCnpjInput(value: string): string {
     return cnpj;
   }
 }
+
 function formatCpfCnpj(v: string): string {
   const onlyDigits = v.replace(/\D/g, "");
   if (onlyDigits.length <= 11) {
@@ -124,7 +129,6 @@ type Armazem = {
 const Armazens = () => {
   useScrollToTop();
   
-  // ✅ Hook para controle de mudanças não salvas
   const {
     hasUnsavedChanges,
     showAlert,
@@ -188,14 +192,13 @@ const Armazens = () => {
       cep: "",
       cnpj_cpf: "",
     });
-    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
+    resetUnsavedChanges();
   };
 
-  // ✅ Função para fechar modal com verificação
   const handleCloseModal = () => {
     handleClose(() => {
       setDialogOpen(false);
-      resetForm(); // ✅ Limpar dados ao fechar
+      resetForm();
     });
   };
 
@@ -234,7 +237,6 @@ const Armazens = () => {
 
   useEffect(() => {
     fetchArmazens();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -279,6 +281,7 @@ const Armazens = () => {
         });
         return;
       }
+
       let capacidadeTotalNumber: number | undefined = undefined;
       if (capacidade_total && capacidade_total.trim()) {
         capacidadeTotalNumber = parseFloat(capacidade_total);
@@ -296,45 +299,6 @@ const Armazens = () => {
       const cleanCep = cep ? cep.replace(/\D/g, "") : undefined;
       const cleanCnpjCpf = cnpj_cpf.replace(/\D/g, "");
 
-      // 🔍 LOG 1: Verificar variáveis de ambiente
-      console.log('🔍 [ARMAZEM] Variáveis de Ambiente:', {
-        supabaseUrl: supabaseUrl ? '✅ configurado' : '❌ NÃO encontrado',
-        supabaseAnonKey: supabaseAnonKey ? `✅ (primeiros 10 chars: ${supabaseAnonKey.substring(0, 10)}...)` : '❌ NÃO encontrado',
-      });
-      
-      // 🔍 LOG 2: Verificar sessão do usuário
-      console.log('🔍 [ARMAZEM] Sessão do Usuário:', {
-        userId: session?.user?.id,
-        email: session?.user?.email,
-        tokenLength: session?.access_token?.length,
-        tokenPrefix: session?.access_token ? `${session.access_token.substring(0, 20)}...` : 'undefined',
-      });
-      
-      // 🔍 LOG 3: Dados que serão enviados
-      const payloadToSend = {
-        nome: nome.trim(),
-        email: email.trim(),
-        cidade: cidade.trim(),
-        estado: estado.trim(),
-        telefone: cleanTelefone,
-        endereco: endereco?.trim() || undefined,
-        capacidade_total: capacidadeTotalNumber,
-        cep: cleanCep,
-        cnpj_cpf: cleanCnpjCpf,
-      };
-      console.log('🔍 [ARMAZEM] Payload a ser enviado:', payloadToSend);
-      
-      // 🔍 LOG 4: Headers que serão enviados
-      const headersToSend = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token ? session.access_token.substring(0, 20) + '...' : 'undefined'}`,
-        apikey: supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'undefined',
-      };
-      console.log('🔍 [ARMAZEM] Headers a serem enviados:', headersToSend);
-      
-      // 🔍 LOG 5: URL da função
-      console.log('🔍 [ARMAZEM] URL da função:', `${supabaseUrl}/functions/v1/create-armazem-user`);
-      
       const response = await fetch(`${supabaseUrl}/functions/v1/create-armazem-user`, {
         method: "POST",
         headers: {
@@ -342,36 +306,18 @@ const Armazens = () => {
           Authorization: `Bearer ${session.access_token}`,
           apikey: supabaseAnonKey,
         },
-        body: JSON.stringify(payloadToSend),
+        body: JSON.stringify({
+          nome: nome.trim(),
+          email: email.trim(),
+          cidade: cidade.trim(),
+          estado: estado.trim(),
+          telefone: cleanTelefone,
+          endereco: endereco?.trim() || undefined,
+          capacidade_total: capacidadeTotalNumber,
+          cep: cleanCep,
+          cnpj_cpf: cleanCnpjCpf,
+        }),
       });
-      
-      // 🔍 LOG 6: Resposta da função
-      console.log('🔍 [ARMAZEM] Status da resposta:', response.status);
-      console.log('🔍 [ARMAZEM] Headers da resposta:', {
-        contentType: response.headers.get('content-type'),
-        corsOrigin: response.headers.get('access-control-allow-origin'),
-      });
-      
-      let textBody = await response.text();
-      console.log('🔍 [ARMAZEM] Body da resposta (raw):', textBody);
-      
-      let data: any = null;
-      try {
-        data = JSON.parse(textBody);
-        console.log('🔍 [ARMAZEM] Body da resposta (parsed):', data);
-      } catch {
-        console.log('🔍 [ARMAZEM] ❌ Erro ao fazer parse do JSON');
-        data = null;
-      }
-      
-      // 🔍 LOG 7: Se não OK, mostrar detalhes
-      if (!response.ok) {
-        console.error('🔍 [ARMAZEM] ❌ ERRO NA RESPOSTA:', {
-          status: response.status,
-          statusText: response.statusText,
-          parsedData: data,
-        });
-      }
 
       let textBody = await response.text();
       let data: any = null;
@@ -414,7 +360,7 @@ const Armazens = () => {
       }
 
       if (data && data.success) {
-        markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
+        markAsSaved();
 
         toast({
           title: "Armazém criado com sucesso!",
@@ -543,7 +489,6 @@ const Armazens = () => {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
       
-      {/* ✅ Componente de alerta */}
       <UnsavedChangesAlert 
         open={showAlert}
         onConfirm={confirmClose}
@@ -557,9 +502,9 @@ const Armazens = () => {
         actions={
           canCreate && (
             <Dialog open={dialogOpen} onOpenChange={(open) => {
-              if (!open && isCreating) return; // Não fechar durante criação
+              if (!open && isCreating) return;
               if (!open) {
-                handleCloseModal(); // ✅ Usar nova função
+                handleCloseModal();
               } else {
                 setDialogOpen(open);
               }
@@ -571,7 +516,6 @@ const Armazens = () => {
                 </Button>
               </DialogTrigger>
               
-              {/* Modal de Criação - Mobile Otimizado */}
               <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
                 <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                   <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Cadastrar Novo Armazém</DialogTitle>
@@ -587,7 +531,7 @@ const Armazens = () => {
                           value={novoArmazem.nome}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, nome: e.target.value });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="Nome do armazém"
                           disabled={isCreating}
@@ -601,7 +545,7 @@ const Armazens = () => {
                           value={novoArmazem.cidade}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, cidade: e.target.value });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="Cidade"
                           disabled={isCreating}
@@ -614,7 +558,7 @@ const Armazens = () => {
                           value={novoArmazem.estado}
                           onValueChange={(value) => {
                             setNovoArmazem({ ...novoArmazem, estado: value });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           disabled={isCreating}
                         >
@@ -639,11 +583,11 @@ const Armazens = () => {
                           value={novoArmazem.email}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, email: e.target.value });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="email@exemplo.com"
                           disabled={isCreating}
-                          autoComplete="new-password" // ✅ Evita preenchimento automático
+                          autoComplete="new-password"
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
                       </div>
@@ -654,7 +598,7 @@ const Armazens = () => {
                           value={novoArmazem.cnpj_cpf}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, cnpj_cpf: maskCpfCnpjInput(e.target.value) });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="00.000.000/0000-00 ou 000.000.000-00"
                           maxLength={18}
@@ -672,7 +616,7 @@ const Armazens = () => {
                               ...novoArmazem,
                               telefone: maskPhoneInput(e.target.value),
                             });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
@@ -687,7 +631,7 @@ const Armazens = () => {
                           value={novoArmazem.endereco}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, endereco: e.target.value });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="Rua, número, complemento"
                           disabled={isCreating}
@@ -704,7 +648,7 @@ const Armazens = () => {
                               ...novoArmazem,
                               cep: maskCEPInput(e.target.value),
                             });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="00000-000"
                           maxLength={9}
@@ -720,7 +664,7 @@ const Armazens = () => {
                           value={novoArmazem.capacidade_total}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, capacidade_total: e.target.value });
-                            markAsChanged(); // ✅ Marcar como alterado
+                            markAsChanged();
                           }}
                           placeholder="Ex: 1000"
                           disabled={isCreating}
@@ -733,7 +677,6 @@ const Armazens = () => {
                     </p>
                   </div>
 
-                  {/* Botões no final do conteúdo */}
                   <ModalFooter 
                     variant="double"
                     onClose={() => handleCloseModal()}
@@ -749,7 +692,6 @@ const Armazens = () => {
         }
       />
 
-      {/* Filtros e busca - Mobile otimizado */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex gap-2 items-center">
@@ -784,7 +726,6 @@ const Armazens = () => {
         )}
       </div>
 
-      {/* Modal de credenciais - Mobile Otimizado */}
       <Dialog
         open={credenciaisModal.show}
         onOpenChange={(open) =>
@@ -831,7 +772,6 @@ const Armazens = () => {
               </div>
             </div>
 
-            {/* Botões no final do conteúdo */}
             <div className="pt-4 border-t border-border bg-background flex flex-col-reverse gap-2 md:flex-row md:gap-0 md:justify-end">
               <Button
                 onClick={() => {
@@ -855,7 +795,6 @@ const Armazens = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de detalhes - Mobile Otimizado */}
       <Dialog open={!!detalhesArmazem} onOpenChange={open => !open && setDetalhesArmazem(null)}>
         <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
           <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
@@ -869,7 +808,6 @@ const Armazens = () => {
                   <p className="text-sm text-muted-foreground break-words">
                     {detalhesArmazem?.nome}
                   </p>
-                  {/* Informações Básicas - Layout responsivo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Email:</Label>
@@ -893,10 +831,8 @@ const Armazens = () => {
                     </div>
                   </div>
         
-                  {/* Separador */}
                   <div className="border-t"></div>
         
-                  {/* Localização - Layout responsivo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Cidade:</Label>
@@ -916,10 +852,8 @@ const Armazens = () => {
                     </div>
                   </div>
         
-                  {/* Separador */}
                   <div className="border-t"></div>
         
-                  {/* Capacidade - Layout responsivo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Capacidade Total:</Label>
@@ -934,7 +868,6 @@ const Armazens = () => {
               )}
             </div>
 
-            {/* Botões no final do conteúdo */}
             <div className="pt-4 border-t border-border bg-background flex flex-col-reverse gap-2 md:flex-row md:gap-0 md:justify-end">
               {canCreate && detalhesArmazem?.temp_password && (
                 <Button
@@ -956,7 +889,6 @@ const Armazens = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Grid de armazéns - Cards responsivos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filteredArmazens.map((armazem) => (
           <Card
@@ -1032,7 +964,6 @@ const Armazens = () => {
         ))}
       </div>
 
-      {/* Estado vazio */}
       {filteredArmazens.length === 0 && (
         <div className="text-center py-12">
           <Warehouse className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
