@@ -42,7 +42,6 @@ function maskPhoneInput(value: string): string {
     return cleaned.replace(/^(\d{0,2})/, "($1");
   return "";
 }
-
 function formatPhone(phone: string): string {
   let cleaned = phone.replace(/\D/g, "");
   if (cleaned.length === 11)
@@ -51,21 +50,18 @@ function formatPhone(phone: string): string {
     return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
   return phone;
 }
-
 function maskCEPInput(value: string): string {
   const cleaned = value.replace(/\D/g, "").slice(0, 8);
   if (cleaned.length > 5)
     return cleaned.replace(/^(\d{5})(\d{0,3})$/, "$1-$2");
   return cleaned;
 }
-
 function formatCEP(cep: string): string {
   const cleaned = cep.replace(/\D/g, "").slice(0, 8);
   if (cleaned.length === 8)
     return cleaned.replace(/^(\d{5})(\d{3})$/, "$1-$2");
   return cep;
 }
-
 function maskCpfCnpjInput(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (digits.length <= 11) {
@@ -92,7 +88,6 @@ function maskCpfCnpjInput(value: string): string {
     return cnpj;
   }
 }
-
 function formatCpfCnpj(v: string): string {
   const onlyDigits = v.replace(/\D/g, "");
   if (onlyDigits.length <= 11) {
@@ -129,6 +124,7 @@ type Armazem = {
 const Armazens = () => {
   useScrollToTop();
   
+  // ✅ Hook para controle de mudanças não salvas
   const {
     hasUnsavedChanges,
     showAlert,
@@ -192,13 +188,14 @@ const Armazens = () => {
       cep: "",
       cnpj_cpf: "",
     });
-    resetUnsavedChanges();
+    resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
+  // ✅ Função para fechar modal com verificação
   const handleCloseModal = () => {
     handleClose(() => {
       setDialogOpen(false);
-      resetForm();
+      resetForm(); // ✅ Limpar dados ao fechar
     });
   };
 
@@ -237,6 +234,7 @@ const Armazens = () => {
 
   useEffect(() => {
     fetchArmazens();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -281,7 +279,6 @@ const Armazens = () => {
         });
         return;
       }
-
       let capacidadeTotalNumber: number | undefined = undefined;
       if (capacidade_total && capacidade_total.trim()) {
         capacidadeTotalNumber = parseFloat(capacidade_total);
@@ -360,7 +357,7 @@ const Armazens = () => {
       }
 
       if (data && data.success) {
-        markAsSaved();
+        markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
 
         toast({
           title: "Armazém criado com sucesso!",
@@ -489,6 +486,7 @@ const Armazens = () => {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
       
+      {/* ✅ Componente de alerta */}
       <UnsavedChangesAlert 
         open={showAlert}
         onConfirm={confirmClose}
@@ -502,9 +500,9 @@ const Armazens = () => {
         actions={
           canCreate && (
             <Dialog open={dialogOpen} onOpenChange={(open) => {
-              if (!open && isCreating) return;
+              if (!open && isCreating) return; // Não fechar durante criação
               if (!open) {
-                handleCloseModal();
+                handleCloseModal(); // ✅ Usar nova função
               } else {
                 setDialogOpen(open);
               }
@@ -516,6 +514,7 @@ const Armazens = () => {
                 </Button>
               </DialogTrigger>
               
+              {/* Modal de Criação - Mobile Otimizado */}
               <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
                 <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
                   <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Cadastrar Novo Armazém</DialogTitle>
@@ -531,7 +530,7 @@ const Armazens = () => {
                           value={novoArmazem.nome}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, nome: e.target.value });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="Nome do armazém"
                           disabled={isCreating}
@@ -545,7 +544,7 @@ const Armazens = () => {
                           value={novoArmazem.cidade}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, cidade: e.target.value });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="Cidade"
                           disabled={isCreating}
@@ -558,7 +557,7 @@ const Armazens = () => {
                           value={novoArmazem.estado}
                           onValueChange={(value) => {
                             setNovoArmazem({ ...novoArmazem, estado: value });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           disabled={isCreating}
                         >
@@ -583,11 +582,11 @@ const Armazens = () => {
                           value={novoArmazem.email}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, email: e.target.value });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="email@exemplo.com"
                           disabled={isCreating}
-                          autoComplete="new-password"
+                          autoComplete="new-password" // ✅ Evita preenchimento automático
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
                       </div>
@@ -598,7 +597,7 @@ const Armazens = () => {
                           value={novoArmazem.cnpj_cpf}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, cnpj_cpf: maskCpfCnpjInput(e.target.value) });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="00.000.000/0000-00 ou 000.000.000-00"
                           maxLength={18}
@@ -616,7 +615,7 @@ const Armazens = () => {
                               ...novoArmazem,
                               telefone: maskPhoneInput(e.target.value),
                             });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
@@ -631,7 +630,7 @@ const Armazens = () => {
                           value={novoArmazem.endereco}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, endereco: e.target.value });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="Rua, número, complemento"
                           disabled={isCreating}
@@ -648,7 +647,7 @@ const Armazens = () => {
                               ...novoArmazem,
                               cep: maskCEPInput(e.target.value),
                             });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="00000-000"
                           maxLength={9}
@@ -664,7 +663,7 @@ const Armazens = () => {
                           value={novoArmazem.capacidade_total}
                           onChange={(e) => {
                             setNovoArmazem({ ...novoArmazem, capacidade_total: e.target.value });
-                            markAsChanged();
+                            markAsChanged(); // ✅ Marcar como alterado
                           }}
                           placeholder="Ex: 1000"
                           disabled={isCreating}
@@ -677,6 +676,7 @@ const Armazens = () => {
                     </p>
                   </div>
 
+                  {/* Botões no final do conteúdo */}
                   <ModalFooter 
                     variant="double"
                     onClose={() => handleCloseModal()}
@@ -692,6 +692,7 @@ const Armazens = () => {
         }
       />
 
+      {/* Filtros e busca - Mobile otimizado */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex gap-2 items-center">
@@ -726,6 +727,7 @@ const Armazens = () => {
         )}
       </div>
 
+      {/* Modal de credenciais - Mobile Otimizado */}
       <Dialog
         open={credenciaisModal.show}
         onOpenChange={(open) =>
@@ -772,6 +774,7 @@ const Armazens = () => {
               </div>
             </div>
 
+            {/* Botões no final do conteúdo */}
             <div className="pt-4 border-t border-border bg-background flex flex-col-reverse gap-2 md:flex-row md:gap-0 md:justify-end">
               <Button
                 onClick={() => {
@@ -795,6 +798,7 @@ const Armazens = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de detalhes - Mobile Otimizado */}
       <Dialog open={!!detalhesArmazem} onOpenChange={open => !open && setDetalhesArmazem(null)}>
         <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
           <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
@@ -808,6 +812,7 @@ const Armazens = () => {
                   <p className="text-sm text-muted-foreground break-words">
                     {detalhesArmazem?.nome}
                   </p>
+                  {/* Informações Básicas - Layout responsivo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Email:</Label>
@@ -831,8 +836,10 @@ const Armazens = () => {
                     </div>
                   </div>
         
+                  {/* Separador */}
                   <div className="border-t"></div>
         
+                  {/* Localização - Layout responsivo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Cidade:</Label>
@@ -852,8 +859,10 @@ const Armazens = () => {
                     </div>
                   </div>
         
+                  {/* Separador */}
                   <div className="border-t"></div>
         
+                  {/* Capacidade - Layout responsivo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Capacidade Total:</Label>
@@ -868,6 +877,7 @@ const Armazens = () => {
               )}
             </div>
 
+            {/* Botões no final do conteúdo */}
             <div className="pt-4 border-t border-border bg-background flex flex-col-reverse gap-2 md:flex-row md:gap-0 md:justify-end">
               {canCreate && detalhesArmazem?.temp_password && (
                 <Button
@@ -889,6 +899,7 @@ const Armazens = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Grid de armazéns - Cards responsivos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filteredArmazens.map((armazem) => (
           <Card
@@ -964,6 +975,7 @@ const Armazens = () => {
         ))}
       </div>
 
+      {/* Estado vazio */}
       {filteredArmazens.length === 0 && (
         <div className="text-center py-12">
           <Warehouse className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
