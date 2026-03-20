@@ -296,6 +296,45 @@ const Armazens = () => {
       const cleanCep = cep ? cep.replace(/\D/g, "") : undefined;
       const cleanCnpjCpf = cnpj_cpf.replace(/\D/g, "");
 
+      // 🔍 LOG 1: Verificar variáveis de ambiente
+      console.log('🔍 [ARMAZEM] Variáveis de Ambiente:', {
+        supabaseUrl: supabaseUrl ? '✅ configurado' : '❌ NÃO encontrado',
+        supabaseAnonKey: supabaseAnonKey ? `✅ (primeiros 10 chars: ${supabaseAnonKey.substring(0, 10)}...)` : '❌ NÃO encontrado',
+      });
+      
+      // 🔍 LOG 2: Verificar sessão do usuário
+      console.log('🔍 [ARMAZEM] Sessão do Usuário:', {
+        userId: session?.user?.id,
+        email: session?.user?.email,
+        tokenLength: session?.access_token?.length,
+        tokenPrefix: session?.access_token ? `${session.access_token.substring(0, 20)}...` : 'undefined',
+      });
+      
+      // 🔍 LOG 3: Dados que serão enviados
+      const payloadToSend = {
+        nome: nome.trim(),
+        email: email.trim(),
+        cidade: cidade.trim(),
+        estado: estado.trim(),
+        telefone: cleanTelefone,
+        endereco: endereco?.trim() || undefined,
+        capacidade_total: capacidadeTotalNumber,
+        cep: cleanCep,
+        cnpj_cpf: cleanCnpjCpf,
+      };
+      console.log('🔍 [ARMAZEM] Payload a ser enviado:', payloadToSend);
+      
+      // 🔍 LOG 4: Headers que serão enviados
+      const headersToSend = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token ? session.access_token.substring(0, 20) + '...' : 'undefined'}`,
+        apikey: supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'undefined',
+      };
+      console.log('🔍 [ARMAZEM] Headers a serem enviados:', headersToSend);
+      
+      // 🔍 LOG 5: URL da função
+      console.log('🔍 [ARMAZEM] URL da função:', `${supabaseUrl}/functions/v1/create-armazem-user`);
+      
       const response = await fetch(`${supabaseUrl}/functions/v1/create-armazem-user`, {
         method: "POST",
         headers: {
@@ -303,18 +342,36 @@ const Armazens = () => {
           Authorization: `Bearer ${session.access_token}`,
           apikey: supabaseAnonKey,
         },
-        body: JSON.stringify({
-          nome: nome.trim(),
-          email: email.trim(),
-          cidade: cidade.trim(),
-          estado: estado.trim(),
-          telefone: cleanTelefone,
-          endereco: endereco?.trim() || undefined,
-          capacidade_total: capacidadeTotalNumber,
-          cep: cleanCep,
-          cnpj_cpf: cleanCnpjCpf,
-        }),
+        body: JSON.stringify(payloadToSend),
       });
+      
+      // 🔍 LOG 6: Resposta da função
+      console.log('🔍 [ARMAZEM] Status da resposta:', response.status);
+      console.log('🔍 [ARMAZEM] Headers da resposta:', {
+        contentType: response.headers.get('content-type'),
+        corsOrigin: response.headers.get('access-control-allow-origin'),
+      });
+      
+      let textBody = await response.text();
+      console.log('🔍 [ARMAZEM] Body da resposta (raw):', textBody);
+      
+      let data: any = null;
+      try {
+        data = JSON.parse(textBody);
+        console.log('🔍 [ARMAZEM] Body da resposta (parsed):', data);
+      } catch {
+        console.log('🔍 [ARMAZEM] ❌ Erro ao fazer parse do JSON');
+        data = null;
+      }
+      
+      // 🔍 LOG 7: Se não OK, mostrar detalhes
+      if (!response.ok) {
+        console.error('🔍 [ARMAZEM] ❌ ERRO NA RESPOSTA:', {
+          status: response.status,
+          statusText: response.statusText,
+          parsedData: data,
+        });
+      }
 
       let textBody = await response.text();
       let data: any = null;
