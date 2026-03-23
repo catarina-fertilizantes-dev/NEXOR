@@ -905,7 +905,7 @@ const Liberacoes = () => {
                             title="Nenhum produto cadastrado"
                             description="Para criar liberações, você precisa cadastrar produtos primeiro."
                             actionText="Cadastrar Produto"
-                            actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
+                            actionUrl="/produtos?modal=novo"
                           />
                         )}
                         {!temArmazensDisponiveis && (
@@ -913,7 +913,7 @@ const Liberacoes = () => {
                             title="Nenhum armazém cadastrado"
                             description="Para criar liberações, você precisa cadastrar armazéns primeiro."
                             actionText="Cadastrar Armazém"
-                            actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
+                            actionUrl="/armazens?modal=novo"
                           />
                         )}
                         {!temClientesDisponiveis && (
@@ -921,7 +921,7 @@ const Liberacoes = () => {
                             title="Nenhum cliente cadastrado"
                             description="Para criar liberações, você precisa cadastrar clientes primeiro."
                             actionText="Cadastrar Cliente"
-                            actionUrl="https://logi-sys-shiy.vercel.app/clientes?modal=novo"
+                            actionUrl="/clientes?modal=novo"
                           />
                         )}
                       </div>
@@ -1141,7 +1141,7 @@ const Liberacoes = () => {
                             title="Estoque não cadastrado"
                             description="Este produto não possui estoque cadastrado no armazém selecionado. É necessário registrar uma entrada de estoque primeiro."
                             actionText="Registrar Estoque"
-                            actionUrl={`https://logi-sys-shiy.vercel.app/estoque?modal=novo&produto=${novaLiberacao.produto}&armazem=${novaLiberacao.armazem}`}
+                            actionUrl={`/estoque?modal=novo&produto=${novaLiberacao.produto}&armazem=${novaLiberacao.armazem}`}
                           />
                         )}
 
