@@ -838,7 +838,7 @@ const Estoque = () => {
                           title="Nenhum produto cadastrado"
                           description="Para registrar estoque, você precisa cadastrar produtos primeiro."
                           actionText="Cadastrar Produto"
-                          actionUrl="https://logi-sys-shiy.vercel.app/produtos?modal=novo"
+                          actionUrl="/produtos?modal=novo"
                         />
                       )}
                     </div>
@@ -870,7 +870,7 @@ const Estoque = () => {
                           title="Nenhum armazém cadastrado"
                           description="Para registrar estoque, você precisa cadastrar armazéns primeiro."
                           actionText="Cadastrar Armazém"
-                          actionUrl="https://logi-sys-shiy.vercel.app/armazens?modal=novo"
+                          actionUrl="/armazens?modal=novo"
                         />
                       )}
                     </div>
