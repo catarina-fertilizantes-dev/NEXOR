@@ -837,7 +837,7 @@ const Agendamentos = () => {
           title="Nenhuma liberação disponível"
           description="Para criar agendamentos, você precisa ter liberações disponíveis primeiro."
           actionText="Criar Liberação"
-          actionUrl="https://logi-sys-shiy.vercel.app/liberacoes?modal=novo"
+          actionUrl="/liberacoes?modal=novo"
         />
       );
     }
