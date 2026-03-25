@@ -410,38 +410,47 @@ const CarregamentoDetalhe = () => {
     },
     
     enabled: (() => {
-      // ✅ Validações básicas
-      if (!user || !userRole || !id) {
-        console.log("🔍 [DEBUG] Query desabilitada: faltam dados básicos");
+      // ===== VALIDAÇÕES BÁSICAS =====
+      if (!user) {
+        console.log("❌ [CARREGAMENTO DETALHE] Query DESABILITADA: user ausente");
         return false;
       }
       
-      // ✅ Admin e logística não precisam de IDs específicos
+      if (!userRole) {
+        console.log("❌ [CARREGAMENTO DETALHE] Query DESABILITADA: userRole ausente");
+        return false;
+      }
+      
+      if (!id) {
+        console.log("❌ [CARREGAMENTO DETALHE] Query DESABILITADA: id ausente");
+        return false;
+      }
+      
+      // ===== ADMIN E LOGÍSTICA (SEM RESTRIÇÕES) =====
       if (userRole === "admin" || userRole === "logistica") {
-        console.log("🔍 [DEBUG] Query habilitada: admin/logistica");
+        console.log("✅ [CARREGAMENTO DETALHE] Query HABILITADA: admin/logistica (sem restrições)");
         return true;
       }
       
-      // ✅ CORREÇÃO: Verificar se os valores NÃO SÃO null E NÃO SÃO undefined
-      const clienteOk = userRole !== "cliente" || (clienteId != null); // != null verifica null E undefined
-      const armazemOk = userRole !== "armazem" || (armazemId != null); // != null verifica null E undefined
-      const representanteOk = userRole !== "representante" || (representanteId != null); // != null verifica null E undefined
+      // ===== VALIDAÇÕES POR ROLE (COM VERIFICAÇÃO DE VALOR VÁLIDO) =====
+      let shouldEnable = false;
       
-      const allChecksPass = clienteOk && armazemOk && representanteOk;
+      if (userRole === "cliente") {
+        shouldEnable = clienteId != null; // null ou undefined = false
+        console.log(`${shouldEnable ? '✅' : '❌'} [CARREGAMENTO DETALHE] Cliente - clienteId: ${clienteId} | shouldEnable: ${shouldEnable}`);
+      } else if (userRole === "armazem") {
+        shouldEnable = armazemId != null; // null ou undefined = false
+        console.log(`${shouldEnable ? '✅' : '❌'} [CARREGAMENTO DETALHE] Armazém - armazemId: ${armazemId} | shouldEnable: ${shouldEnable}`);
+      } else if (userRole === "representante") {
+        shouldEnable = representanteId != null; // null ou undefined = false
+        console.log(`${shouldEnable ? '✅' : '❌'} [CARREGAMENTO DETALHE] Representante - representanteId: ${representanteId} | shouldEnable: ${shouldEnable}`);
+      } else {
+        console.log(`❌ [CARREGAMENTO DETALHE] Query DESABILITADA: userRole desconhecido (${userRole})`);
+        shouldEnable = false;
+      }
       
-      console.log("🔍 [DEBUG] Verificação enabled:", { 
-        userRole,
-        clienteId, 
-        armazemId, 
-        representanteId,
-        clienteOk, 
-        armazemOk, 
-        representanteOk,
-        allChecksPass,
-        willExecute: allChecksPass
-      });
-      
-      return allChecksPass;
+      console.log(`${shouldEnable ? '🚀' : '🚫'} [CARREGAMENTO DETALHE] DECISÃO FINAL: ${shouldEnable ? 'EXECUTAR QUERY' : 'NÃO EXECUTAR'}`);
+      return shouldEnable;
     })(),
   });
 
