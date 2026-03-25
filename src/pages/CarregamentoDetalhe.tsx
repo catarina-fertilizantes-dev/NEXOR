@@ -14,6 +14,7 @@ import PhotoCaptureMethod from "@/components/PhotoCaptureMethod";
 import CameraCapture from "@/components/CameraCapture";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
@@ -177,6 +178,7 @@ const CarregamentoDetalhe = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { userRole, user } = useAuth();
+  const { clienteId, armazemId, representanteId } = usePermissions();
 
   // Estados para etapas normais (1-4)
   const [stageFile, setStageFile] = useState<File | null>(null);
@@ -304,7 +306,7 @@ const CarregamentoDetalhe = () => {
   };
 
   const { data: carregamento, isLoading, error } = useQuery({
-    queryKey: ["carregamento-detalhe", id],
+    queryKey: ["carregamento-detalhe", id, clienteId, armazemId, representanteId, userRole],
     queryFn: async () => {
       console.log("🔍 [DEBUG] ========== INÍCIO QUERY CARREGAMENTO ==========");
       console.log("🔍 [DEBUG] Parâmetros de entrada:");
@@ -320,9 +322,9 @@ const CarregamentoDetalhe = () => {
       const params = {
         p_user_role: userRole,
         p_user_id: user?.id,
-        p_cliente_id: null,
-        p_armazem_id: null,
-        p_representante_id: null,
+        p_cliente_id: clienteId || null,
+        p_armazem_id: armazemId || null,
+        p_representante_id: representanteId || null,
         p_carregamento_id: id
       };
       console.log("🔍 [DEBUG] Parâmetros função:", params);
@@ -407,7 +409,40 @@ const CarregamentoDetalhe = () => {
       return resultado;
     },
     
-    enabled: !!user && !!userRole && !!id,
+    enabled: (() => {
+      // ✅ Validações básicas
+      if (!user || !userRole || !id) {
+        console.log("🔍 [DEBUG] Query desabilitada: faltam dados básicos");
+        return false;
+      }
+      
+      // ✅ Admin e logística não precisam de IDs específicos
+      if (userRole === "admin" || userRole === "logistica") {
+        console.log("🔍 [DEBUG] Query habilitada: admin/logistica");
+        return true;
+      }
+      
+      // ✅ CORREÇÃO: Verificar se os valores NÃO SÃO null E NÃO SÃO undefined
+      const clienteOk = userRole !== "cliente" || (clienteId != null); // != null verifica null E undefined
+      const armazemOk = userRole !== "armazem" || (armazemId != null); // != null verifica null E undefined
+      const representanteOk = userRole !== "representante" || (representanteId != null); // != null verifica null E undefined
+      
+      const allChecksPass = clienteOk && armazemOk && representanteOk;
+      
+      console.log("🔍 [DEBUG] Verificação enabled:", { 
+        userRole,
+        clienteId, 
+        armazemId, 
+        representanteId,
+        clienteOk, 
+        armazemOk, 
+        representanteOk,
+        allChecksPass,
+        willExecute: allChecksPass
+      });
+      
+      return allChecksPass;
+    })(),
   });
 
   // ✅ Mutation para etapas normais (1-4) - com limpeza de estado
@@ -1051,6 +1086,7 @@ const CarregamentoDetalhe = () => {
     const isEtapaFinalizada = selectedEtapa === 6 && etapaAtual === 6;
     
     const podeEditar = userRole === "armazem" && 
+                      carregamento?.armazem_id === armazemId && 
                       isEtapaAtual && 
                       !isEtapaFinalizada &&
                       selectedEtapa !== 5; // Etapa 5 tem lógica própria
