@@ -139,7 +139,7 @@ const EstoqueDetalhe = () => {
         .from("estoque")
         .select(`
           quantidade,
-          quantidade_disponivel,  // ✅ ADICIONAR
+          quantidade_disponivel,
           produto:produtos(id, nome, unidade),
           armazem:armazens(id, nome, cidade, estado)
         `)
