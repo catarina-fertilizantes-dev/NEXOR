@@ -14,7 +14,6 @@ import PhotoCaptureMethod from "@/components/PhotoCaptureMethod";
 import CameraCapture from "@/components/CameraCapture";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
@@ -178,7 +177,6 @@ const CarregamentoDetalhe = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { userRole, user } = useAuth();
-  const { clienteId, armazemId, representanteId } = usePermissions();
 
   // Estados para etapas normais (1-4)
   const [stageFile, setStageFile] = useState<File | null>(null);
@@ -306,7 +304,7 @@ const CarregamentoDetalhe = () => {
   };
 
   const { data: carregamento, isLoading, error } = useQuery({
-    queryKey: ["carregamento-detalhe", id, clienteId, armazemId, representanteId, userRole],
+    queryKey: ["carregamento-detalhe", id],
     queryFn: async () => {
       console.log("🔍 [DEBUG] ========== INÍCIO QUERY CARREGAMENTO ==========");
       console.log("🔍 [DEBUG] Parâmetros de entrada:");
@@ -322,9 +320,9 @@ const CarregamentoDetalhe = () => {
       const params = {
         p_user_role: userRole,
         p_user_id: user?.id,
-        p_cliente_id: clienteId || null,
-        p_armazem_id: armazemId || null,
-        p_representante_id: representanteId || null,
+        p_cliente_id: null,
+        p_armazem_id: null,
+        p_representante_id: null,
         p_carregamento_id: id
       };
       console.log("🔍 [DEBUG] Parâmetros função:", params);
@@ -409,49 +407,7 @@ const CarregamentoDetalhe = () => {
       return resultado;
     },
     
-    enabled: (() => {
-      // ===== VALIDAÇÕES BÁSICAS =====
-      if (!user) {
-        console.log("❌ [CARREGAMENTO DETALHE] Query DESABILITADA: user ausente");
-        return false;
-      }
-      
-      if (!userRole) {
-        console.log("❌ [CARREGAMENTO DETALHE] Query DESABILITADA: userRole ausente");
-        return false;
-      }
-      
-      if (!id) {
-        console.log("❌ [CARREGAMENTO DETALHE] Query DESABILITADA: id ausente");
-        return false;
-      }
-      
-      // ===== ADMIN E LOGÍSTICA (SEM RESTRIÇÕES) =====
-      if (userRole === "admin" || userRole === "logistica") {
-        console.log("✅ [CARREGAMENTO DETALHE] Query HABILITADA: admin/logistica (sem restrições)");
-        return true;
-      }
-      
-      // ===== VALIDAÇÕES POR ROLE (COM VERIFICAÇÃO DE VALOR VÁLIDO) =====
-      let shouldEnable = false;
-      
-      if (userRole === "cliente") {
-        shouldEnable = clienteId != null; // null ou undefined = false
-        console.log(`${shouldEnable ? '✅' : '❌'} [CARREGAMENTO DETALHE] Cliente - clienteId: ${clienteId} | shouldEnable: ${shouldEnable}`);
-      } else if (userRole === "armazem") {
-        shouldEnable = armazemId != null; // null ou undefined = false
-        console.log(`${shouldEnable ? '✅' : '❌'} [CARREGAMENTO DETALHE] Armazém - armazemId: ${armazemId} | shouldEnable: ${shouldEnable}`);
-      } else if (userRole === "representante") {
-        shouldEnable = representanteId != null; // null ou undefined = false
-        console.log(`${shouldEnable ? '✅' : '❌'} [CARREGAMENTO DETALHE] Representante - representanteId: ${representanteId} | shouldEnable: ${shouldEnable}`);
-      } else {
-        console.log(`❌ [CARREGAMENTO DETALHE] Query DESABILITADA: userRole desconhecido (${userRole})`);
-        shouldEnable = false;
-      }
-      
-      console.log(`${shouldEnable ? '🚀' : '🚫'} [CARREGAMENTO DETALHE] DECISÃO FINAL: ${shouldEnable ? 'EXECUTAR QUERY' : 'NÃO EXECUTAR'}`);
-      return shouldEnable;
-    })(),
+    enabled: !!user && !!userRole && !!id,
   });
 
   // ✅ Mutation para etapas normais (1-4) - com limpeza de estado
@@ -1095,7 +1051,6 @@ const CarregamentoDetalhe = () => {
     const isEtapaFinalizada = selectedEtapa === 6 && etapaAtual === 6;
     
     const podeEditar = userRole === "armazem" && 
-                      carregamento?.armazem_id === armazemId && 
                       isEtapaAtual && 
                       !isEtapaFinalizada &&
                       selectedEtapa !== 5; // Etapa 5 tem lógica própria
@@ -1562,7 +1517,8 @@ const CarregamentoDetalhe = () => {
     );
   };
 
-  if (isLoading) {
+  // ⚠️ AGUARDAR QUERY ESTAR PRONTA
+  if (isLoading || (!carregamento && !error)) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader 
@@ -1582,6 +1538,35 @@ const CarregamentoDetalhe = () => {
         <div className="flex justify-center items-center h-40">
           <Loader2 className="animate-spin h-8 w-8 text-primary" />
         </div>
+      </div>
+    );
+  }
+  
+  if (error || !carregamento) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+        <PageHeader 
+          title="Detalhes do Carregamento"
+          backButton={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleGoBack}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Voltar</span>
+            </Button>
+          }
+        />
+        <Card className="border-destructive">
+          <CardContent className="p-6">
+            <div className="text-center text-destructive">
+              <p className="font-semibold">Carregamento não encontrado</p>
+              <p className="text-sm mt-2">Você não tem permissão ou o carregamento não existe.</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
