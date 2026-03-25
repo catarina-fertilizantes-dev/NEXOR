@@ -304,57 +304,35 @@ const CarregamentoDetalhe = () => {
       throw new Error(`Erro ao salvar foto: ${error.message}`);
     }
   };
-
+  
   const { data: carregamento, isLoading, error } = useQuery({
-    queryKey: ["carregamento-detalhe", id, clienteId, armazemId, representanteId, userRole],
+    queryKey: ["carregamento-detalhe", id],
     queryFn: async () => {
-      console.log("🔍 [DEBUG] ========== INÍCIO QUERY CARREGAMENTO ==========");
-      console.log("🔍 [DEBUG] Parâmetros de entrada:");
-      console.log("- id:", id);
-      console.log("- userRole:", userRole);
-      console.log("- user?.id:", user?.id);
-      console.log("- clienteId:", clienteId);
-      console.log("- armazemId:", armazemId);
-      console.log("- representanteId:", representanteId);
+      if (!id) {
+        throw new Error("ID do carregamento não fornecido");
+      }
       
-      // 🚀 USAR FUNÇÃO UNIVERSAL PARA TODOS OS ROLES
-      console.log("🔍 [DEBUG] Chamando função universal com parâmetros:");
-      const params = {
+      // 🎯 Busca simplificada: backend já valida permissões
+      const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', {
+        p_carregamento_id: id,
         p_user_role: userRole,
         p_user_id: user?.id,
         p_cliente_id: clienteId || null,
         p_armazem_id: armazemId || null,
-        p_representante_id: representanteId || null,
-        p_carregamento_id: id
-      };
-      console.log("🔍 [DEBUG] Parâmetros função:", params);
-      
-      const { data, error } = await supabase.rpc('get_carregamento_detalhe_universal', params);
-      
-      console.log("🔍 [DEBUG] Resultado bruto da função:");
-      console.log("- data:", data);
-      console.log("- error:", error);
-      console.log("- data?.length:", data?.length);
+        p_representante_id: representanteId || null
+      });
       
       if (error) {
-        console.error("❌ [ERROR] Erro na função universal:", error);
         throw error;
       }
       
       if (!data || data.length === 0) {
-        console.log("❌ [DEBUG] Nenhum dado retornado pela função");
         return null;
       }
       
       const item = data[0];
-      console.log("🔍 [DEBUG] Item encontrado (primeiros campos):");
-      console.log("- item.id:", item.id);
-      console.log("- item.agendamento_id:", item.agendamento_id);
-      console.log("- item.cliente_nome:", item.cliente_nome);
-      console.log("- item.produto_nome:", item.produto_nome);
-      console.log("- item.agendamento_quantidade:", item.agendamento_quantidade);
       
-      const resultado = {
+      return {
         id: item.id,
         etapa_atual: item.etapa_atual,
         numero_nf: item.numero_nf,
@@ -384,7 +362,6 @@ const CarregamentoDetalhe = () => {
         url_foto_inicio: item.url_foto_inicio,
         url_foto_carregando: item.url_foto_carregando,
         url_foto_finalizacao: item.url_foto_finalizacao,
-        // ✅ CAMPOS CORRETOS DA FUNÇÃO UNIVERSAL - INCLUINDO NOVOS CAMPOS
         agendamento_id: item.agendamento_id,
         agendamento_data_retirada: item.agendamento_data_retirada,
         agendamento_quantidade: item.agendamento_quantidade,
@@ -399,52 +376,12 @@ const CarregamentoDetalhe = () => {
         liberacao_pedido_interno: item.liberacao_pedido_interno,
         produto_nome: item.produto_nome
       };
-      
-      console.log("🔍 [DEBUG] Objeto resultado final:");
-      console.log("- resultado.cliente_nome:", resultado.cliente_nome);
-      console.log("- resultado.produto_nome:", resultado.produto_nome);
-      console.log("- resultado.agendamento_quantidade:", resultado.agendamento_quantidade);
-      console.log("🔍 [DEBUG] ========== FIM QUERY CARREGAMENTO ==========");
-      
-      return resultado;
     },
     
-    enabled: (() => {
-      // ✅ Validações básicas
-      if (!user || !userRole || !id) {
-        console.log("🔍 [DEBUG] Query desabilitada: faltam dados básicos");
-        return false;
-      }
-      
-      // ✅ Admin e logística não precisam de IDs específicos
-      if (userRole === "admin" || userRole === "logistica") {
-        console.log("🔍 [DEBUG] Query habilitada: admin/logistica");
-        return true;
-      }
-      
-      // ✅ CORREÇÃO: Verificar se os valores NÃO SÃO null E NÃO SÃO undefined
-      const clienteOk = userRole !== "cliente" || (clienteId != null); // != null verifica null E undefined
-      const armazemOk = userRole !== "armazem" || (armazemId != null); // != null verifica null E undefined
-      const representanteOk = userRole !== "representante" || (representanteId != null); // != null verifica null E undefined
-      
-      const allChecksPass = clienteOk && armazemOk && representanteOk;
-      
-      console.log("🔍 [DEBUG] Verificação enabled:", { 
-        userRole,
-        clienteId, 
-        armazemId, 
-        representanteId,
-        clienteOk, 
-        armazemOk, 
-        representanteOk,
-        allChecksPass,
-        willExecute: allChecksPass
-      });
-      
-      return allChecksPass;
-    })(),
+    // 🎯 Simplificação: só aguarda ter ID e contextos básicos carregados
+    enabled: !!id && !!user && !!userRole,
   });
-
+  
   // ✅ Mutation para etapas normais (1-4) - com limpeza de estado
   const proximaEtapaMutation = useMutation({
     mutationFn: async () => {
@@ -1577,7 +1514,8 @@ const CarregamentoDetalhe = () => {
     );
   }
   
-  if (error || !carregamento) {
+  // 🎯 Só mostra erro se realmente não encontrou E não está carregando
+  if (error || (!carregamento && !isLoading)) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader 
@@ -1598,12 +1536,19 @@ const CarregamentoDetalhe = () => {
           <CardContent className="p-6">
             <div className="text-center text-destructive">
               <p className="font-semibold">Carregamento não encontrado</p>
-              <p className="text-sm mt-2">Você não tem permissão ou o carregamento não existe.</p>
+              <p className="text-sm mt-2">
+                {error instanceof Error ? error.message : "Você não tem permissão ou o carregamento não existe."}
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
     );
+  }
+  
+  // 🎯 Proteção extra: se ainda não tem dados, não renderiza
+  if (!carregamento) {
+    return null;
   }
 
   return (
