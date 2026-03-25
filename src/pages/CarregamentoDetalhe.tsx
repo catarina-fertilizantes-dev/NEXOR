@@ -1517,8 +1517,7 @@ const CarregamentoDetalhe = () => {
     );
   };
 
-  // ⚠️ AGUARDAR QUERY ESTAR PRONTA
-  if (isLoading || (!carregamento && !error)) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader 
@@ -1538,35 +1537,6 @@ const CarregamentoDetalhe = () => {
         <div className="flex justify-center items-center h-40">
           <Loader2 className="animate-spin h-8 w-8 text-primary" />
         </div>
-      </div>
-    );
-  }
-  
-  if (error || !carregamento) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-        <PageHeader 
-          title="Detalhes do Carregamento"
-          backButton={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleGoBack}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 btn-secondary min-h-[44px] max-md:min-h-[44px]"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </Button>
-          }
-        />
-        <Card className="border-destructive">
-          <CardContent className="p-6">
-            <div className="text-center text-destructive">
-              <p className="font-semibold">Carregamento não encontrado</p>
-              <p className="text-sm mt-2">Você não tem permissão ou o carregamento não existe.</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     );
   }
