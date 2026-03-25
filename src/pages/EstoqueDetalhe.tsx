@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Loader2, 
   ArrowLeft, 
@@ -366,33 +367,70 @@ const EstoqueDetalhe = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-        <PageHeader 
-          title="Detalhes do Estoque"
-          backButton={
-            <Button
-              size="sm"
-              onClick={handleGoBack}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </Button>
-          }
-        />
-        <div className="flex justify-center items-center h-40">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="ml-3 text-muted-foreground">Carregando detalhes...</p>
+      <TooltipProvider>
+        <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+          <PageHeader 
+            title="Detalhes do Estoque"
+            backButton={
+              <Button
+                size="sm"
+                onClick={handleGoBack}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+            }
+          />
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="ml-3 text-muted-foreground">Carregando detalhes...</p>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   }
 
   if (error || !estoqueDetalhes) {
     return (
+      <TooltipProvider>
+        <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
+          <PageHeader 
+            title="Detalhes do Estoque"
+            backButton={
+              <Button
+                size="sm"
+                onClick={handleGoBack}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+            }
+          />
+          <Card className="border-destructive">
+            <CardContent className="p-4 md:p-6">
+              <div className="text-center text-destructive">
+                <p className="font-semibold">Erro ao carregar detalhes do estoque</p>
+                <p className="text-sm mt-2">
+                  {error instanceof Error
+                    ? error.message
+                    : "Erro desconhecido ou sem permissão"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <TooltipProvider>
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
         <PageHeader 
           title="Detalhes do Estoque"
+          subtitle={`${estoqueDetalhes.produto.nome} - ${estoqueDetalhes.armazem.nome}`}
           backButton={
             <Button
               size="sm"
@@ -403,276 +441,271 @@ const EstoqueDetalhe = () => {
               <span className="hidden sm:inline">Voltar</span>
             </Button>
           }
-        />
-        <Card className="border-destructive">
-          <CardContent className="p-4 md:p-6">
-            <div className="text-center text-destructive">
-              <p className="font-semibold">Erro ao carregar detalhes do estoque</p>
-              <p className="text-sm mt-2">
-                {error instanceof Error
-                  ? error.message
-                  : "Erro desconhecido ou sem permissão"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-      <PageHeader 
-        title="Detalhes do Estoque"
-        subtitle={`${estoqueDetalhes.produto.nome} - ${estoqueDetalhes.armazem.nome}`}
-        backButton={
-          <Button
-            size="sm"
-            onClick={handleGoBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mr-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Voltar</span>
-          </Button>
-        }
-      />
-      
-      <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
-        {/* Card de informações gerais - Otimizado para mobile */}
-        <Card className="shadow-sm">
-          <CardContent className="p-4 md:p-6">
-            <h2 className="text-base md:text-lg font-semibold mb-4">Informações do Estoque</h2>
-            
-            {/* Layout otimizado responsivo */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Produto */}
-              <div className="flex items-center gap-3">
-                <Package className="h-5 w-5 text-primary flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs md:text-sm text-muted-foreground">Produto:</p>
-                  <p className="font-semibold text-sm md:text-base break-words">{estoqueDetalhes.produto.nome}</p>
-                </div>
-              </div>
-
-              {/* Armazém */}
-              <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs md:text-sm text-muted-foreground">Armazém:</p>
-                  <p className="font-semibold text-sm md:text-base break-words">{estoqueDetalhes.armazem.nome}</p>
-                </div>
-              </div>
-
-              {/* Nº de Remessas */}
-              <div className="flex items-center gap-3">
-                <Layers className="h-5 w-5 text-primary flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs md:text-sm text-muted-foreground">Nº de Remessas:</p>
-                  <p className="font-semibold text-sm md:text-base">{numeroRemessasFiltradas}</p>
-                </div>
-              </div>
-
-              {/* Localização */}
-              <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs md:text-sm text-muted-foreground">Localização:</p>
-                  <p className="font-semibold text-sm md:text-base break-words">{estoqueDetalhes.armazem.cidade}/{estoqueDetalhes.armazem.estado}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Totalizadores - Layout responsivo */}
-            <div className="pt-4 border-t mt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Entrada Total */}
-                <div className="bg-purple-50 p-3 md:p-4 rounded-lg border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Archive className="h-4 w-4 md:h-5 md:w-5 text-purple-600 flex-shrink-0" />
-                    <span className="font-medium text-purple-800 text-sm md:text-base">Entrada Total</span>
-                  </div>
-                  <p className="text-base md:text-xl font-bold text-purple-700 break-words">
-                    {entradaTotal.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
-                  </p>
-                </div>
+        />  
+        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
+          {/* Card de informações gerais - Otimizado para mobile */}
+          <Card className="shadow-sm">
+            <CardContent className="p-4 md:p-6">
+              <h2 className="text-base md:text-lg font-semibold mb-4">Informações do Estoque</h2>
               
-                {/* Estoque Físico */}
-                <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Package className="h-4 w-4 md:h-5 md:w-5 text-blue-600 flex-shrink-0" />
-                    <span className="font-medium text-blue-800 text-sm md:text-base">Estoque Físico</span>
+              {/* Layout otimizado responsivo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Produto */}
+                <div className="flex items-center gap-3">
+                  <Package className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs md:text-sm text-muted-foreground">Produto:</p>
+                    <p className="font-semibold text-sm md:text-base break-words">{estoqueDetalhes.produto.nome}</p>
                   </div>
-                  <p className="text-base md:text-xl font-bold text-blue-700 break-words">
-                    {estoqueDetalhes.quantidade_total.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
-                  </p>
                 </div>
-              
-                {/* Estoque Disponível */}
-                <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Package className="h-4 w-4 md:h-5 md:w-5 text-green-600 flex-shrink-0" />
-                    <span className="font-medium text-green-800 text-sm md:text-base">Estoque Disponível</span>
+  
+                {/* Armazém */}
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs md:text-sm text-muted-foreground">Armazém:</p>
+                    <p className="font-semibold text-sm md:text-base break-words">{estoqueDetalhes.armazem.nome}</p>
                   </div>
-                  <p className="text-base md:text-xl font-bold text-green-700 break-words">
-                    {estoqueDetalhes.quantidade_disponivel.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
-                  </p>
+                </div>
+  
+                {/* Nº de Remessas */}
+                <div className="flex items-center gap-3">
+                  <Layers className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs md:text-sm text-muted-foreground">Nº de Remessas:</p>
+                    <p className="font-semibold text-sm md:text-base">{numeroRemessasFiltradas}</p>
+                  </div>
+                </div>
+  
+                {/* Localização */}
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs md:text-sm text-muted-foreground">Localização:</p>
+                    <p className="font-semibold text-sm md:text-base break-words">{estoqueDetalhes.armazem.cidade}/{estoqueDetalhes.armazem.estado}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Barra de filtros - Mobile otimizada */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <Input
-              className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-              placeholder="Buscar por número da remessa..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <Button 
-              size="sm" 
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary"
-            >
-              <FilterIcon className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Filtros</span>
-              {activeFiltersCount ? ` (${activeFiltersCount})` : ""}
-              {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
-            </Button>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Mostrando <span className="font-medium">{numeroRemessasFiltradas}</span> de <span className="font-medium">{estoqueDetalhes.remessas.length}</span>
-            </span>
-            {hasActiveFilters && (
+  
+              {/* Totalizadores - Layout responsivo */}
+              <div className="pt-4 border-t mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Entrada Total */}
+                  <Tooltip delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <div className="bg-purple-50 p-3 md:p-4 rounded-lg border border-purple-200 cursor-help">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Archive className="h-4 w-4 md:h-5 md:w-5 text-purple-600 flex-shrink-0" />
+                          <span className="font-medium text-purple-800 text-sm md:text-base">Entrada Total</span>
+                        </div>
+                        <p className="text-base md:text-xl font-bold text-purple-700 break-words">
+                          {entradaTotal.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
+                        </p>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-sm max-w-xs">
+                        Soma de todas as remessas recebidas neste armazém. Representa o total que entrou no estoque.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+              
+                  {/* Estoque Físico */}
+                  <Tooltip delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200 cursor-help">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Package className="h-4 w-4 md:h-5 md:w-5 text-blue-600 flex-shrink-0" />
+                          <span className="font-medium text-blue-800 text-sm md:text-base">Estoque Físico</span>
+                        </div>
+                        <p className="text-base md:text-xl font-bold text-blue-700 break-words">
+                          {estoqueDetalhes.quantidade_total.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
+                        </p>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-sm max-w-xs">
+                        Quantidade real presente no armazém neste momento. Reduz apenas quando o produto sai fisicamente (carregamento finalizado).
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+              
+                  {/* Estoque Disponível */}
+                  <Tooltip delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200 cursor-help">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Package className="h-4 w-4 md:h-5 md:w-5 text-green-600 flex-shrink-0" />
+                          <span className="font-medium text-green-800 text-sm md:text-base">Estoque Disponível</span>
+                        </div>
+                        <p className="text-base md:text-xl font-bold text-green-700 break-words">
+                          {estoqueDetalhes.quantidade_disponivel.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
+                        </p>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-sm max-w-xs">
+                        Quantidade livre para novas liberações. Desconta valores já liberados, mesmo que ainda não retirados do armazém.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+  
+          {/* Barra de filtros - Mobile otimizada */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Input
+                className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                placeholder="Buscar por número da remessa..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
               <Button 
                 size="sm" 
-                onClick={clearFilters} 
-                className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                onClick={() => setFiltersOpen(!filtersOpen)}
+                className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary"
               >
-                <X className="h-4 w-4" /> 
-                Limpar Filtros
+                <FilterIcon className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Filtros</span>
+                {activeFiltersCount ? ` (${activeFiltersCount})` : ""}
+                {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
               </Button>
-            )}
+            </div>
+  
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Mostrando <span className="font-medium">{numeroRemessasFiltradas}</span> de <span className="font-medium">{estoqueDetalhes.remessas.length}</span>
+              </span>
+              {hasActiveFilters && (
+                <Button 
+                  size="sm" 
+                  onClick={clearFilters} 
+                  className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                >
+                  <X className="h-4 w-4" /> 
+                  Limpar Filtros
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-
-        {/* Filtros avançados - Mobile otimizado */}
-        {filtersOpen && (
-          <div className="rounded-md border p-3 space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Período */}
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">Período</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Input 
-                    type="date" 
-                    value={dateFrom} 
-                    onChange={(e) => setDateFrom(e.target.value)} 
-                    className="min-h-[44px] max-md:min-h-[44px]" 
-                    placeholder="De"
-                  />
-                  <Input 
-                    type="date" 
-                    value={dateTo} 
-                    onChange={(e) => setDateTo(e.target.value)} 
-                    className="min-h-[44px] max-md:min-h-[44px]" 
-                    placeholder="Até"
-                  />
+  
+          {/* Filtros avançados - Mobile otimizado */}
+          {filtersOpen && (
+            <div className="rounded-md border p-3 space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Período */}
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">Período</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Input 
+                      type="date" 
+                      value={dateFrom} 
+                      onChange={(e) => setDateFrom(e.target.value)} 
+                      className="min-h-[44px] max-md:min-h-[44px]" 
+                      placeholder="De"
+                    />
+                    <Input 
+                      type="date" 
+                      value={dateTo} 
+                      onChange={(e) => setDateTo(e.target.value)} 
+                      className="min-h-[44px] max-md:min-h-[44px]" 
+                      placeholder="Até"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              {/* Quantidade */}
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">
-                  Quantidade ({estoqueDetalhes.produto.unidade})
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Input 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    value={quantidadeMin} 
-                    onChange={(e) => setQuantidadeMin(e.target.value)} 
-                    className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-                    placeholder="Mín"
-                  />
-                  <Input 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    value={quantidadeMax} 
-                    onChange={(e) => setQuantidadeMax(e.target.value)} 
-                    className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-                    placeholder="Máx"
-                  />
+  
+                {/* Quantidade */}
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">
+                    Quantidade ({estoqueDetalhes.produto.unidade})
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      value={quantidadeMin} 
+                      onChange={(e) => setQuantidadeMin(e.target.value)} 
+                      className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
+                      placeholder="Mín"
+                    />
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      value={quantidadeMax} 
+                      onChange={(e) => setQuantidadeMax(e.target.value)} 
+                      className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
+                      placeholder="Máx"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Lista de remessas */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary flex-shrink-0" />
-            <h2 className="text-base md:text-lg font-semibold">
-              Histórico de Remessas 
-              {activeFiltersCount > 0 ? (
-                <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({numeroRemessasFiltradas} de {estoqueDetalhes.remessas.length})
-                </span>
+          )}
+  
+          {/* Lista de remessas */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary flex-shrink-0" />
+              <h2 className="text-base md:text-lg font-semibold">
+                Histórico de Remessas 
+                {activeFiltersCount > 0 ? (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    ({numeroRemessasFiltradas} de {estoqueDetalhes.remessas.length})
+                  </span>
+                ) : (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    ({estoqueDetalhes.remessas.length})
+                  </span>
+                )}
+              </h2>
+            </div>
+            
+            <div className="space-y-3">
+              {remessasFiltradas.length > 0 ? (
+                remessasFiltradas.map(renderRemessaCard)
+              ) : hasActiveFilters ? (
+                <Card className="border-dashed">
+                  <CardContent className="p-6 md:p-8 text-center">
+                    <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-semibold text-muted-foreground mb-2">
+                      Nenhuma remessa encontrada
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Nenhuma remessa corresponde aos filtros aplicados.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={clearFilters}
+                      className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Limpar Filtros
+                    </Button>
+                  </CardContent>
+                </Card>
               ) : (
-                <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({estoqueDetalhes.remessas.length})
-                </span>
+                <Card className="border-dashed">
+                  <CardContent className="p-6 md:p-8 text-center">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-semibold text-muted-foreground mb-2">
+                      Nenhuma remessa encontrada
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Não há remessas registradas para este produto neste armazém.
+                    </p>
+                  </CardContent>
+                </Card>
               )}
-            </h2>
-          </div>
-          
-          <div className="space-y-3">
-            {remessasFiltradas.length > 0 ? (
-              remessasFiltradas.map(renderRemessaCard)
-            ) : hasActiveFilters ? (
-              <Card className="border-dashed">
-                <CardContent className="p-6 md:p-8 text-center">
-                  <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="font-semibold text-muted-foreground mb-2">
-                    Nenhuma remessa encontrada
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Nenhuma remessa corresponde aos filtros aplicados.
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={clearFilters}
-                    className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Limpar Filtros
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="border-dashed">
-                <CardContent className="p-6 md:p-8 text-center">
-                  <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="font-semibold text-muted-foreground mb-2">
-                    Nenhuma remessa encontrada
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Não há remessas registradas para este produto neste armazém.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
