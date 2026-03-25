@@ -410,20 +410,24 @@ const CarregamentoDetalhe = () => {
     },
     
     enabled: (() => {
+      // ✅ Validações básicas
       if (!user || !userRole || !id) {
         console.log("🔍 [DEBUG] Query desabilitada: faltam dados básicos");
         return false;
       }
       
+      // ✅ Admin e logística não precisam de IDs específicos
       if (userRole === "admin" || userRole === "logistica") {
         console.log("🔍 [DEBUG] Query habilitada: admin/logistica");
         return true;
       }
       
-      // ✅ CORREÇÃO: Verificar se o valor não é null E não é undefined
-      const clienteOk = userRole !== "cliente" || (clienteId !== undefined && clienteId !== null);
-      const armazemOk = userRole !== "armazem" || (armazemId !== undefined && armazemId !== null);
-      const representanteOk = userRole !== "representante" || (representanteId !== undefined && representanteId !== null);
+      // ✅ CORREÇÃO: Verificar se os valores NÃO SÃO null E NÃO SÃO undefined
+      const clienteOk = userRole !== "cliente" || (clienteId != null); // != null verifica null E undefined
+      const armazemOk = userRole !== "armazem" || (armazemId != null); // != null verifica null E undefined
+      const representanteOk = userRole !== "representante" || (representanteId != null); // != null verifica null E undefined
+      
+      const allChecksPass = clienteOk && armazemOk && representanteOk;
       
       console.log("🔍 [DEBUG] Verificação enabled:", { 
         userRole,
@@ -432,10 +436,12 @@ const CarregamentoDetalhe = () => {
         representanteId,
         clienteOk, 
         armazemOk, 
-        representanteOk 
+        representanteOk,
+        allChecksPass,
+        willExecute: allChecksPass
       });
       
-      return clienteOk && armazemOk && representanteOk;
+      return allChecksPass;
     })(),
   });
 
