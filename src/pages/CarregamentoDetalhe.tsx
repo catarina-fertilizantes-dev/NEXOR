@@ -377,9 +377,34 @@ const CarregamentoDetalhe = () => {
         produto_nome: item.produto_nome
       };
     },
-    
-    // 🎯 Simplificação: só aguarda ter ID e contextos básicos carregados
-    enabled: !!id && !!user && !!userRole,
+
+    // 🎯 AGUARDA TODOS OS CONTEXTOS NECESSÁRIOS CARREGAREM
+    enabled: (() => {
+      // Aguardar dados básicos
+      if (!id || !user || !userRole) {
+        return false;
+      }
+      
+      // Admin e logística não dependem de IDs específicos
+      if (userRole === "admin" || userRole === "logistica") {
+        return true;
+      }
+      
+      // Para outros roles, aguardar os IDs carregarem
+      if (userRole === "cliente" && !clienteId) {
+        return false;
+      }
+      
+      if (userRole === "armazem" && !armazemId) {
+        return false;
+      }
+      
+      if (userRole === "representante" && !representanteId) {
+        return false;
+      }
+      
+      return true;
+    })(),
   });
   
   // ✅ Mutation para etapas normais (1-4) - com limpeza de estado
