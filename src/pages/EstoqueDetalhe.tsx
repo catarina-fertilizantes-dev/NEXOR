@@ -49,6 +49,7 @@ interface EstoqueDetalhes {
     estado: string;
   };
   quantidade_total: number;
+  quantidade_disponivel: number;
   remessas: RemessaItem[];
 }
 
@@ -138,6 +139,7 @@ const EstoqueDetalhe = () => {
         .from("estoque")
         .select(`
           quantidade,
+          quantidade_disponivel,  // ✅ ADICIONAR
           produto:produtos(id, nome, unidade),
           armazem:armazens(id, nome, cidade, estado)
         `)
@@ -179,6 +181,7 @@ const EstoqueDetalhe = () => {
         produto: estoqueData.produto,
         armazem: estoqueData.armazem,
         quantidade_total: estoqueData.quantidade,
+        quantidade_disponivel: estoqueData.quantidade_disponivel,  // ✅ ADICIONAR
         remessas: remessasData || []
       };
 
@@ -481,24 +484,37 @@ const EstoqueDetalhe = () => {
 
             {/* Totalizadores - Layout responsivo */}
             <div className="pt-4 border-t mt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Entrada Total */}
+                <div className="bg-purple-50 p-3 md:p-4 rounded-lg border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
-                    <Archive className="h-4 w-4 md:h-5 md:w-5 text-green-600 flex-shrink-0" />
-                    <span className="font-medium text-green-800 text-sm md:text-base">Entrada Total</span>
+                    <Archive className="h-4 w-4 md:h-5 md:w-5 text-purple-600 flex-shrink-0" />
+                    <span className="font-medium text-purple-800 text-sm md:text-base">Entrada Total</span>
                   </div>
-                  <p className="text-base md:text-xl font-bold text-green-700 break-words">
+                  <p className="text-base md:text-xl font-bold text-purple-700 break-words">
                     {entradaTotal.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
                   </p>
                 </div>
-
+              
+                {/* Estoque Físico */}
                 <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Package className="h-4 w-4 md:h-5 md:w-5 text-blue-600 flex-shrink-0" />
-                    <span className="font-medium text-blue-800 text-sm md:text-base">Estoque Atual</span>
+                    <span className="font-medium text-blue-800 text-sm md:text-base">Estoque Físico</span>
                   </div>
                   <p className="text-base md:text-xl font-bold text-blue-700 break-words">
                     {estoqueDetalhes.quantidade_total.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
+                  </p>
+                </div>
+              
+                {/* Estoque Disponível */}
+                <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Package className="h-4 w-4 md:h-5 md:w-5 text-green-600 flex-shrink-0" />
+                    <span className="font-medium text-green-800 text-sm md:text-base">Estoque Disponível</span>
+                  </div>
+                  <p className="text-base md:text-xl font-bold text-green-700 break-words">
+                    {estoqueDetalhes.quantidade_disponivel.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
                   </p>
                 </div>
               </div>
