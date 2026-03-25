@@ -420,11 +420,20 @@ const CarregamentoDetalhe = () => {
         return true;
       }
       
-      const clienteOk = userRole !== "cliente" || (clienteId !== undefined);
-      const armazemOk = userRole !== "armazem" || (armazemId !== undefined);
-      const representanteOk = userRole !== "representante" || (representanteId !== undefined);
+      // ✅ CORREÇÃO: Verificar se o valor não é null E não é undefined
+      const clienteOk = userRole !== "cliente" || (clienteId !== undefined && clienteId !== null);
+      const armazemOk = userRole !== "armazem" || (armazemId !== undefined && armazemId !== null);
+      const representanteOk = userRole !== "representante" || (representanteId !== undefined && representanteId !== null);
       
-      console.log("🔍 [DEBUG] Verificação enabled:", { clienteOk, armazemOk, representanteOk });
+      console.log("🔍 [DEBUG] Verificação enabled:", { 
+        userRole,
+        clienteId, 
+        armazemId, 
+        representanteId,
+        clienteOk, 
+        armazemOk, 
+        representanteOk 
+      });
       
       return clienteOk && armazemOk && representanteOk;
     })(),
