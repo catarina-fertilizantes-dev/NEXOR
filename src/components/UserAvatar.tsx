@@ -4,11 +4,66 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export const UserAvatar = () => {
   const { user, userRole, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 🎯 BUSCAR NOME CORRETO DA TABELA (armazens/clientes/representantes)
+  const { data: userDisplayName } = useQuery({
+    queryKey: ["user-display-name", user?.id, userRole],
+    queryFn: async () => {
+      if (!user?.id || !userRole) return null;
+      
+      if (userRole === 'armazem') {
+        const { data, error } = await supabase
+          .from('armazens')
+          .select('nome')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Erro ao buscar nome do armazém:', error);
+          return null;
+        }
+        return data?.nome;
+      }
+      
+      if (userRole === 'cliente') {
+        const { data, error } = await supabase
+          .from('clientes')
+          .select('nome')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Erro ao buscar nome do cliente:', error);
+          return null;
+        }
+        return data?.nome;
+      }
+      
+      if (userRole === 'representante') {
+        const { data, error } = await supabase
+          .from('representantes')
+          .select('nome')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Erro ao buscar nome do representante:', error);
+          return null;
+        }
+        return data?.nome;
+      }
+      
+      return null;
+    },
+    enabled: !!user && !!userRole && ['armazem', 'cliente', 'representante'].includes(userRole),
+  });
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -30,8 +85,8 @@ export const UserAvatar = () => {
   // Não renderizar se não há usuário logado
   if (!user) return null;
 
-  // Extrair informações do usuário
-  const userName = user.user_metadata?.nome || user.email?.split('@')[0] || 'Usuário';
+  // 🎯 Priorizar nome da tabela específica, depois user_metadata, depois email
+  const userName = userDisplayName || user.user_metadata?.nome || user.email?.split('@')[0] || 'Usuário';
   const userEmail = user.email || '';
   
   // Gerar iniciais para o avatar
