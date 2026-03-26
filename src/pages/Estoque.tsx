@@ -667,7 +667,6 @@ const Estoque = () => {
 
       resetFormNovoProduto();
       setDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["estoque"] });
     } catch (err: unknown) {
       toast({
         variant: "destructive",
@@ -676,6 +675,7 @@ const Estoque = () => {
       });
       console.error("❌ [ERROR]", err);
     } finally {
+      queryClient.invalidateQueries({ queryKey: ["estoque"] });
       setIsCreating(false);
     }
   };
