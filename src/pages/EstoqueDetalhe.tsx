@@ -287,7 +287,6 @@ const EstoqueDetalhe = () => {
   };
 
   const remessasFiltradas = estoqueDetalhes ? aplicarFiltros(estoqueDetalhes.remessas) : [];
-  const entradaTotal = remessasFiltradas.reduce((total, remessa) => total + remessa.quantidade_original, 0);
   const numeroRemessasFiltradas = remessasFiltradas.length;
 
   const activeFiltersCount = 
@@ -489,27 +488,7 @@ const EstoqueDetalhe = () => {
   
               {/* Totalizadores - Layout responsivo */}
               <div className="pt-4 border-t mt-6">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* Entrada Total */}
-                  <Tooltip delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <div className="bg-purple-50 p-3 md:p-4 rounded-lg border border-purple-200 cursor-help">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Archive className="h-4 w-4 md:h-5 md:w-5 text-purple-600 flex-shrink-0" />
-                          <span className="font-medium text-purple-800 text-sm md:text-base">Entrada Total</span>
-                        </div>
-                        <p className="text-base md:text-xl font-bold text-purple-700 break-words">
-                          {entradaTotal.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
-                        </p>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-sm max-w-xs">
-                        Soma de todas as remessas recebidas neste armazém. Representa o total que entrou no estoque.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-              
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Estoque Físico */}
                   <Tooltip delayDuration={100}>
                     <TooltipTrigger asChild>
