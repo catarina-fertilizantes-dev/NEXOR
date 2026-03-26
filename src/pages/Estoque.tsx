@@ -618,6 +618,7 @@ const Estoque = () => {
           .from("estoque")
           .update({
             quantidade: novaQuantidade,
+            quantidade_disponivel: estoqueAtual.quantidade_disponivel + qtdNum,
             updated_by: userData.user?.id,
             updated_at: new Date().toISOString(),
           })
@@ -634,6 +635,7 @@ const Estoque = () => {
             produto_id: produtoId,
             armazem_id: armazemData.id,
             quantidade: novaQuantidade,
+            quantidade_disponivel: novaQuantidade,
             updated_by: userData.user?.id,
             updated_at: new Date().toISOString(),
           });
