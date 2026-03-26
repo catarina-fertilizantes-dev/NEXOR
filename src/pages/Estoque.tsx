@@ -522,6 +522,11 @@ const Estoque = () => {
       return;
     }
 
+    if (!numeroRemessa.trim()) {
+      toast({ variant: "destructive", title: "Campo obrigatório", description: "Informe o número da remessa." });
+      return;
+    }
+
     if (!notaRemessaFile) {
       toast({ variant: "destructive", title: "Documento obrigatório", description: "Anexe a nota de remessa em PDF." });
       return;
@@ -918,7 +923,7 @@ const Estoque = () => {
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                           <div className="space-y-2">
-                            <Label htmlFor="numero-remessa" className="text-sm font-medium">Número da Remessa</Label>
+                            <Label htmlFor="numero-remessa" className="text-sm font-medium">Número da Remessa *</Label>
                             <Input
                               id="numero-remessa"
                               type="text"
@@ -1037,6 +1042,7 @@ const Estoque = () => {
                     disabled={
                       !temProdutosDisponiveis || 
                       !temArmazensDisponiveis || 
+                      !numeroRemessa.trim() ||
                       !notaRemessaFile || 
                       !xmlRemessaFile || 
                       isCreating
