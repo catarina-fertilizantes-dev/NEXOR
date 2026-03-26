@@ -151,6 +151,7 @@ const Estoque = () => {
     enabled: !!user && userRole === "armazem",
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
+    // ✅ SEM refetchInterval - Dado estático do usuário logado
   });
 
   console.log("🔍 [DEBUG] Estoque.tsx - currentArmazem:", currentArmazem);
@@ -189,7 +190,7 @@ const Estoque = () => {
       console.log("✅ [SUCCESS] Estoque.tsx - Dados carregados:", data?.length, "registros");
       return data;
     },
-    refetchInterval: 30000,
+    refetchInterval: isCreating ? false : 30000, // ✅ Pausar refetch durante operações críticas (criação de estoque)
     enabled: !!user?.id && (userRole !== "armazem" || !!currentArmazem?.id),
     staleTime: 2 * 60 * 1000,
   });
@@ -207,7 +208,7 @@ const Estoque = () => {
       }
       return data || [];
     },
-    refetchInterval: 30000,
+    // refetchInterval: 30000, // ❌ Refetch não deve ser usado em queries utilizadas em operações críticas (modal de criação)
     staleTime: 5 * 60 * 1000,
     enabled: !!user?.id,
   });
@@ -226,7 +227,7 @@ const Estoque = () => {
       }
       return data || [];
     },
-    refetchInterval: 30000,
+    // refetchInterval: 30000, // ❌ Refetch não deve ser usado em queries utilizadas em operações críticas (modal de criação)
     staleTime: 5 * 60 * 1000,
     enabled: canCreate && !!user?.id,
   });
@@ -249,7 +250,7 @@ const Estoque = () => {
       }
       return data || [];
     },
-    refetchInterval: 10000,
+    refetchInterval: 10000, // ✅ MANTER - Apenas para filtros, não afeta operações críticas
     staleTime: 3 * 60 * 1000,
     enabled: !!user?.id,
   });
