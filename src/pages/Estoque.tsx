@@ -662,7 +662,7 @@ const Estoque = () => {
 
       toast({
         title: "Entrada registrada com sucesso!",
-        description: `+${qtdNum}${unidade} de ${produtoSelecionado.nome} em ${armazemData.cidade}/${armazemData.estado}. Estoque atual: ${novaQuantidade}${unidade}. Documentos anexados.`
+        description: `+${qtdNum}${unidade} de ${produtoSelecionado.nome} em ${armazemData.cidade}/${armazemData.estado}. Estoque atual: ${novaQuantidadeFisica}${unidade}. Documentos anexados.`
       });
 
       resetFormNovoProduto();
