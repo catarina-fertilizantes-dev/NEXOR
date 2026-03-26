@@ -514,8 +514,16 @@ const Estoque = () => {
   };
 
   const handleCreateProduto = async () => {
+    console.log("🔥 handleCreateProduto INICIADO - timestamp:", Date.now());
+    
     const { produtoId, armazem, quantidade, unidade } = novoProduto;
     const qtdNum = Number(quantidade);
+
+    // ✅ BLOQUEAR MÚLTIPLAS EXECUÇÕES
+    if (isCreating) {
+      console.log("⚠️ JÁ ESTÁ CRIANDO - abortando");
+      return;
+    }
 
     if (!produtoId || !armazem.trim() || !quantidade) {
       toast({ variant: "destructive", title: "Preencha todos os campos obrigatórios" });
