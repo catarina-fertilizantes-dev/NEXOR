@@ -605,29 +605,33 @@ const Estoque = () => {
 
       const { data: estoqueAtual, error: errBuscaEstoque } = await supabase
         .from("estoque")
-        .select("id, quantidade")
+        .select("id, quantidade, quantidade_disponivel")
         .eq("produto_id", produtoId)
         .eq("armazem_id", armazemData.id)
         .maybeSingle();
-
+      
       if (errBuscaEstoque) {
         toast({ variant: "destructive", title: "Erro ao buscar estoque", description: errBuscaEstoque.message });
         return;
       }
-
-      const estoqueAnterior = estoqueAtual?.quantidade || 0;
-      const novaQuantidade = estoqueAnterior + qtdNum;
-
+      
+      const quantidadeFisicaAnterior = estoqueAtual?.quantidade || 0;
+      const quantidadeDisponivelAnterior = estoqueAtual?.quantidade_disponivel || 0;
+      
+      const novaQuantidadeFisica = quantidadeFisicaAnterior + qtdNum;
+      const novaQuantidadeDisponivel = quantidadeDisponivelAnterior + qtdNum;
+      
       if (estoqueAtual?.id) {
         const { error: errEstoque } = await supabase
           .from("estoque")
           .update({
-            quantidade: novaQuantidade,
+            quantidade: novaQuantidadeFisica,
+            quantidade_disponivel: novaQuantidadeDisponivel,
             updated_by: userData.user?.id,
             updated_at: new Date().toISOString(),
           })
           .eq("id", estoqueAtual.id);
-
+      
         if (errEstoque) {
           toast({ variant: "destructive", title: "Erro ao atualizar estoque", description: errEstoque.message });
           return;
@@ -638,11 +642,12 @@ const Estoque = () => {
           .insert({
             produto_id: produtoId,
             armazem_id: armazemData.id,
-            quantidade: novaQuantidade,
+            quantidade: qtdNum,
+            quantidade_disponivel: qtdNum,
             updated_by: userData.user?.id,
             updated_at: new Date().toISOString(),
           });
-
+      
         if (errEstoque) {
           let msg = errEstoque.message || "";
           if (msg.includes("stack depth limit")) {
