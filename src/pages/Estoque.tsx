@@ -516,27 +516,27 @@ const Estoque = () => {
   const handleCreateProduto = async () => {
     const { produtoId, armazem, quantidade, unidade } = novoProduto;
     const qtdNum = Number(quantidade);
-
+  
     if (!produtoId || !armazem.trim() || !quantidade) {
       toast({ variant: "destructive", title: "Preencha todos os campos obrigatórios" });
       return;
     }
-
+  
     if (!numeroRemessa.trim()) {
       toast({ variant: "destructive", title: "Campo obrigatório", description: "Informe o número da remessa." });
       return;
     }
-
+  
     if (!notaRemessaFile) {
       toast({ variant: "destructive", title: "Documento obrigatório", description: "Anexe a nota de remessa em PDF." });
       return;
     }
-
+  
     if (!xmlRemessaFile) {
       toast({ variant: "destructive", title: "Documento obrigatório", description: "Anexe o arquivo XML da remessa." });
       return;
     }
-
+  
     if (
       Number.isNaN(qtdNum) ||
       qtdNum <= 0 ||
@@ -546,63 +546,50 @@ const Estoque = () => {
       toast({ variant: "destructive", title: "Valor inválido", description: "Digite um valor numérico maior que zero." });
       return;
     }
-
+  
     setIsCreating(true);
-
+  
+    // ✅ Variáveis para rollback
+    let remessaId: string | null = null;
+    let arquivosUpload: string[] = [];
+  
     try {
       const produtoSelecionado = produtosCadastrados?.find(p => p.id === produtoId && p.ativo);
       if (!produtoSelecionado) {
         toast({ variant: "destructive", title: "Produto não encontrado ou inativo", description: "Selecione um produto ativo." });
         return;
       }
-
+  
       const { data: armazemData, error: errArmazem } = await supabase
         .from("armazens")
         .select("id, nome, cidade, estado, capacidade_total, ativo")
         .eq("id", armazem)
         .eq("ativo", true)
         .maybeSingle();
-
+  
       if (errArmazem) {
         toast({ variant: "destructive", title: "Erro ao buscar armazém", description: errArmazem.message });
         return;
       }
-
+  
       if (!armazemData?.id) {
         toast({ variant: "destructive", title: "Armazém não encontrado ou inativo", description: "Selecione um armazém ativo válido." });
         return;
       }
-
+  
       console.log("🔍 [DEBUG] Fazendo upload dos documentos...");
       const uploads = await uploadDocumentos(produtoId, armazemData.id);
-
+  
       const urlNotaRemessa = uploads.find(u => u.campo === 'url_nota_remessa')?.url || null;
       const urlXmlRemessa = uploads.find(u => u.campo === 'url_xml_remessa')?.url || null;
-
+  
+      // ✅ Guardar arquivos para possível rollback
+      if (urlNotaRemessa) arquivosUpload.push(urlNotaRemessa);
+      if (urlXmlRemessa) arquivosUpload.push(urlXmlRemessa);
+  
       const { data: userData } = await supabase.auth.getUser();
-
-      const { data: novaRemessa, error: errRemessa } = await supabase
-        .from("estoque_remessas")
-        .insert({
-          produto_id: produtoId,
-          armazem_id: armazemData.id,
-          quantidade_original: qtdNum,
-          url_nota_remessa: urlNotaRemessa,
-          url_xml_remessa: urlXmlRemessa,
-          numero_remessa: numeroRemessa.trim() || null,
-          observacoes: observacoesRemessa.trim() || null,
-          created_by: userData.user?.id
-        })
-        .select('id')
-        .single();
-
-      if (errRemessa) {
-        toast({ variant: "destructive", title: "Erro ao registrar remessa", description: errRemessa.message });
-        return;
-      }
-
-      console.log("✅ [SUCCESS] Remessa criada:", novaRemessa.id);
-
+  
+      // ✅ PASSO 1: Buscar estoque ANTES de criar remessa
       const { data: estoqueAtual, error: errBuscaEstoque } = await supabase
         .from("estoque")
         .select("id, quantidade, quantidade_disponivel")
@@ -620,7 +607,8 @@ const Estoque = () => {
       
       const novaQuantidadeFisica = quantidadeFisicaAnterior + qtdNum;
       const novaQuantidadeDisponivel = quantidadeDisponivelAnterior + qtdNum;
-      
+  
+      // ✅ PASSO 2: Criar/atualizar estoque PRIMEIRO
       if (estoqueAtual?.id) {
         const { error: errEstoque } = await supabase
           .from("estoque")
@@ -657,24 +645,78 @@ const Estoque = () => {
           return;
         }
       }
-
-      markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
-
+  
+      // ✅ PASSO 3: Criar remessa SOMENTE após estoque OK
+      const { data: novaRemessa, error: errRemessa } = await supabase
+        .from("estoque_remessas")
+        .insert({
+          produto_id: produtoId,
+          armazem_id: armazemData.id,
+          quantidade_original: qtdNum,
+          url_nota_remessa: urlNotaRemessa,
+          url_xml_remessa: urlXmlRemessa,
+          numero_remessa: numeroRemessa.trim() || null,
+          observacoes: observacoesRemessa.trim() || null,
+          created_by: userData.user?.id
+        })
+        .select('id')
+        .single();
+  
+      if (errRemessa) {
+        // ✅ ROLLBACK: Reverter estoque
+        console.error("❌ [ERROR] Falha ao criar remessa, revertendo estoque...");
+        
+        if (estoqueAtual?.id) {
+          await supabase
+            .from("estoque")
+            .update({
+              quantidade: quantidadeFisicaAnterior,
+              quantidade_disponivel: quantidadeDisponivelAnterior,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", estoqueAtual.id);
+        } else {
+          await supabase
+            .from("estoque")
+            .delete()
+            .eq("produto_id", produtoId)
+            .eq("armazem_id", armazemData.id);
+        }
+  
+        toast({ variant: "destructive", title: "Erro ao registrar remessa", description: errRemessa.message });
+        return;
+      }
+  
+      remessaId = novaRemessa.id;
+      console.log("✅ [SUCCESS] Remessa criada:", remessaId);
+  
+      markAsSaved();
+  
       toast({
         title: "Entrada registrada com sucesso!",
         description: `+${qtdNum}${unidade} de ${produtoSelecionado.nome} em ${armazemData.cidade}/${armazemData.estado}. Estoque atual: ${novaQuantidadeFisica}${unidade}. Documentos anexados.`
       });
-
+  
       resetFormNovoProduto();
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["estoque"] });
+      
     } catch (err: unknown) {
+      // ✅ ROLLBACK EM CASO DE ERRO INESPERADO
+      console.error("❌ [ERROR] Erro inesperado, executando rollback...", err);
+  
+      if (remessaId) {
+        await supabase
+          .from("estoque_remessas")
+          .delete()
+          .eq("id", remessaId);
+      }
+  
       toast({
         variant: "destructive",
         title: "Erro inesperado",
         description: err instanceof Error ? err.message : String(err)
       });
-      console.error("❌ [ERROR]", err);
     } finally {
       setIsCreating(false);
     }
