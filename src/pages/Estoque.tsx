@@ -151,7 +151,6 @@ const Estoque = () => {
     enabled: !!user && userRole === "armazem",
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
-    // ✅ SEM refetchInterval - Dado estático do usuário logado
   });
 
   console.log("🔍 [DEBUG] Estoque.tsx - currentArmazem:", currentArmazem);
@@ -190,7 +189,7 @@ const Estoque = () => {
       console.log("✅ [SUCCESS] Estoque.tsx - Dados carregados:", data?.length, "registros");
       return data;
     },
-    refetchInterval: isCreating ? false : 30000, // ✅ Pausar refetch durante operações críticas (criação de estoque)
+    refetchInterval: 30000,
     enabled: !!user?.id && (userRole !== "armazem" || !!currentArmazem?.id),
     staleTime: 2 * 60 * 1000,
   });
@@ -208,7 +207,7 @@ const Estoque = () => {
       }
       return data || [];
     },
-    // refetchInterval: 30000, // ❌ Refetch não deve ser usado em queries utilizadas em operações críticas (modal de criação)
+    refetchInterval: 30000,
     staleTime: 5 * 60 * 1000,
     enabled: !!user?.id,
   });
@@ -227,7 +226,7 @@ const Estoque = () => {
       }
       return data || [];
     },
-    // refetchInterval: 30000, // ❌ Refetch não deve ser usado em queries utilizadas em operações críticas (modal de criação)
+    refetchInterval: 30000,
     staleTime: 5 * 60 * 1000,
     enabled: canCreate && !!user?.id,
   });
@@ -250,7 +249,7 @@ const Estoque = () => {
       }
       return data || [];
     },
-    refetchInterval: 10000, // ✅ MANTER - Apenas para filtros, não afeta operações críticas
+    refetchInterval: 10000,
     staleTime: 3 * 60 * 1000,
     enabled: !!user?.id,
   });
@@ -515,19 +514,16 @@ const Estoque = () => {
   };
 
   const handleCreateProduto = async () => {
-    console.log("🔥 handleCreateProduto INICIADO - timestamp:", Date.now());
-    
     const { produtoId, armazem, quantidade, unidade } = novoProduto;
     const qtdNum = Number(quantidade);
 
-    // ✅ BLOQUEAR MÚLTIPLAS EXECUÇÕES
-    if (isCreating) {
-      console.log("⚠️ JÁ ESTÁ CRIANDO - abortando");
+    if (!produtoId || !armazem.trim() || !quantidade) {
+      toast({ variant: "destructive", title: "Preencha todos os campos obrigatórios" });
       return;
     }
 
-    if (!produtoId || !armazem.trim() || !quantidade) {
-      toast({ variant: "destructive", title: "Preencha todos os campos obrigatórios" });
+    if (!numeroRemessa.trim()) {
+      toast({ variant: "destructive", title: "Campo obrigatório", description: "Informe o número da remessa." });
       return;
     }
 
@@ -627,7 +623,6 @@ const Estoque = () => {
           .from("estoque")
           .update({
             quantidade: novaQuantidade,
-            quantidade_disponivel: (estoqueAtual.quantidade_disponivel || estoqueAtual.quantidade || 0) + qtdNum,
             updated_by: userData.user?.id,
             updated_at: new Date().toISOString(),
           })
@@ -644,7 +639,6 @@ const Estoque = () => {
             produto_id: produtoId,
             armazem_id: armazemData.id,
             quantidade: novaQuantidade,
-            quantidade_disponivel: novaQuantidade,
             updated_by: userData.user?.id,
             updated_at: new Date().toISOString(),
           });
@@ -668,6 +662,7 @@ const Estoque = () => {
 
       resetFormNovoProduto();
       setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["estoque"] });
     } catch (err: unknown) {
       toast({
         variant: "destructive",
@@ -676,7 +671,6 @@ const Estoque = () => {
       });
       console.error("❌ [ERROR]", err);
     } finally {
-      queryClient.invalidateQueries({ queryKey: ["estoque"] });
       setIsCreating(false);
     }
   };
@@ -929,7 +923,7 @@ const Estoque = () => {
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                           <div className="space-y-2">
-                            <Label htmlFor="numero-remessa" className="text-sm font-medium">Número da Remessa</Label>
+                            <Label htmlFor="numero-remessa" className="text-sm font-medium">Número da Remessa *</Label>
                             <Input
                               id="numero-remessa"
                               type="text"
@@ -1048,6 +1042,7 @@ const Estoque = () => {
                     disabled={
                       !temProdutosDisponiveis || 
                       !temArmazensDisponiveis || 
+                      !numeroRemessa.trim() ||
                       !notaRemessaFile || 
                       !xmlRemessaFile || 
                       isCreating
