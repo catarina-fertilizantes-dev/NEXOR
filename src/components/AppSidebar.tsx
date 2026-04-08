@@ -11,6 +11,7 @@ import {
   BadgeCheck,
   Tag,
   UserCheck,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -59,6 +60,13 @@ const upperMenuItems = [
     url: "/estoque",
     icon: Package,
     resource: "estoque" as const,
+    requiresRole: ["armazem"] as const,
+  },
+  {
+    title: "Manual",
+    url: "/manual/armazem",
+    icon: BookOpen,
+    resource: null,
     requiresRole: ["armazem"] as const,
   },
 ];

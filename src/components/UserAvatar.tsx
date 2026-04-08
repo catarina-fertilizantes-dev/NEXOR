@@ -1,16 +1,18 @@
 import { useState, useRef, useEffect } from "react";
-import { User, LogOut, Settings, ChevronDown } from "lucide-react";
+import { LogOut, ChevronDown, BookOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 export const UserAvatar = () => {
   const { user, userRole, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   // 🎯 BUSCAR NOME CORRETO DA TABELA (armazens/clientes/representantes)
   const { data: userDisplayName } = useQuery({
@@ -131,6 +133,11 @@ export const UserAvatar = () => {
     await signOut();
   };
 
+  const handleManualClick = () => {
+    setIsOpen(false);
+    navigate("/manual/armazem");
+  };
+
   // 🚧 TEMPORARIAMENTE DESABILITADO
   // TODO: Reativar quando a página de configurações for implementada
   /*
@@ -192,24 +199,24 @@ export const UserAvatar = () => {
 
           {/* 📱 MENU ITEMS COM CORES AJUSTADAS */}
           <div className="p-2">
-            {/* 🚧 TEMPORARIAMENTE DESABILITADO: Configurações */}
-            {/* TODO: Reativar quando a página de configurações for implementada */}
-            {/* 
-            <Button
-              variant="ghost"
-              className="w-full justify-start min-h-[44px] p-3 text-left rounded-md transition-all duration-200 hover:bg-gray-200 dark:hover:bg-gray-700/60 hover:shadow-sm group"
-              data-navigation="true"
-              onClick={handleConfigurationsClick}
-            >
-              <Settings className="h-4 w-4 mr-3 text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 flex-shrink-0 transition-colors duration-200" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">Configurações</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">Preferências da conta</p>
-              </div>
-            </Button>
-
-            <Separator className="my-2" />
-            */}
+            {/* 📘 MANUAL DE AJUDA (apenas para perfil armazem) */}
+            {userRole === "armazem" && (
+              <>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start min-h-[44px] p-3 text-left rounded-md transition-all duration-200 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:shadow-sm group"
+                  data-navigation="true"
+                  onClick={handleManualClick}
+                >
+                  <BookOpen className="h-4 w-4 mr-3 text-blue-500 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 flex-shrink-0 transition-colors duration-200" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-200">Manual de Ajuda</p>
+                    <p className="text-xs text-blue-500 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400">Guia do usuário Armazém</p>
+                  </div>
+                </Button>
+                <Separator className="my-2" />
+              </>
+            )}
 
             {/* 📱 LOGOUT COM CORES AJUSTADAS */}
             <Button

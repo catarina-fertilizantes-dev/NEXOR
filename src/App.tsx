@@ -19,6 +19,7 @@ import Armazens from "./pages/Armazens";
 import Clientes from "./pages/Clientes";
 import Representantes from "./pages/Representantes"; // 🆕 IMPORT ADICIONADO
 import Colaboradores from "./pages/Colaboradores";
+import ManualArmazem from "./pages/manual/ManualArmazem";
 import AuthPage from "./pages/AuthPage";
 import ChangePassword from "./pages/ChangePassword";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -29,12 +30,14 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({
   children,
-  resource
+  resource,
+  requiredRole
 }: {
   children: React.ReactNode;
   resource?: Resource;
+  requiredRole?: string;
 }) => {
-  const { user, loading: authLoading, needsPasswordChange, recoveryMode } = useAuth();
+  const { user, loading: authLoading, needsPasswordChange, recoveryMode, userRole } = useAuth();
   const { canAccess, loading: permLoading } = usePermissions();
   const location = useLocation();
 
@@ -57,6 +60,10 @@ const ProtectedRoute = ({
   if ((needsPasswordChange || recoveryMode) && location.pathname !== '/change-password') {
     console.log('🔍 [DEBUG] Redirecting to change password (needsPasswordChange:', needsPasswordChange, 'recoveryMode:', recoveryMode, ')');
     return <Navigate to="/change-password" replace />;
+  }
+
+  if (requiredRole && userRole !== requiredRole) {
+    return <Navigate to="/" replace />;
   }
 
   if (resource && !canAccess(resource, 'read')) {
@@ -202,6 +209,17 @@ const App = () => (
                 <ProtectedRoute resource="colaboradores">
                   <Layout>
                     <Colaboradores />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            {/* 🆕 MANUAL DO USUÁRIO */}
+            <Route
+              path="/manual/armazem"
+              element={
+                <ProtectedRoute requiredRole="armazem">
+                  <Layout>
+                    <ManualArmazem />
                   </Layout>
                 </ProtectedRoute>
               }
