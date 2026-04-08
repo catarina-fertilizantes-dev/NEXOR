@@ -15,6 +15,7 @@ const signInSchema = z.object({
 });
 
 const AuthPage = () => {
+  console.log("🔍 [DEBUG AUTH] AuthPage renderizado");  
   // 🚧 MODIFICAÇÃO TEMPORÁRIA: Adicionado getDefaultRouteForRole para redirecionamento por perfil
   // TODO: Remover getDefaultRouteForRole quando dashboards personalizados forem implementados
   // Após implementação dos dashboards, voltar ao redirecionamento original: <Navigate to="/" replace />
@@ -23,6 +24,14 @@ const AuthPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
+
+  console.log("🔍 [DEBUG AUTH] Estado atual:", {
+    userExists: !!user,
+    userId: user?.id,
+    userRole,
+    loading,
+    signingIn
+  });
 
   // 🚧 REDIRECIONAMENTO TEMPORÁRIO: Aguarda role ser carregada antes de redirecionar
   // ORIGINAL: return <Navigate to="/" replace />;
@@ -50,9 +59,20 @@ const AuthPage = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log("🔍 [DEBUG AUTH] ====== INÍCIO DO LOGIN ======");
+    console.log("🔍 [DEBUG AUTH] Email digitado:", email);
+    console.log("🔍 [DEBUG AUTH] Senha digitada (length):", password.length);
+    
     const result = signInSchema.safeParse({ email, password });
+    
+    console.log("🔍 [DEBUG AUTH] Validação Zod:", {
+      success: result.success,
+      errors: result.success ? null : result.error.issues
+    });
+    
     if (!result.success) {
       const firstError = result.error.issues[0];
+      console.log("❌ [DEBUG AUTH] Erro de validação:", firstError.message);
       toast({
         variant: "destructive",
         title: "Erro de validação",
@@ -61,9 +81,23 @@ const AuthPage = () => {
       return;
     }
     
+    console.log("🔍 [DEBUG AUTH] Validação OK, chamando signIn...");
+    console.log("🔍 [DEBUG AUTH] Email após trim:", result.data.email);
+    
     setSigningIn(true);
-    await signIn(result.data.email, result.data.password);
-    setSigningIn(false);
+    
+    try {
+      console.log("🔍 [DEBUG AUTH] Executando signIn do AuthContext...");
+      await signIn(result.data.email, result.data.password);
+      console.log("✅ [DEBUG AUTH] signIn retornou (sem exceção)");
+    } catch (error) {
+      console.log("❌ [DEBUG AUTH] Exceção capturada no handleSignIn:", error);
+      console.log("❌ [DEBUG AUTH] Tipo do erro:", typeof error);
+      console.log("❌ [DEBUG AUTH] Stack:", error instanceof Error ? error.stack : "N/A");
+    } finally {
+      console.log("🔍 [DEBUG AUTH] ====== FIM DO LOGIN ======");
+      setSigningIn(false);
+    }
   };
 
   return (

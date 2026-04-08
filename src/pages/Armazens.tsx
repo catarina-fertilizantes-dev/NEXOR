@@ -246,22 +246,44 @@ const Armazens = () => {
   }, [canCreate]);
 
   const handleCreateArmazem = async () => {
+    console.log("🔍 [DEBUG] ====== INÍCIO CRIAÇÃO ARMAZÉM ======");
+    
     const { nome, cidade, estado, email, telefone, endereco, capacidade_total, cep, cnpj_cpf } = novoArmazem;
+    
+    console.log("🔍 [DEBUG] Dados do formulário:", {
+      nome,
+      cidade,
+      estado,
+      email,
+      telefone,
+      endereco,
+      capacidade_total,
+      cep,
+      cnpj_cpf
+    });
+    
     if (!nome.trim() || !cidade.trim() || !estado.trim() || !email.trim() || !cnpj_cpf.trim()) {
+      console.log("❌ [DEBUG] Validação falhou: campos obrigatórios vazios");
       toast({
         variant: "destructive",
         title: "Preencha os campos obrigatórios",
       });
       return;
     }
-
+  
     setIsCreating(true);
-
+  
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
+  
+      console.log("🔍 [DEBUG] Variáveis de ambiente:");
+      console.log("  - SUPABASE_URL:", supabaseUrl);
+      console.log("  - ANON_KEY existe?", !!supabaseAnonKey);
+      console.log("  - ANON_KEY (primeiros 20 chars):", supabaseAnonKey?.substring(0, 20) + "...");
+  
       if (!supabaseUrl || !supabaseAnonKey) {
+        console.log("❌ [DEBUG] Variáveis de ambiente não configuradas");
         toast({
           variant: "destructive",
           title: "Erro de configuração",
@@ -269,9 +291,18 @@ const Armazens = () => {
         });
         return;
       }
-
+  
+      console.log("🔍 [DEBUG] Obtendo sessão...");
       const { data: { session } } = await supabase.auth.getSession();
+      
+      console.log("🔍 [DEBUG] Sessão obtida:");
+      console.log("  - Sessão existe?", !!session);
+      console.log("  - User ID:", session?.user?.id);
+      console.log("  - Token existe?", !!session?.access_token);
+      console.log("  - Token (primeiros 20 chars):", session?.access_token?.substring(0, 20) + "...");
+      
       if (!session) {
+        console.log("❌ [DEBUG] Sessão não existe ou expirou");
         toast({
           variant: "destructive",
           title: "Não autenticado",
@@ -279,10 +310,12 @@ const Armazens = () => {
         });
         return;
       }
+      
       let capacidadeTotalNumber: number | undefined = undefined;
       if (capacidade_total && capacidade_total.trim()) {
         capacidadeTotalNumber = parseFloat(capacidade_total);
         if (isNaN(capacidadeTotalNumber) || capacidadeTotalNumber < 0) {
+          console.log("❌ [DEBUG] Capacidade inválida:", capacidade_total);
           toast({
             variant: "destructive",
             title: "Capacidade inválida",
@@ -291,40 +324,63 @@ const Armazens = () => {
           return;
         }
       }
-
+  
       const cleanTelefone = telefone ? telefone.replace(/\D/g, "") : undefined;
       const cleanCep = cep ? cep.replace(/\D/g, "") : undefined;
       const cleanCnpjCpf = cnpj_cpf.replace(/\D/g, "");
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/create-armazem-user`, {
+  
+      const edgeFunctionUrl = `${supabaseUrl}/functions/v1/create-armazem-user`;
+      const bodyPayload = {
+        nome: nome.trim(),
+        email: email.trim(),
+        cidade: cidade.trim(),
+        estado: estado.trim(),
+        telefone: cleanTelefone,
+        endereco: endereco?.trim() || undefined,
+        capacidade_total: capacidadeTotalNumber,
+        cep: cleanCep,
+        cnpj_cpf: cleanCnpjCpf,
+      };
+  
+      console.log("🔍 [DEBUG] Preparando chamada para Edge Function:");
+      console.log("  - URL:", edgeFunctionUrl);
+      console.log("  - Body:", bodyPayload);
+      console.log("  - Headers:", {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token.substring(0, 20)}...`,
+        "apikey": supabaseAnonKey.substring(0, 20) + "..."
+      });
+  
+      console.log("🔍 [DEBUG] Enviando requisição...");
+      const response = await fetch(edgeFunctionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
           apikey: supabaseAnonKey,
         },
-        body: JSON.stringify({
-          nome: nome.trim(),
-          email: email.trim(),
-          cidade: cidade.trim(),
-          estado: estado.trim(),
-          telefone: cleanTelefone,
-          endereco: endereco?.trim() || undefined,
-          capacidade_total: capacidadeTotalNumber,
-          cep: cleanCep,
-          cnpj_cpf: cleanCnpjCpf,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
-
+  
+      console.log("🔍 [DEBUG] Resposta recebida:");
+      console.log("  - Status:", response.status);
+      console.log("  - Status Text:", response.statusText);
+      console.log("  - Headers:", Object.fromEntries(response.headers.entries()));
+  
       let textBody = await response.text();
+      console.log("🔍 [DEBUG] Response body (raw):", textBody);
+      
       let data: any = null;
       try {
         data = JSON.parse(textBody);
-      } catch {
+        console.log("🔍 [DEBUG] Response body (parsed):", data);
+      } catch (parseError) {
+        console.log("❌ [DEBUG] Erro ao fazer parse do JSON:", parseError);
         data = null;
       }
-
+  
       if (!response.ok) {
+        console.log("❌ [DEBUG] Resposta com erro (status não-ok)");
         let errorMessage = "Erro ao criar armazém";
         if (data) {
           if (
@@ -348,6 +404,7 @@ const Armazens = () => {
             errorMessage = JSON.stringify(data.details);
           }
         }
+        console.log("❌ [DEBUG] Mensagem de erro processada:", errorMessage);
         toast({
           variant: "destructive",
           title: "Erro ao criar armazém",
@@ -355,27 +412,29 @@ const Armazens = () => {
         });
         return;
       }
-
+  
       if (data && data.success) {
-        markAsSaved(); // ✅ Marcar como salvo ANTES de resetar
-
+        console.log("✅ [DEBUG] Armazém criado com sucesso!");
+        markAsSaved();
+  
         toast({
           title: "Armazém criado com sucesso!",
           description: `${nome} foi adicionado ao sistema.`,
         });
-
+  
         await fetchArmazens();
-
+  
         setCredenciaisModal({
           show: true,
           email: email.trim(),
           senha: data.senha || "",
           nome: nome.trim(),
         });
-
+  
         resetForm();
         setDialogOpen(false);
       } else {
+        console.log("❌ [DEBUG] Resposta sem success=true");
         toast({
           variant: "destructive",
           title: "Erro ao criar armazém",
@@ -383,12 +442,17 @@ const Armazens = () => {
         });
       }
     } catch (err) {
+      console.log("❌ [DEBUG] Exceção capturada:");
+      console.log("  - Tipo:", typeof err);
+      console.log("  - Erro:", err);
+      console.log("  - Stack:", err instanceof Error ? err.stack : "N/A");
       toast({
         variant: "destructive",
         title: "Erro de conexão/fetch",
         description: err instanceof Error ? err.message : JSON.stringify(err),
       });
     } finally {
+      console.log("🔍 [DEBUG] ====== FIM CRIAÇÃO ARMAZÉM ======");
       setIsCreating(false);
     }
   };

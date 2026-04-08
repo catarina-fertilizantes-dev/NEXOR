@@ -266,7 +266,7 @@ const Liberacoes = () => {
     try {
       const { data: estoqueData, error } = await supabase
         .from("estoque")
-        .select("quantidade")
+        .select("quantidade_disponivel") // ⬅️ ✅ MUDANÇA: usar quantidade_disponivel
         .eq("produto_id", produtoId)
         .eq("armazem_id", armazemId)
         .maybeSingle();
@@ -274,7 +274,7 @@ const Liberacoes = () => {
         setEstoqueNovoArmazem(0);
         return;
       }
-      setEstoqueNovoArmazem(estoqueData?.quantidade || 0);
+      setEstoqueNovoArmazem(estoqueData?.quantidade_disponivel || 0); // ⬅️ ✅ MUDANÇA
     } catch (error) {
       setEstoqueNovoArmazem(0);
     } finally {
@@ -408,7 +408,7 @@ const Liberacoes = () => {
     try {
       const { data: estoqueData, error } = await supabase
         .from("estoque")
-        .select("quantidade")
+        .select("quantidade_disponivel") // ⬅️ ✅ MUDANÇA: usar quantidade_disponivel
         .eq("produto_id", produtoId)
         .eq("armazem_id", armazemId)
         .maybeSingle();
@@ -418,7 +418,7 @@ const Liberacoes = () => {
         return;
       }
       if (estoqueData) {
-        setQuantidadeEstoque(estoqueData.quantidade || 0);
+        setQuantidadeEstoque(estoqueData.quantidade_disponivel || 0); // ⬅️ ✅ MUDANÇA
         setTemEstoqueCadastrado(true);
       } else {
         setQuantidadeEstoque(0);
