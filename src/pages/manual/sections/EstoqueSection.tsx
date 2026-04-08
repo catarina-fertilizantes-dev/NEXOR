@@ -25,6 +25,35 @@ export const EstoqueSection = () => {
         <h3 className="text-lg font-semibold text-foreground mb-3">Lista de Estoque</h3>
 
         <div className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium text-foreground mb-3">Recursos da página</h4>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="font-medium text-foreground mb-1">🔍 Busca</p>
+                  <p className="text-muted-foreground">Busque por nome do produto</p>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">🎯 Filtros</p>
+                  <p className="text-muted-foreground mb-1">Clique em "Filtros" para filtrar por:</p>
+                  <ul className="list-disc list-inside text-muted-foreground ml-2">
+                    <li>Produtos específicos</li>
+                    <li>Status (Normal ou Estoque Baixo)</li>
+                    <li>Período</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">🔄 Atualização</p>
+                  <p className="text-muted-foreground">A página atualiza automaticamente a cada 30 segundos. Pressione F5 para atualizar manualmente.</p>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">🖱️ Ações ao clicar no card</p>
+                  <p className="text-muted-foreground">Redireciona para a página de Detalhes do Estoque. É lá que você visualizará informações completas e histórico de remessas.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div>
             <h4 className="font-medium text-foreground mb-2">O que você pode fazer</h4>
             <div className="space-y-1">
@@ -152,39 +181,94 @@ export const EstoqueSection = () => {
 
           {/* Histórico de Remessas */}
           <div>
-            <h4 className="font-medium text-foreground mb-2">Histórico de Remessas</h4>
+            <h4 className="font-medium text-foreground mb-3">Histórico de Remessas</h4>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground mb-3">
-                  Lista cronológica de todas as movimentações do produto, incluindo entradas e saídas.
+                  Esta seção apresenta todas as entradas de estoque (remessas) registradas para o produto.
                 </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/30">
-                        <th className="text-left p-2 font-medium text-foreground">Produto</th>
-                        <th className="text-left p-2 font-medium text-foreground">Quantidade (t)</th>
-                        <th className="text-left p-2 font-medium text-foreground">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+
+                <div className="space-y-4">
+                  <div>
+                    <h5 className="font-medium text-foreground mb-2">Cada card de remessa mostra:</h5>
+                    <div className="space-y-1">
                       {[
-                        { product: "NPK 10-10-10", qty: "500", status: "Normal", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" },
-                        { product: "Ureia", qty: "120", status: "Baixo", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400" },
-                        { product: "MAP", qty: "0", status: "Zerado", color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400" },
-                      ].map((row, i) => (
-                        <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
-                          <td className="p-2 text-foreground">{row.product}</td>
-                          <td className="p-2 text-foreground">{row.qty}</td>
-                          <td className="p-2">
-                            <Badge className={row.color}>{row.status}</Badge>
-                          </td>
-                        </tr>
+                        "Número da Remessa (ou ID resumido se não houver número)",
+                        "Quantidade recebida",
+                        "Data e hora de registro",
+                        "Observações (se houver)",
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className="text-primary">•</span>
+                          <span className="text-foreground">{item}</span>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h5 className="font-medium text-foreground mb-2">Documentos disponíveis:</h5>
+                    <div className="space-y-1">
+                      {[
+                        "📄 Nota de Remessa (PDF) - clique para visualizar ou baixar",
+                        "📄 Arquivo XML - clique para visualizar ou baixar",
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className="text-foreground">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h5 className="font-medium text-foreground mb-2">Filtros de remessas:</h5>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Clique em "Filtros" para refinar sua busca por:
+                    </p>
+                    <ul className="list-disc list-inside text-muted-foreground ml-2 text-sm">
+                      <li>Número da remessa</li>
+                      <li>Período (data inicial e final)</li>
+                      <li>Quantidade (mínima e máxima)</li>
+                    </ul>
+                  </div>
+
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      💡 <strong>Dica:</strong> O contador de remessas é atualizado automaticamente conforme você aplica os filtros.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">* Exemplo ilustrativo. Os dados reais variam conforme seu armazém.</p>
+
+                <div className="mt-4">
+                  <h5 className="font-medium text-foreground mb-2">Exemplo ilustrativo:</h5>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/30">
+                          <th className="text-left p-2 font-medium text-foreground">Produto</th>
+                          <th className="text-left p-2 font-medium text-foreground">Quantidade (t)</th>
+                          <th className="text-left p-2 font-medium text-foreground">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { product: "NPK 10-10-10", qty: "500", status: "Normal", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" },
+                          { product: "Ureia", qty: "120", status: "Baixo", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400" },
+                          { product: "MAP", qty: "0", status: "Zerado", color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400" },
+                        ].map((row, i) => (
+                          <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            <td className="p-2 text-foreground">{row.product}</td>
+                            <td className="p-2 text-foreground">{row.qty}</td>
+                            <td className="p-2">
+                              <Badge className={row.color}>{row.status}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">* Exemplo ilustrativo. Os dados reais variam conforme seu armazém.</p>
+                </div>
               </CardContent>
             </Card>
           </div>

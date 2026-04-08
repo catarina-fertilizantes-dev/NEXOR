@@ -25,6 +25,41 @@ export const CarregamentosSection = () => {
         <h3 className="text-lg font-semibold text-foreground mb-3">Lista de Carregamentos</h3>
 
         <div className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium text-foreground mb-3">Recursos da página</h4>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="font-medium text-foreground mb-1">🔍 Busca</p>
+                  <p className="text-muted-foreground">Busque por cliente, placa, motorista ou número do pedido</p>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">🎯 Filtros</p>
+                  <p className="text-muted-foreground mb-1">Clique em "Filtros" para filtrar por:</p>
+                  <ul className="list-disc list-inside text-muted-foreground ml-2">
+                    <li>Status (Aguardando, Em Andamento, Finalizado)</li>
+                    <li>Período (data inicial e final)</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">📂 Seções</p>
+                  <ul className="list-disc list-inside text-muted-foreground ml-2">
+                    <li><strong>Carregamentos Ativos:</strong> Sempre visível</li>
+                    <li><strong>Carregamentos Finalizados:</strong> Clique para expandir/recolher</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">🔄 Atualização</p>
+                  <p className="text-muted-foreground">A página atualiza automaticamente a cada 30 segundos. Pressione F5 para atualizar manualmente.</p>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">🖱️ Ações ao clicar no card</p>
+                  <p className="text-muted-foreground">Redireciona para a página de Detalhes do Carregamento. É lá que você realizará as operações de registro de etapas, fotos e documentos.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div>
             <h4 className="font-medium text-foreground mb-2">O que você pode fazer</h4>
             <div className="space-y-1">
@@ -100,16 +135,31 @@ export const CarregamentosSection = () => {
         </p>
 
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-4">
             <Card>
               <CardContent className="p-4">
                 <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
                   <Info className="h-4 w-4 text-primary" />
                   Painel de Informações
                 </h4>
-                <p className="text-sm text-muted-foreground">
-                  Exibe dados do agendamento vinculado: transportadora, motorista, placa, produto e quantidade agendada.
+                <p className="text-sm text-muted-foreground mb-3">
+                  No lado direito da tela (ou abaixo no mobile) você visualiza informações importantes:
                 </p>
+                <div className="space-y-1">
+                  {[
+                    "Dados do pedido e cliente",
+                    "Produto e quantidade",
+                    "Veículos e placas",
+                    "Motorista e transportadora",
+                    "Datas e status atual",
+                    "Progresso da documentação (na Etapa 5)",
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600 dark:text-green-400">✅</span>
+                      <span className="text-foreground">{item}</span>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -118,9 +168,38 @@ export const CarregamentosSection = () => {
                   <Clock className="h-4 w-4 text-primary" />
                   Estatísticas de Tempo
                 </h4>
-                <p className="text-sm text-muted-foreground">
-                  Mostra a duração de cada etapa e o tempo total do processo de carregamento.
+                <p className="text-sm text-muted-foreground mb-3">
+                  Quando disponíveis, o sistema exibe métricas de performance:
                 </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left p-2 font-medium text-foreground">Métrica</th>
+                        <th className="text-left p-2 font-medium text-foreground">Descrição</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border">
+                        <td className="p-2 font-medium text-foreground">Tempo de Espera 🚛</td>
+                        <td className="p-2 text-muted-foreground">Tempo entre a chegada do caminhão no armazém e o início efetivo do carregamento</td>
+                      </tr>
+                      <tr className="border-b border-border">
+                        <td className="p-2 font-medium text-foreground">Tempo de Carregamento ⚡</td>
+                        <td className="p-2 text-muted-foreground">Tempo da operação física de carregamento, desde o início até a finalização</td>
+                      </tr>
+                      <tr className="border-b border-border">
+                        <td className="p-2 font-medium text-foreground">Tempo Total do Processo ⏱️</td>
+                        <td className="p-2 text-muted-foreground">Tempo completo do processo, desde a chegada até a finalização da documentação</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3 mt-3">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    💡 <strong>Dica:</strong> Passe o mouse sobre o ícone ℹ️ ao lado de cada métrica para ver a descrição completa.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
