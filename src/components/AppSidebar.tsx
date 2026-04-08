@@ -66,7 +66,6 @@ const upperMenuItems = [
     title: "Manual",
     url: "/manual/armazem",
     icon: BookOpen,
-    resource: null,
     requiresRole: ["armazem"] as const,
   },
 ];

@@ -1,4 +1,4 @@
-import { Info, BookOpen, Lock, Navigation, Calendar, Truck, Package, Smartphone, HelpCircle } from "lucide-react";
+import { Info, BookOpen, Calendar, Truck, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const IntroducaoSection = () => {

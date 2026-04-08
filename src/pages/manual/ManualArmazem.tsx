@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { BookOpen, Menu, X, Home, UserPlus, Key, Navigation, Calendar, Truck, Package, Smartphone, HelpCircle } from "lucide-react";
+import { BookOpen, Menu, X } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { IntroducaoSection } from "./sections/IntroducaoSection";
@@ -13,15 +13,15 @@ import { AcessoMobileSection } from "./sections/AcessoMobileSection";
 import { DicasSuporteSection } from "./sections/DicasSuporteSection";
 
 const sections = [
-  { id: "introducao", label: "Introdução", icon: Home, emoji: "🏠" },
-  { id: "primeiro-acesso", label: "Primeiro Acesso", icon: UserPlus, emoji: "🆕" },
-  { id: "login-recuperacao", label: "Login e Recuperação", icon: Key, emoji: "🔑" },
-  { id: "navegacao", label: "Navegação no Sistema", icon: Navigation, emoji: "🧭" },
-  { id: "agendamentos", label: "Agendamentos", icon: Calendar, emoji: "📅" },
-  { id: "carregamentos", label: "Carregamentos", icon: Truck, emoji: "🚚" },
-  { id: "estoque", label: "Estoque", icon: Package, emoji: "📦" },
-  { id: "acesso-mobile", label: "Acesso Mobile", icon: Smartphone, emoji: "📱" },
-  { id: "dicas-suporte", label: "Dicas e Suporte", icon: HelpCircle, emoji: "🆘" },
+  { id: "introducao", label: "Introdução", emoji: "🏠" },
+  { id: "primeiro-acesso", label: "Primeiro Acesso", emoji: "🆕" },
+  { id: "login-recuperacao", label: "Login e Recuperação", emoji: "🔑" },
+  { id: "navegacao", label: "Navegação no Sistema", emoji: "🧭" },
+  { id: "agendamentos", label: "Agendamentos", emoji: "📅" },
+  { id: "carregamentos", label: "Carregamentos", emoji: "🚚" },
+  { id: "estoque", label: "Estoque", emoji: "📦" },
+  { id: "acesso-mobile", label: "Acesso Mobile", emoji: "📱" },
+  { id: "dicas-suporte", label: "Dicas e Suporte", emoji: "🆘" },
 ];
 
 const ManualArmazem = () => {
