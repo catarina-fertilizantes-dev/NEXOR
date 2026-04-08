@@ -218,9 +218,7 @@ const App = () => (
               path="/manual/armazem"
               element={
                 <ProtectedRoute requiredRole="armazem">
-                  <Layout>
-                    <ManualArmazem />
-                  </Layout>
+                  <ManualArmazem />
                 </ProtectedRoute>
               }
             />
