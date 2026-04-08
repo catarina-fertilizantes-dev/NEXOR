@@ -10,6 +10,41 @@ export const AgendamentosSection = () => {
         <p className="text-muted-foreground">Visualize e acompanhe os agendamentos de carregamento do seu armazém.</p>
       </div>
 
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium text-foreground mb-3">Recursos da página</h4>
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="font-medium text-foreground mb-1">🔍 Busca</p>
+              <p className="text-muted-foreground">Busque por cliente, produto, motorista ou número do pedido</p>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">🎯 Filtros</p>
+              <p className="text-muted-foreground mb-1">Clique em "Filtros" para filtrar por:</p>
+              <ul className="list-disc list-inside text-muted-foreground ml-2">
+                <li>Status (Pendente, Em Andamento, Concluído)</li>
+                <li>Período (data inicial e final)</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">📂 Seções</p>
+              <ul className="list-disc list-inside text-muted-foreground ml-2">
+                <li><strong>Agendamentos Ativos:</strong> Sempre visível</li>
+                <li><strong>Agendamentos Finalizados:</strong> Clique para expandir/recolher</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">👁️ Ver detalhes</p>
+              <p className="text-muted-foreground">Clique em qualquer card para abrir uma janela com informações completas</p>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">🔄 Atualização</p>
+              <p className="text-muted-foreground">A página atualiza automaticamente a cada 30 segundos. Pressione F5 para atualizar manualmente.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Permissões de Agendamentos</h3>
         <div className="overflow-x-auto">
