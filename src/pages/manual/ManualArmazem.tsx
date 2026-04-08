@@ -7,7 +7,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { IntroducaoSection } from "./sections/IntroducaoSection";
 import { PrimeiroAcessoSection } from "./sections/PrimeiroAcessoSection";
 import { LoginRecuperacaoSection } from "./sections/LoginRecuperacaoSection";
-import { NavegacaoSection } from "./sections/NavegacaoSection";
+import { NavegacaoSection } from "./sections/NavegacaoSection";  
 import { AgendamentosSection } from "./sections/AgendamentosSection";
 import { CarregamentosSection } from "./sections/CarregamentosSection";
 import { EstoqueSection } from "./sections/EstoqueSection";
@@ -40,9 +40,23 @@ const ManualArmazem = () => {
       isScrollingRef.current = true;
       setActiveSection(sectionId);
       setSidebarOpen(false);
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      
+      // Calcular posição considerando headers fixos
+      const headerSystemHeight = 56;  // h-14 = 56px
+      const headerPageHeight = 61;    // ~61px (py-3 + textos)
+      const offset = headerSystemHeight + headerPageHeight + 20; // +20px de margem
+      
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - offset;
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
+      
       // Atualizar URL com hash
       window.history.pushState(null, "", `#${sectionId}`);
+      
       setTimeout(() => {
         isScrollingRef.current = false;
       }, 1000);
@@ -78,7 +92,18 @@ const ManualArmazem = () => {
       setTimeout(() => {
         const element = document.getElementById(hash);
         if (element) {
-          element.scrollIntoView({ behavior: "smooth", block: "start" });
+          const headerSystemHeight = 56;
+          const headerPageHeight = 61;
+          const offset = headerSystemHeight + headerPageHeight + 20;
+          
+          const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+          const offsetPosition = elementPosition - offset;
+          
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: "smooth"
+          });
+          
           setActiveSection(hash);
         }
       }, 100);
@@ -176,11 +201,11 @@ const ManualArmazem = () => {
         {/* ✅ Sidebar (design original restaurado) */}
         <aside
           className={`
-            fixed md:sticky md:top-[6.75rem] z-40 md:z-auto
+            fixed md:sticky md:top-[7.5rem] z-40 md:z-auto
             w-64 md:w-56 lg:w-64
             bg-card md:bg-transparent
             border-r border-border
-            h-screen md:h-[calc(100vh-6.75rem)]
+            h-screen md:h-[calc(100vh-7.5rem)]
             overflow-y-auto
             transition-transform duration-300 md:transition-none
             md:translate-x-0
