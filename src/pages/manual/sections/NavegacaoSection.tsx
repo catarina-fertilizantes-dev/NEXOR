@@ -86,6 +86,31 @@ export const NavegacaoSection = () => {
       </div>
 
       <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Menu Lateral</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium text-foreground mb-2">🖥️ Web (Computador)</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Menu fixo à esquerda da tela</li>
+                <li>• Pode ficar expandido (mostra ícones e textos) ou colapsado (mostra apenas ícones)</li>
+              </ul>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium text-foreground mb-2">📱 Mobile (Celular/Tablet)</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Menu fica oculto por padrão para aproveitar melhor o espaço da tela</li>
+                <li>• Acesso através do ícone de menu (☰) no canto superior esquerdo</li>
+                <li>• Fecha automaticamente ao selecionar uma opção</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Glossário Básico</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">

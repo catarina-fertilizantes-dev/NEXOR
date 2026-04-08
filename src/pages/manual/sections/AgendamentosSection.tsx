@@ -92,6 +92,39 @@ export const AgendamentosSection = () => {
           Se precisar criar ou cancelar um agendamento, entre em contato com o usuário de Logística responsável.
         </p>
       </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Barra de Progresso do Carregamento</h3>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Cada card de agendamento exibe uma barra de progresso roxa que mostra o andamento do carregamento associado:
+            </p>
+            <div className="space-y-2">
+              {[
+                { pct: "0%", label: "Aguardando chegada do veículo" },
+                { pct: "20%", label: "Carregamento do caminhão iniciado" },
+                { pct: "40%", label: "Carregando o caminhão" },
+                { pct: "60%", label: "Carregamento do caminhão finalizado" },
+                { pct: "80%", label: "Anexando documentação" },
+                { pct: "100%", label: "Documentação anexada e processo concluído" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm">
+                  <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 shrink-0 w-12 justify-center">
+                    {item.pct}
+                  </Badge>
+                  <span className="text-foreground">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3 mt-3">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            💡 <strong>Dica:</strong> Passe o mouse sobre a barra de progresso ou o percentual para ver uma descrição detalhada da etapa atual.
+          </p>
+        </div>
+      </div>
     </section>
   );
 };

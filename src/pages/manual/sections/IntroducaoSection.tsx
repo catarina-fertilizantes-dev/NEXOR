@@ -15,11 +15,15 @@ export const IntroducaoSection = () => {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-primary to-primary/80 shrink-0">
               <Info className="h-5 w-5 text-white" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <h3 className="font-semibold text-foreground">Sobre o Sistema NEXOR</h3>
               <p className="text-sm text-muted-foreground">
                 O Sistema NEXOR é uma plataforma completa de gestão logística desenvolvida para otimizar e controlar 
                 todo o fluxo de operações de armazém, carregamentos, agendamentos e estoque da Catarina Fertilizantes.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Este manual foi desenvolvido especificamente para usuários com perfil Armazém, apresentando todas as 
+                funcionalidades disponíveis para este nível de acesso.
               </p>
             </div>
           </div>
@@ -49,8 +53,8 @@ export const IntroducaoSection = () => {
         <div className="grid gap-2 sm:grid-cols-2">
           {[
             { icon: Calendar, text: "Visualizar agendamentos de carregamento" },
-            { icon: Truck, text: "Gerenciar carregamentos completos" },
-            { icon: Package, text: "Visualizar estoque do seu armazém" },
+            { icon: Truck, text: "Gerenciar carregamentos completos - registrar chegada, fotos de cada etapa e anexar documentos" },
+            { icon: Package, text: "Visualizar estoque do seu armazém e histórico de movimentações" },
           ].map((item, i) => (
             <Card key={i}>
               <CardContent className="p-3 flex items-center gap-3">
