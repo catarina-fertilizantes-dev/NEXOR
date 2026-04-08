@@ -176,11 +176,11 @@ const ManualArmazem = () => {
         {/* ✅ Sidebar (design original restaurado) */}
         <aside
           className={`
-            fixed md:sticky md:top-14 z-40 md:z-auto
+            fixed md:sticky md:top-[6.75rem] z-40 md:z-auto
             w-64 md:w-56 lg:w-64
             bg-card md:bg-transparent
             border-r border-border
-            h-screen md:h-[calc(100vh-3.5rem)]
+            h-screen md:h-[calc(100vh-6.75rem)]
             overflow-y-auto
             transition-transform duration-300 md:transition-none
             md:translate-x-0
