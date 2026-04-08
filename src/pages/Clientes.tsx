@@ -440,14 +440,37 @@ const Clientes = () => {
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      // ✅ FORÇA REFRESH DO TOKEN
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
         toast({
           variant: "destructive",
           title: "Não autenticado",
           description: "Sessão expirada. Faça login novamente.",
         });
         return;
+      }
+      
+      // ✅ VERIFICAR SE O TOKEN NÃO ESTÁ EXPIRADO
+      const now = Math.floor(Date.now() / 1000);
+      const expiresAt = session.expires_at || 0;
+      
+      if (expiresAt - now < 60) {
+        // Token expira em menos de 1 minuto, forçar refresh
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData.session) {
+          toast({
+            variant: "destructive",
+            title: "Sessão expirada",
+            description: "Faça login novamente.",
+          });
+          return;
+        }
+        
+        // Usar novo token
+        session = refreshData.session;
       }
 
       // Salva SEM formatação
