@@ -94,6 +94,48 @@ export const AcessoMobileSection = () => {
           normalmente, mas pode ser mais lento em áreas com sinal fraco.
         </p>
       </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Compatibilidade</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium text-foreground mb-2">🌐 Navegadores compatíveis</h4>
+              <div className="space-y-1">
+                {[
+                  "Google Chrome (recomendado)",
+                  "Safari (iOS/Mac)",
+                  "Firefox",
+                  "Microsoft Edge",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-foreground">
+                    <span className="text-green-600 dark:text-green-400">✅</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium text-foreground mb-2">💻 Sistemas operacionais</h4>
+              <div className="space-y-1">
+                {[
+                  "Android 8.0 ou superior",
+                  "iOS 12 ou superior",
+                  "Windows 10 ou superior",
+                  "macOS 10.14 ou superior",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-foreground">
+                    <span className="text-green-600 dark:text-green-400">✅</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </section>
   );
 };

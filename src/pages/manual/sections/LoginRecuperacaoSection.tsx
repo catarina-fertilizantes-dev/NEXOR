@@ -84,6 +84,27 @@ export const LoginRecuperacaoSection = () => {
           </CardContent>
         </Card>
       </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Dicas importantes</h3>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 mb-3">
+            <AlertCircle className="h-5 w-5" />
+            <span className="font-medium">Caso não receba o e-mail de recuperação:</span>
+          </div>
+          <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1 mb-4">
+            <li>• Verifique se o e-mail digitado está correto</li>
+            <li>• Confira sua pasta de spam/lixo eletrônico</li>
+            <li>• Aguarde alguns minutos (o e-mail pode demorar)</li>
+            <li>• Tente reenviar o link de recuperação</li>
+          </ul>
+          <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-2">Se o problema persistir:</p>
+          <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+            <li>• Entre em contato com a equipe de Logística</li>
+            <li>• Contacte o Suporte Técnico (veja seção 9 - Dicas e Suporte)</li>
+          </ul>
+        </div>
+      </div>
     </section>
   );
 };
