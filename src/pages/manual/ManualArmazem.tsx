@@ -4,15 +4,15 @@ import { BookOpen, Menu, X, ArrowLeft, ArrowUp, Search } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
-import { IntroducaoSection } from "./sections/IntroducaoSection";
-import { PrimeiroAcessoSection } from "./sections/PrimeiroAcessoSection";
-import { LoginRecuperacaoSection } from "./sections/LoginRecuperacaoSection";
-import { NavegacaoSection } from "./sections/NavegacaoSection";  
-import { AgendamentosSection } from "./sections/AgendamentosSection";
-import { CarregamentosSection } from "./sections/CarregamentosSection";
-import { EstoqueSection } from "./sections/EstoqueSection";
-import { AcessoMobileSection } from "./sections/AcessoMobileSection";
-import { DicasSuporteSection } from "./sections/DicasSuporteSection";
+import { IntroducaoSection } from "./sections/armazem/IntroducaoSection";
+import { NavegacaoSection } from "./sections/armazem/NavegacaoSection";
+import { AgendamentosSection } from "./sections/armazem/AgendamentosSection";
+import { CarregamentosSection } from "./sections/armazem/CarregamentosSection";
+import { EstoqueSection } from "./sections/armazem/EstoqueSection";
+import { PrimeiroAcessoSection } from "./sections/usuarios/PrimeiroAcessoSection";
+import { LoginRecuperacaoSection } from "./sections/shared/LoginRecuperacaoSection";
+import { AcessoMobileSection } from "./sections/shared/AcessoMobileSection";
+import { DicasSuporteSection } from "./sections/shared/DicasSuporteSection";
 
 const sections = [
   { id: "introducao", label: "Introdução", emoji: "🏠" },
