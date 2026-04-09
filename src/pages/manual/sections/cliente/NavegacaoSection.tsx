@@ -43,7 +43,7 @@ export const NavegacaoSection = () => {
                 { menu: "📋 Liberações", func: "Visualize suas compras liberadas pela Logística" },
                 { menu: "📅 Agendamentos", func: "Crie e gerencie suas retiradas agendadas" },
                 { menu: "🚚 Carregamentos", func: "Acompanhe o processo de carregamento em tempo real" },
-                { menu: "📖 Manual", func: "Acesso a este manual de ajuda (via avatar)" },
+                { menu: "📖 Manual", func: "Acesso a este manual de ajuda" },
               ].map((row, i) => (
                 <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
                   <td className="p-2 text-foreground">{row.menu}</td>
@@ -108,6 +108,54 @@ export const NavegacaoSection = () => {
         <p className="text-sm text-blue-700 dark:text-blue-300">
           O sistema suporta modo claro e escuro. A configuração segue automaticamente a preferência do seu dispositivo.
         </p>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Glossário Básico</h3>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="border px-4 py-2 text-left font-semibold">Termo</th>
+                    <th className="border px-4 py-2 text-left font-semibold">Significado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border px-4 py-2 font-medium">Modal</td>
+                    <td className="border px-4 py-2">Janela que abre sobre a tela atual para entrada de dados ou confirmação</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-4 py-2 font-medium">Filtro</td>
+                    <td className="border px-4 py-2">Ferramenta para selecionar e exibir apenas os registros desejados</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-4 py-2 font-medium">Paginação</td>
+                    <td className="border px-4 py-2">Divisão de uma lista em páginas para facilitar a visualização</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-4 py-2 font-medium">Status</td>
+                    <td className="border px-4 py-2">Situação atual de um registro (ex: Pendente, Confirmado, Cancelado)</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-4 py-2 font-medium">Timestamp</td>
+                    <td className="border px-4 py-2">Data e hora em que uma ação foi registrada no sistema</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-4 py-2 font-medium">Anexo</td>
+                    <td className="border px-4 py-2">Arquivo (imagem, PDF) vinculado a um registro</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-4 py-2 font-medium">Placeholder</td>
+                    <td className="border px-4 py-2">Texto de exemplo exibido em campos de entrada antes de digitar</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );
