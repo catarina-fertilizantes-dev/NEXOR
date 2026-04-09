@@ -62,18 +62,6 @@ const upperMenuItems = [
     resource: "estoque" as const,
     requiresRole: ["armazem"] as const,
   },
-  {
-    title: "Manual",
-    url: "/manual/armazem",
-    icon: BookOpen,
-    requiresRole: ["armazem"] as const,
-  },
-  {
-    title: "Manual",
-    url: "/manual/cliente",
-    icon: BookOpen,
-    requiresRole: ["cliente"] as const,
-  },
 ];
 
 const lowerMenuItems = [
@@ -277,6 +265,51 @@ export function AppSidebar() {
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* Manual - Armazém */}
+              {userRole === "armazem" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/armazem"
+                      className={`${getMenuClasses("/manual/armazem", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/armazem") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/armazem") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              
+              {/* Manual - Cliente */}
+              {userRole === "cliente" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/cliente"
+                      className={`${getMenuClasses("/manual/cliente", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/cliente") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/cliente") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              
+              {/* Sair */}
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   onClick={handleLogout}
