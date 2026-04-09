@@ -41,54 +41,35 @@ export const CarregamentosSection = () => {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-2 text-center">1️⃣</td>
-                <td className="p-2 font-medium text-foreground">Chegada</td>
-                <td className="p-2 text-muted-foreground">Caminhão chega ao armazém</td>
-                <td className="p-2 text-foreground">
-                  👁️ Ver foto<br/>
-                  📥 Baixar foto<br/>
-                  📄 Ver observações
-                </td>
-              </tr>
-              <tr className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-2 text-center">2️⃣</td>
-                <td className="p-2 font-medium text-foreground">Início Carregamento</td>
-                <td className="p-2 text-muted-foreground">Armazém inicia o carregamento</td>
-                <td className="p-2 text-foreground">
-                  👁️ Ver foto<br/>
-                  📥 Baixar foto<br/>
-                  📄 Ver observações
-                </td>
-              </tr>
-              <tr className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-2 text-center">3️⃣</td>
-                <td className="p-2 font-medium text-foreground">Carregando</td>
-                <td className="p-2 text-muted-foreground">Processo de carregamento em curso</td>
-                <td className="p-2 text-foreground">
-                  👁️ Ver foto<br/>
-                  📥 Baixar foto<br/>
-                  📄 Ver observações
-                </td>
-              </tr>
-              <tr className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-2 text-center">4️⃣</td>
-                <td className="p-2 font-medium text-foreground">Carreg. Finalizado</td>
-                <td className="p-2 text-muted-foreground">Carregamento concluído</td>
-                <td className="p-2 text-foreground">
-                  👁️ Ver foto<br/>
-                  📥 Baixar foto<br/>
-                  📄 Ver observações
-                </td>
-              </tr>
+              {[
+                { etapa: "1️⃣", nome: "Chegada", desc: "Caminhão chega ao armazém" },
+                { etapa: "2️⃣", nome: "Início Carregamento", desc: "Armazém inicia o carregamento" },
+                { etapa: "3️⃣", nome: "Carregando", desc: "Processo de carregamento em curso" },
+                { etapa: "4️⃣", nome: "Carreg. Finalizado", desc: "Carregamento concluído" },
+              ].map((row, i) => (
+                <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
+                  <td className="p-2 text-center">{row.etapa}</td>
+                  <td className="p-2 font-medium text-foreground">{row.nome}</td>
+                  <td className="p-2 text-muted-foreground">{row.desc}</td>
+                  <td className="p-2 text-foreground">
+                    <ul className="space-y-0.5 list-none">
+                      <li>👁️ Ver foto</li>
+                      <li>📥 Baixar foto</li>
+                      <li>📄 Ver observações</li>
+                    </ul>
+                  </td>
+                </tr>
+              ))}
               <tr className="border-b border-border hover:bg-muted/30 transition-colors">
                 <td className="p-2 text-center">5️⃣</td>
                 <td className="p-2 font-medium text-foreground">Documentação</td>
                 <td className="p-2 text-muted-foreground">Anexo de 3 tipos de documentos</td>
                 <td className="p-2 text-foreground">
-                  👁️ Ver documentos<br/>
-                  📥 Baixar 6 arquivos<br/>
-                  (3 PDFs + 3 XMLs)
+                  <ul className="space-y-0.5 list-none">
+                    <li>👁️ Ver documentos</li>
+                    <li>📥 Baixar 6 arquivos</li>
+                    <li>(3 PDFs + 3 XMLs)</li>
+                  </ul>
                 </td>
               </tr>
               <tr className="border-b border-border hover:bg-muted/30 transition-colors">
