@@ -56,6 +56,11 @@ const ManualArmazem = () => {
       
       // Atualizar URL com hash
       window.history.pushState(null, "", `#${sectionId}`);
+
+      // Disparar evento de scroll após navegação para ativar o botão "Voltar ao Topo"
+      setTimeout(() => {
+        window.dispatchEvent(new Event('scroll'));
+      }, 100);
       
       setTimeout(() => {
         isScrollingRef.current = false;
@@ -65,6 +70,9 @@ const ManualArmazem = () => {
 
   useEffect(() => {
     const handleScroll = () => {
+      // Mostrar/esconder botão voltar ao topo (sempre atualizado, independente de scroll programático)
+      setShowScrollTop(window.scrollY > 500);
+
       if (isScrollingRef.current) return;
 
       const scrollPosition = window.scrollY + 120;
@@ -76,9 +84,6 @@ const ManualArmazem = () => {
           break;
         }
       }
-
-      // Mostrar/esconder botão voltar ao topo
-      setShowScrollTop(window.scrollY > 500);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
