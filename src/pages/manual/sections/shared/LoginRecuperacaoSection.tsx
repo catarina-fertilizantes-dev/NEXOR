@@ -1,0 +1,1 @@
+export { LoginRecuperacaoSection } from "../LoginRecuperacaoSection";

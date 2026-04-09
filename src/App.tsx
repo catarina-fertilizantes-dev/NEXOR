@@ -20,6 +20,7 @@ import Clientes from "./pages/Clientes";
 import Representantes from "./pages/Representantes"; // 🆕 IMPORT ADICIONADO
 import Colaboradores from "./pages/Colaboradores";
 import ManualArmazem from "./pages/manual/ManualArmazem";
+import ManualCliente from "./pages/manual/ManualCliente";
 import AuthPage from "./pages/AuthPage";
 import ChangePassword from "./pages/ChangePassword";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -219,6 +220,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="armazem">
                   <ManualArmazem />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manual/cliente"
+              element={
+                <ProtectedRoute requiredRole="cliente">
+                  <ManualCliente />
                 </ProtectedRoute>
               }
             />
