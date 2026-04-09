@@ -1,6 +1,7 @@
 import { Info, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export const AgendamentosSection = () => {
   return (
@@ -82,11 +83,51 @@ export const AgendamentosSection = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3">
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  💡 <strong>Atenção ao Armazém:</strong> Ao selecionar a liberação, o sistema destaca automaticamente
-                  o armazém onde você deve retirar o produto. Certifique-se de enviar o caminhão para o local correto!
-                </p>
+              <div className="mt-3">
+                <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <div className="ml-2">
+                    <AlertTitle className="text-orange-900 dark:text-orange-100 font-semibold mb-2">
+                      ⚠️ ATENÇÃO AO ARMAZÉM DE RETIRADA
+                    </AlertTitle>
+                    <AlertDescription className="text-orange-800 dark:text-orange-200 space-y-3">
+                      <p>
+                        Ao selecionar a liberação, o sistema <strong>destaca em um card azul</strong> o armazém 
+                        onde você deve retirar o produto neste agendamento.
+                      </p>
+
+                      <div className="space-y-2">
+                        <p className="font-semibold">🔄 IMPORTANTE:</p>
+                        <p>
+                          O time de Logística pode modificar o armazém entre agendamentos, dependendo de:
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          <li>Disponibilidade de estoque</li>
+                          <li>Movimento e capacidade do armazém</li>
+                          <li>Logística de distribuição</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="font-semibold">💡 Isso significa:</p>
+                        <ul className="space-y-1">
+                          <li>✅ Agendamento 1 → Retirada no Armazém São Paulo</li>
+                          <li>✅ Agendamento 2 → Retirada no Armazém Campinas (pode ser diferente!)</li>
+                          <li>✅ Agendamento 3 → Retirada no Armazém São Paulo (pode voltar!)</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="font-semibold">🎯 O QUE VOCÊ DEVE FAZER:</p>
+                        <ol className="list-decimal list-inside space-y-1 ml-2">
+                          <li>⚠️ <strong>Sempre verifique o card azul</strong> antes de confirmar o agendamento</li>
+                          <li>📍 <strong>Confirme o armazém de destino</strong> com a transportadora</li>
+                          <li>🚚 <strong>Envie o caminhão para o local correto</strong> indicado no sistema</li>
+                        </ol>
+                      </div>
+                    </AlertDescription>
+                  </div>
+                </Alert>
               </div>
             </CardContent>
           </Card>

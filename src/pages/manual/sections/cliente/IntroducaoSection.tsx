@@ -1,4 +1,4 @@
-import { Info, BookOpen, ClipboardList, Calendar, Truck } from "lucide-react";
+import { Info, BookOpen, ClipboardList, Calendar, Truck, CheckCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const IntroducaoSection = () => {
@@ -30,6 +30,56 @@ export const IntroducaoSection = () => {
         </CardContent>
       </Card>
 
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-foreground">Objetivo deste Manual</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                <span className="text-sm">Acessar o sistema de forma segura</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                <span className="text-sm">Navegar pelas diferentes telas</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                <span className="text-sm">Criar agendamentos e acompanhar carregamentos</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                <span className="text-sm">Compreender suas permissões e responsabilidades</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                <span className="text-sm">Utilizar o sistema em computadores e dispositivos móveis</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">O que você pode fazer como Cliente</h3>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -48,22 +98,20 @@ export const IntroducaoSection = () => {
         </div>
       </div>
 
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">O que você NÃO pode fazer</h3>
-        <div className="grid gap-2">
-          {[
-            "Criar ou editar liberações (apenas Logística)",
-            "Atualizar etapas de carregamento (apenas Armazém)",
-            "Gerenciar estoque (apenas Armazém e Logística)",
-            "Cancelar ou editar agendamentos após criação (solicite à Logística)",
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm text-foreground">
-              <span className="text-red-600 dark:text-red-400 font-bold">❌</span>
-              <span>{item}</span>
+      <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Acesso ao Sistema</h4>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                Acesse o sistema pelo link fornecido pela sua equipe de Logística. 
+                Recomendamos salvar o link nos favoritos do seu navegador para acesso rápido.
+              </p>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4">
         <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 mb-2">
