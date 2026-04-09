@@ -1,0 +1,1 @@
+export { PrimeiroAcessoSection } from "../PrimeiroAcessoSection";

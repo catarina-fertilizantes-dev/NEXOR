@@ -1,0 +1,1 @@
+export { AcessoMobileSection } from "../AcessoMobileSection";
