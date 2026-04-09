@@ -215,7 +215,7 @@ export const UserAvatar = () => {
                 >
                   <BookOpen className="h-4 w-4 mr-3 text-blue-500 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 flex-shrink-0 transition-colors duration-200" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-200">Manual de Ajuda</p>
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-200">Manual</p>
                     <p className="text-xs text-blue-500 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400">Guia do usuário Armazém</p>
                   </div>
                 </Button>
@@ -234,7 +234,7 @@ export const UserAvatar = () => {
                 >
                   <BookOpen className="h-4 w-4 mr-3 text-blue-500 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 flex-shrink-0 transition-colors duration-200" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-200">Manual de Ajuda</p>
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-200">Manual</p>
                     <p className="text-xs text-blue-500 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400">Guia do usuário Cliente</p>
                   </div>
                 </Button>

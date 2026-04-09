@@ -68,6 +68,12 @@ const upperMenuItems = [
     icon: BookOpen,
     requiresRole: ["armazem"] as const,
   },
+  {
+    title: "Manual",
+    url: "/manual/cliente",
+    icon: BookOpen,
+    requiresRole: ["cliente"] as const,
+  },
 ];
 
 const lowerMenuItems = [
