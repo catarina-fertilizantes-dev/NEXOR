@@ -308,6 +308,28 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              {/* Manual - Representante */}
+              {userRole === "representante" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/representante"
+                      className={`${getMenuClasses("/manual/representante", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/representante") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/representante") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               
               {/* Sair */}
               <SidebarMenuItem>
