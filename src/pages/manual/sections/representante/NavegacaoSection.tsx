@@ -92,7 +92,7 @@ export const NavegacaoSection = () => {
               <h4 className="font-medium text-foreground mb-2">📱 Mobile (Celular/Tablet)</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Menu fica oculto por padrão para aproveitar melhor o espaço da tela</li>
-                <li>• Acesso através do ícone de menu (☰) no canto superior esquerdo</li>
+                <li>• Acesso através do ícone de menu (≡) no canto superior esquerdo</li>
                 <li>• Fecha automaticamente ao selecionar uma opção</li>
               </ul>
             </CardContent>
