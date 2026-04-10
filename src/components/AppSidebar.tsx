@@ -330,6 +330,28 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              {/* Manual - Logística */}
+              {userRole === "logistica" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/logistica"
+                      className={`${getMenuClasses("/manual/logistica", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/logistica") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/logistica") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               
               {/* Sair */}
               <SidebarMenuItem>
