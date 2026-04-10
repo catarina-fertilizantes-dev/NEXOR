@@ -279,7 +279,7 @@ const ManualRepresentante = () => {
           <div className="border-t border-border" />
 
           <section id="dicas-suporte">
-            <DicasSuporteSection />
+            <DicasSuporteSection userProfile="representante" />
           </section>
         </main>
       </div>
