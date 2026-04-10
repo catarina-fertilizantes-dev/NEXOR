@@ -128,8 +128,8 @@ export const DicasSuporteSection = ({ userProfile }: DicasSuporteSectionProps) =
                   {[
                     { prob: '"Não consigo fazer login"', sol: 'Verifique e-mail e senha / Use "Esqueci minha senha" / Contate Logística' },
                     { prob: '"Sistema está lento"', sol: "Verifique internet / Pressione F5 / Feche outras abas / Limpe cache" },
-                    { prob: '"Não consigo fazer upload"', sol: "Verifique formato (Fotos: JPG/PNG/WebP, Docs: PDF/XML) / Verifique tamanho / Teste internet" },
-                    { prob: '"Não consigo avançar etapa"', sol: "Verifique se anexou foto obrigatória / Confirme que é a etapa atual / Não está na 5B (Logística)" },
+                    ...(canUpload ? [{ prob: '"Não consigo fazer upload"', sol: "Verifique formato (Fotos: JPG/PNG/WebP, Docs: PDF/XML) / Verifique tamanho / Teste internet" }] : []),
+                    ...(canUpload ? [{ prob: '"Não consigo avançar etapa"', sol: "Verifique se anexou foto obrigatória / Confirme que é a etapa atual / Não está na 5B (Logística)" }] : []),
                     { prob: '"Página não atualizou"', sol: "Aguarde 30s (atualização automática) / Pressione F5" },
                     { prob: '"Menu não abre (mobile)"', sol: "Recarregue a página, verifique a conexão" },
                   ].map((row, i) => (
