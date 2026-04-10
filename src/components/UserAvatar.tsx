@@ -143,6 +143,11 @@ export const UserAvatar = () => {
     navigate("/manual/cliente");
   };
 
+  const handleManualRepresentanteClick = () => {
+    setIsOpen(false);
+    navigate("/manual/representante");
+  };
+
   // 🚧 TEMPORARIAMENTE DESABILITADO
   // TODO: Reativar quando a página de configurações for implementada
   /*
@@ -236,6 +241,25 @@ export const UserAvatar = () => {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-200">Manual</p>
                     <p className="text-xs text-blue-500 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400">Guia do usuário Cliente</p>
+                  </div>
+                </Button>
+                <Separator className="my-2" />
+              </>
+            )}
+
+            {/* 📘 MANUAL DE AJUDA (apenas para perfil representante) */}
+            {userRole === "representante" && (
+              <>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start min-h-[44px] p-3 text-left rounded-md transition-all duration-200 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:shadow-sm group"
+                  data-navigation="true"
+                  onClick={handleManualRepresentanteClick}
+                >
+                  <BookOpen className="h-4 w-4 mr-3 text-blue-500 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 flex-shrink-0 transition-colors duration-200" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-200">Manual</p>
+                    <p className="text-xs text-blue-500 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400">Guia do usuário Representante</p>
                   </div>
                 </Button>
                 <Separator className="my-2" />
