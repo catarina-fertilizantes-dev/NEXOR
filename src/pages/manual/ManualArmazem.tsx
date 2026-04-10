@@ -280,7 +280,7 @@ const ManualArmazem = () => {
           <div className="border-t border-border" />
           
           <section id="dicas-suporte">
-            <DicasSuporteSection />
+            <DicasSuporteSection userProfile="armazem" />
           </section>
         </main>
       </div>
