@@ -1,7 +1,14 @@
 import { HelpCircle, AlertCircle, Info, Shield, Zap, Camera, MessageSquare, Phone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-export const DicasSuporteSection = () => {
+interface DicasSuporteSectionProps {
+  userProfile: 'armazem' | 'cliente' | 'representante' | 'admin' | 'logistica';
+}
+
+export const DicasSuporteSection = ({ userProfile }: DicasSuporteSectionProps) => {
+  const canUpload = ['armazem', 'admin', 'logistica'].includes(userProfile);
+  const hasEstoqueAccess = ['armazem', 'admin', 'logistica'].includes(userProfile);
+
   return (
     <section id="dicas-suporte" className="space-y-6">
       <div>
@@ -46,7 +53,9 @@ export const DicasSuporteSection = () => {
               <div className="space-y-1">
                 {[
                   "Mantenha seu navegador atualizado para melhor desempenho",
-                  "Use conexão estável de internet ao registrar carregamentos",
+                  canUpload 
+                    ? "Use conexão estável de internet ao registrar carregamentos"
+                    : "Use conexão estável de internet ao acompanhar carregamentos em tempo real",
                   "Em caso de dúvida sobre uma operação, consulte este manual antes de executar",
                   "Aguarde 30 segundos antes de recarregar a página — o sistema atualiza automaticamente",
                 ].map((tip, i) => (
@@ -59,27 +68,29 @@ export const DicasSuporteSection = () => {
             </CardContent>
           </Card>
 
-          {/* Qualidade dos Anexos */}
-          <Card>
-            <CardContent className="p-4">
-              <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                <Camera className="h-4 w-4 text-primary" />
-                Qualidade dos Anexos
-              </h4>
-              <div className="space-y-1">
-                {[
-                  "Fotos: use boa iluminação e enquadramento claro (placa visível nas fotos do veículo)",
-                  "Documentos PDF/XML: certifique-se que o arquivo não está corrompido antes de enviar",
-                  "Verifique o tamanho: fotos até 5MB, documentos até 7MB",
-                ].map((tip, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <span className="text-green-600 dark:text-green-400 shrink-0">✅</span>
-                    <span className="text-foreground">{tip}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Qualidade dos Anexos - APENAS PARA PERFIS QUE FAZEM UPLOAD */}
+          {canUpload && (
+            <Card>
+              <CardContent className="p-4">
+                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                  <Camera className="h-4 w-4 text-primary" />
+                  Qualidade dos Anexos
+                </h4>
+                <div className="space-y-1">
+                  {[
+                    "Fotos: use boa iluminação e enquadramento claro (placa visível nas fotos do veículo)",
+                    "Documentos PDF/XML: certifique-se que o arquivo não está corrompido antes de enviar",
+                    "Verifique o tamanho: fotos até 5MB, documentos até 7MB",
+                  ].map((tip, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <span className="text-green-600 dark:text-green-400 shrink-0">✅</span>
+                      <span className="text-foreground">{tip}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Comunicação */}
           <Card>
@@ -110,7 +121,7 @@ export const DicasSuporteSection = () => {
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-2 font-medium text-foreground">Problema</th>
-                    <th className="text-left p-2 font-medium text-foreground">Solução</th>
+                    <th className="text-left p-2 font-medium text-foreground">Solu��ão</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -184,29 +195,31 @@ export const DicasSuporteSection = () => {
             </CardContent>
           </Card>
 
-          {/* Sobre Estoque */}
-          <Card>
-            <CardContent className="p-4">
-              <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
-                <HelpCircle className="h-4 w-4 text-primary" />
-                Sobre Estoque
-              </h4>
-              <div className="space-y-3">
-                {[
-                  { q: "Vejo outros armazéns?", a: "Não, apenas o seu." },
-                  { q: 'O que significa "Estoque Baixo"?', a: "Indica que a quantidade em estoque está abaixo do nível mínimo e requer atenção." },
-                  { q: 'Qual a diferença entre "Estoque Físico" e "Estoque Disponível"?', a: "Estoque Físico é a quantidade real presente no armazém neste momento. Estoque Disponível é a quantidade livre para novas liberações, descontando valores já liberados (mesmo que ainda não retirados)." },
-                  { q: "Por que o Estoque Disponível é menor que o Estoque Físico?", a: "Porque existem liberações aprovadas pela Logística que ainda não foram retiradas fisicamente do armazém. O produto está lá, mas já está comprometido para um cliente." },
-                  { q: "O Estoque Físico diminui quando crio uma liberação?", a: "Não. O Estoque Físico só diminui quando o produto sai fisicamente do armazém (carregamento finalizado). Já o Estoque Disponível diminui assim que a liberação é criada." },
-                ].map((item, i) => (
-                  <div key={i} className="border-b border-border pb-3 last:border-0 last:pb-0">
-                    <p className="text-sm font-medium text-foreground mb-1"><strong>P: {item.q}</strong></p>
-                    <p className="text-sm text-muted-foreground">R: {item.a}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Sobre Estoque - APENAS PARA PERFIS COM ACESSO A ESTOQUE */}
+          {hasEstoqueAccess && (
+            <Card>
+              <CardContent className="p-4">
+                <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                  <HelpCircle className="h-4 w-4 text-primary" />
+                  Sobre Estoque
+                </h4>
+                <div className="space-y-3">
+                  {[
+                    { q: "Vejo outros armazéns?", a: "Não, apenas o seu." },
+                    { q: 'O que significa "Estoque Baixo"?', a: "Indica que a quantidade em estoque está abaixo do nível mínimo e requer atenção." },
+                    { q: 'Qual a diferença entre "Estoque Físico" e "Estoque Disponível"?', a: "Estoque Físico é a quantidade real presente no armazém neste momento. Estoque Disponível é a quantidade livre para novas liberações, descontando valores já liberados (mesmo que ainda não retirados)." },
+                    { q: "Por que o Estoque Disponível é menor que o Estoque Físico?", a: "Porque existem liberações aprovadas pela Logística que ainda não foram retiradas fisicamente do armazém. O produto está lá, mas já está comprometido para um cliente." },
+                    { q: "O Estoque Físico diminui quando crio uma liberação?", a: "Não. O Estoque Físico só diminui quando o produto sai fisicamente do armazém (carregamento finalizado). Já o Estoque Disponível diminui assim que a liberação é criada." },
+                  ].map((item, i) => (
+                    <div key={i} className="border-b border-border pb-3 last:border-0 last:pb-0">
+                      <p className="text-sm font-medium text-foreground mb-1"><strong>P: {item.q}</strong></p>
+                      <p className="text-sm text-muted-foreground">R: {item.a}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Glossário */}
           <div>
@@ -229,8 +242,10 @@ export const DicasSuporteSection = () => {
                     { term: "Timestamp", meaning: "Data e hora registradas automaticamente em cada operação do sistema." },
                     { term: "Anexo", meaning: "Arquivo (imagem, PDF, etc.) vinculado a um registro do sistema." },
                     { term: "Badge", meaning: "Etiqueta colorida que indica o status de um registro (ex: Pendente, Finalizado)." },
-                    { term: "Estoque Físico", meaning: "Quantidade real de produto presente no armazém neste momento." },
-                    { term: "Estoque Disponível", meaning: "Quantidade livre para novas liberações, descontando o que já foi comprometido." },
+                    ...(hasEstoqueAccess ? [
+                      { term: "Estoque Físico", meaning: "Quantidade real de produto presente no armazém neste momento." },
+                      { term: "Estoque Disponível", meaning: "Quantidade livre para novas liberações, descontando o que já foi comprometido." },
+                    ] : [])
                   ].map((row, i) => (
                     <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
                       <td className="p-2 font-medium text-foreground">{row.term}</td>
