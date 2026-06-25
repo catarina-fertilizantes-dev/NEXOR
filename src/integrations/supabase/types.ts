@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -10,62 +10,109 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.4"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
       agendamentos: {
         Row: {
+          armazem_id: string | null
+          cliente_id: string | null
+          cnpj_transportadora: string
           created_at: string | null
           created_by: string
-          data_retirada: string
-          horario: string
+          data_retirada: string | null
           id: string
           liberacao_id: string
           motorista_documento: string
           motorista_nome: string
           observacoes: string | null
           placa_caminhao: string
+          placa_carreta_1: string
+          placa_carreta_2: string | null
           quantidade: number
-          status: string | null
-          tipo_caminhao: string | null
+          status: Database["public"]["Enums"]["agendamento_status"] | null
+          transportadora: string
+          updated_at: string | null
         }
         Insert: {
+          armazem_id?: string | null
+          cliente_id?: string | null
+          cnpj_transportadora: string
           created_at?: string | null
           created_by: string
-          data_retirada: string
-          horario: string
+          data_retirada?: string | null
           id?: string
           liberacao_id: string
           motorista_documento: string
           motorista_nome: string
           observacoes?: string | null
           placa_caminhao: string
+          placa_carreta_1: string
+          placa_carreta_2?: string | null
           quantidade: number
-          status?: string | null
-          tipo_caminhao?: string | null
+          status?: Database["public"]["Enums"]["agendamento_status"] | null
+          transportadora: string
+          updated_at?: string | null
         }
         Update: {
+          armazem_id?: string | null
+          cliente_id?: string | null
+          cnpj_transportadora?: string
           created_at?: string | null
           created_by?: string
-          data_retirada?: string
-          horario?: string
+          data_retirada?: string | null
           id?: string
           liberacao_id?: string
           motorista_documento?: string
           motorista_nome?: string
           observacoes?: string | null
           placa_caminhao?: string
+          placa_carreta_1?: string
+          placa_carreta_2?: string | null
           quantidade?: number
-          status?: string | null
-          tipo_caminhao?: string | null
+          status?: Database["public"]["Enums"]["agendamento_status"] | null
+          transportadora?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "agendamentos_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "agendamentos_armazem_id_fkey"
+            columns: ["armazem_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "armazens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
@@ -80,71 +127,168 @@ export type Database = {
       armazens: {
         Row: {
           ativo: boolean | null
+          capacidade_disponivel: number | null
+          capacidade_total: number | null
+          cep: string | null
           cidade: string
+          cnpj_cpf: string | null
           created_at: string | null
+          email: string | null
+          endereco: string | null
           estado: string
           id: string
           nome: string
+          telefone: string | null
+          temp_password: string | null
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
           ativo?: boolean | null
+          capacidade_disponivel?: number | null
+          capacidade_total?: number | null
+          cep?: string | null
           cidade: string
+          cnpj_cpf?: string | null
           created_at?: string | null
+          email?: string | null
+          endereco?: string | null
           estado: string
           id?: string
           nome: string
+          telefone?: string | null
+          temp_password?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           ativo?: boolean | null
+          capacidade_disponivel?: number | null
+          capacidade_total?: number | null
+          cep?: string | null
           cidade?: string
+          cnpj_cpf?: string | null
           created_at?: string | null
+          email?: string | null
+          endereco?: string | null
           estado?: string
           id?: string
           nome?: string
+          telefone?: string | null
+          temp_password?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "armazens_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       carregamentos: {
         Row: {
           agendamento_id: string
+          armazem_id: string | null
+          atualizado_por: string | null
+          cliente_id: string | null
           created_at: string | null
+          criado_por: string | null
+          data_carregando: string | null
+          data_chegada: string | null
+          data_documentacao: string | null
+          data_finalizacao: string | null
+          data_inicio: string | null
+          docs_remessa_url: string | null
+          docs_remessa_xml_url: string | null
+          docs_retorno_url: string | null
+          docs_retorno_xml_url: string | null
+          docs_venda_url: string | null
+          docs_venda_xml_url: string | null
+          etapa_5a_status: string | null
+          etapa_5b_status: string | null
+          etapa_5c_status: string | null
+          etapa_atual: number
           id: string
           numero_nf: string | null
-          observacoes: string | null
-          status: Database["public"]["Enums"]["status_carregamento"] | null
+          observacao_carregando: string | null
+          observacao_chegada: string | null
+          observacao_documentacao: string | null
+          observacao_finalizacao: string | null
+          observacao_inicio: string | null
           updated_at: string | null
           updated_by: string | null
+          url_foto_carregando: string | null
+          url_foto_chegada: string | null
+          url_foto_finalizacao: string | null
+          url_foto_inicio: string | null
         }
         Insert: {
           agendamento_id: string
+          armazem_id?: string | null
+          atualizado_por?: string | null
+          cliente_id?: string | null
           created_at?: string | null
+          criado_por?: string | null
+          data_carregando?: string | null
+          data_chegada?: string | null
+          data_documentacao?: string | null
+          data_finalizacao?: string | null
+          data_inicio?: string | null
+          docs_remessa_url?: string | null
+          docs_remessa_xml_url?: string | null
+          docs_retorno_url?: string | null
+          docs_retorno_xml_url?: string | null
+          docs_venda_url?: string | null
+          docs_venda_xml_url?: string | null
+          etapa_5a_status?: string | null
+          etapa_5b_status?: string | null
+          etapa_5c_status?: string | null
+          etapa_atual?: number
           id?: string
           numero_nf?: string | null
-          observacoes?: string | null
-          status?: Database["public"]["Enums"]["status_carregamento"] | null
+          observacao_carregando?: string | null
+          observacao_chegada?: string | null
+          observacao_documentacao?: string | null
+          observacao_finalizacao?: string | null
+          observacao_inicio?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          url_foto_carregando?: string | null
+          url_foto_chegada?: string | null
+          url_foto_finalizacao?: string | null
+          url_foto_inicio?: string | null
         }
         Update: {
           agendamento_id?: string
+          armazem_id?: string | null
+          atualizado_por?: string | null
+          cliente_id?: string | null
           created_at?: string | null
+          criado_por?: string | null
+          data_carregando?: string | null
+          data_chegada?: string | null
+          data_documentacao?: string | null
+          data_finalizacao?: string | null
+          data_inicio?: string | null
+          docs_remessa_url?: string | null
+          docs_remessa_xml_url?: string | null
+          docs_retorno_url?: string | null
+          docs_retorno_xml_url?: string | null
+          docs_venda_url?: string | null
+          docs_venda_xml_url?: string | null
+          etapa_5a_status?: string | null
+          etapa_5b_status?: string | null
+          etapa_5c_status?: string | null
+          etapa_atual?: number
           id?: string
           numero_nf?: string | null
-          observacoes?: string | null
-          status?: Database["public"]["Enums"]["status_carregamento"] | null
+          observacao_carregando?: string | null
+          observacao_chegada?: string | null
+          observacao_documentacao?: string | null
+          observacao_finalizacao?: string | null
+          observacao_inicio?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          url_foto_carregando?: string | null
+          url_foto_chegada?: string | null
+          url_foto_finalizacao?: string | null
+          url_foto_inicio?: string | null
         }
         Relationships: [
           {
@@ -155,13 +299,116 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "carregamentos_updated_by_fkey"
-            columns: ["updated_by"]
+            foreignKeyName: "carregamentos_agendamento_id_fkey"
+            columns: ["agendamento_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "agendamentos_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carregamentos_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carregamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
         ]
+      }
+      clientes: {
+        Row: {
+          ativo: boolean | null
+          cep: string | null
+          cidade: string | null
+          cnpj_cpf: string
+          created_at: string | null
+          email: string
+          endereco: string | null
+          estado: string | null
+          id: string
+          nome: string
+          representante_id: string | null
+          telefone: string | null
+          temp_password: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj_cpf: string
+          created_at?: string | null
+          email: string
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome: string
+          representante_id?: string | null
+          telefone?: string | null
+          temp_password?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj_cpf?: string
+          created_at?: string | null
+          email?: string
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome?: string
+          representante_id?: string | null
+          telefone?: string | null
+          temp_password?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "representantes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      colaboradores: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          nome: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          nome: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       estoque: {
         Row: {
@@ -169,6 +416,7 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          quantidade_disponivel: number
           updated_at: string | null
           updated_by: string | null
         }
@@ -177,6 +425,7 @@ export type Database = {
           id?: string
           produto_id: string
           quantidade?: number
+          quantidade_disponivel: number
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -185,6 +434,7 @@ export type Database = {
           id?: string
           produto_id?: string
           quantidade?: number
+          quantidade_disponivel?: number
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -203,53 +453,64 @@ export type Database = {
             referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "estoque_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
         ]
       }
-      fotos_carregamento: {
+      estoque_remessas: {
         Row: {
-          carregamento_id: string
+          armazem_id: string
           created_at: string | null
+          created_by: string | null
+          data_remessa: string
           id: string
-          tipo: Database["public"]["Enums"]["tipo_foto"]
-          uploaded_by: string
-          url: string
+          numero_remessa: string
+          observacoes: string | null
+          produto_id: string
+          quantidade_original: number
+          updated_at: string | null
+          url_nota_remessa: string | null
+          url_xml_remessa: string | null
         }
         Insert: {
-          carregamento_id: string
+          armazem_id: string
           created_at?: string | null
+          created_by?: string | null
+          data_remessa?: string
           id?: string
-          tipo: Database["public"]["Enums"]["tipo_foto"]
-          uploaded_by: string
-          url: string
+          numero_remessa: string
+          observacoes?: string | null
+          produto_id: string
+          quantidade_original: number
+          updated_at?: string | null
+          url_nota_remessa?: string | null
+          url_xml_remessa?: string | null
         }
         Update: {
-          carregamento_id?: string
+          armazem_id?: string
           created_at?: string | null
+          created_by?: string | null
+          data_remessa?: string
           id?: string
-          tipo?: Database["public"]["Enums"]["tipo_foto"]
-          uploaded_by?: string
-          url?: string
+          numero_remessa?: string
+          observacoes?: string | null
+          produto_id?: string
+          quantidade_original?: number
+          updated_at?: string | null
+          url_nota_remessa?: string | null
+          url_xml_remessa?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "fotos_carregamento_carregamento_id_fkey"
-            columns: ["carregamento_id"]
+            foreignKeyName: "estoque_remessas_armazem_id_fkey"
+            columns: ["armazem_id"]
             isOneToOne: false
-            referencedRelation: "carregamentos"
+            referencedRelation: "armazens"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fotos_carregamento_uploaded_by_fkey"
-            columns: ["uploaded_by"]
+            foreignKeyName: "estoque_remessas_produto_id_fkey"
+            columns: ["produto_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
         ]
@@ -257,7 +518,7 @@ export type Database = {
       liberacoes: {
         Row: {
           armazem_id: string
-          cliente_nome: string
+          cliente_id: string
           created_at: string | null
           created_by: string
           data_liberacao: string | null
@@ -266,11 +527,12 @@ export type Database = {
           produto_id: string
           quantidade_liberada: number
           quantidade_retirada: number
-          status: Database["public"]["Enums"]["status_liberacao"] | null
+          status: Database["public"]["Enums"]["liberacao_status"] | null
+          updated_at: string | null
         }
         Insert: {
           armazem_id: string
-          cliente_nome: string
+          cliente_id: string
           created_at?: string | null
           created_by: string
           data_liberacao?: string | null
@@ -279,11 +541,12 @@ export type Database = {
           produto_id: string
           quantidade_liberada: number
           quantidade_retirada?: number
-          status?: Database["public"]["Enums"]["status_liberacao"] | null
+          status?: Database["public"]["Enums"]["liberacao_status"] | null
+          updated_at?: string | null
         }
         Update: {
           armazem_id?: string
-          cliente_nome?: string
+          cliente_id?: string
           created_at?: string | null
           created_by?: string
           data_liberacao?: string | null
@@ -292,7 +555,8 @@ export type Database = {
           produto_id?: string
           quantidade_liberada?: number
           quantidade_retirada?: number
-          status?: Database["public"]["Enums"]["status_liberacao"] | null
+          status?: Database["public"]["Enums"]["liberacao_status"] | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -303,10 +567,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "liberacoes_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "liberacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
@@ -325,6 +589,7 @@ export type Database = {
           id: string
           nome: string
           unidade: string | null
+          updated_at: string | null
         }
         Insert: {
           ativo?: boolean | null
@@ -332,6 +597,7 @@ export type Database = {
           id?: string
           nome: string
           unidade?: string | null
+          updated_at?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -339,114 +605,51 @@ export type Database = {
           id?: string
           nome?: string
           unidade?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
-      clientes: {
+      representantes: {
         Row: {
+          ativo: boolean | null
+          cpf: string
+          created_at: string | null
+          email: string
           id: string
           nome: string
-          cnpj_cpf: string
-          email: string
+          regiao_atuacao: string | null
           telefone: string | null
-          endereco: string | null
-          cidade: string | null
-          estado: string | null
-          cep: string | null
-          ativo: boolean | null
-          user_id: string | null
-          created_at: string | null
+          temp_password: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
+          ativo?: boolean | null
+          cpf: string
+          created_at?: string | null
+          email: string
           id?: string
           nome: string
-          cnpj_cpf: string
-          email: string
+          regiao_atuacao?: string | null
           telefone?: string | null
-          endereco?: string | null
-          cidade?: string | null
-          estado?: string | null
-          cep?: string | null
-          ativo?: boolean | null
-          user_id?: string | null
-          created_at?: string | null
+          temp_password?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          id?: string
-          nome?: string
-          cnpj_cpf?: string
-          email?: string
-          telefone?: string | null
-          endereco?: string | null
-          cidade?: string | null
-          estado?: string | null
-          cep?: string | null
           ativo?: boolean | null
-          user_id?: string | null
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "clientes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      colaboradores: {
-        Row: {
-          id: string
-          nome: string
-          cpf: string
-          email: string
-          telefone: string | null
-          cargo: string | null
-          departamento: string | null
-          ativo: boolean | null
-          user_id: string | null
-          created_at: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          nome: string
-          cpf: string
-          email: string
-          telefone?: string | null
-          cargo?: string | null
-          departamento?: string | null
-          ativo?: boolean | null
-          user_id?: string | null
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          id?: string
-          nome?: string
           cpf?: string
-          email?: string
-          telefone?: string | null
-          cargo?: string | null
-          departamento?: string | null
-          ativo?: boolean | null
-          user_id?: string | null
           created_at?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          regiao_atuacao?: string | null
+          telefone?: string | null
+          temp_password?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "colaboradores_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       role_permissions: {
         Row: {
@@ -457,7 +660,7 @@ export type Database = {
           created_at: string | null
           id: string
           resource: string
-          role: Database["public"]["Enums"]["user_role"]
+          role: string
         }
         Insert: {
           can_create?: boolean | null
@@ -467,7 +670,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           resource: string
-          role: Database["public"]["Enums"]["user_role"]
+          role: string
         }
         Update: {
           can_create?: boolean | null
@@ -477,7 +680,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           resource?: string
-          role?: Database["public"]["Enums"]["user_role"]
+          role?: string
         }
         Relationships: []
       }
@@ -504,9 +707,400 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      agendamentos_view: {
+        Row: {
+          armazem_nome: string | null
+          cliente_cnpj: string | null
+          cliente_id: string | null
+          cliente_nome: string | null
+          cnpj_transportadora: string | null
+          created_at: string | null
+          data_retirada: string | null
+          id: string | null
+          liberacao_id: string | null
+          motorista_documento: string | null
+          motorista_nome: string | null
+          observacoes: string | null
+          pedido_interno: string | null
+          placa_caminhao: string | null
+          placa_carreta_1: string | null
+          placa_carreta_2: string | null
+          produto_nome: string | null
+          quantidade: number | null
+          status: Database["public"]["Enums"]["agendamento_status"] | null
+          transportadora: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_liberacao_id_fkey"
+            columns: ["liberacao_id"]
+            isOneToOne: false
+            referencedRelation: "liberacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      alterar_armazem_liberacao: {
+        Args: {
+          p_liberacao_id: string
+          p_novo_armazem_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      can_upload_documento_for_carregamento: {
+        Args: { _carregamento_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_upload_foto_for_carregamento: {
+        Args: { _carregamento_id: string; _user_id: string }
+        Returns: boolean
+      }
+      check_user_active_status: { Args: { user_uuid: string }; Returns: Json }
+      clear_user_temp_password: { Args: { user_email: string }; Returns: Json }
+      get_agendamentos_by_representante_backup: {
+        Args: { p_representante_id: string }
+        Returns: {
+          armazem_cidade: string
+          armazem_estado: string
+          armazem_id: string
+          armazem_nome: string
+          carregamento_id: string
+          cliente_cnpj_cpf: string
+          cliente_id: string
+          cliente_nome: string
+          created_at: string
+          created_by: string
+          data_liberacao: string
+          data_retirada: string
+          etapa_atual: number
+          id: string
+          liberacao_id: string
+          motorista_documento: string
+          motorista_nome: string
+          observacoes: string
+          pedido_interno: string
+          placa_caminhao: string
+          produto_id: string
+          produto_nome: string
+          produto_unidade: string
+          quantidade: number
+          quantidade_liberada: number
+          quantidade_retirada: number
+          status: Database["public"]["Enums"]["agendamento_status"]
+          status_liberacao: Database["public"]["Enums"]["liberacao_status"]
+          tipo_caminhao: string
+          updated_at: string
+        }[]
+      }
+      get_agendamentos_universal: {
+        Args: {
+          p_armazem_id?: string
+          p_cliente_id?: string
+          p_representante_id?: string
+          p_user_id?: string
+          p_user_role: string
+        }
+        Returns: {
+          armazem_cidade: string
+          armazem_estado: string
+          armazem_id: string
+          armazem_nome: string
+          carregamento_id: string
+          cliente_cnpj_cpf: string
+          cliente_id: string
+          cliente_nome: string
+          cnpj_transportadora: string
+          created_at: string
+          created_by: string
+          data_liberacao: string
+          data_retirada: string
+          etapa_atual: number
+          finalizado: boolean
+          id: string
+          liberacao_id: string
+          motorista_documento: string
+          motorista_nome: string
+          observacoes: string
+          pedido_interno: string
+          percentual_carregamento: number
+          placa_caminhao: string
+          placa_carreta_1: string
+          placa_carreta_2: string
+          produto_id: string
+          produto_nome: string
+          produto_unidade: string
+          quantidade: number
+          quantidade_liberada: number
+          quantidade_retirada: number
+          status: Database["public"]["Enums"]["agendamento_status"]
+          status_carregamento: string
+          status_liberacao: Database["public"]["Enums"]["liberacao_status"]
+          tooltip_carregamento: string
+          transportadora: string
+          updated_at: string
+        }[]
+      }
+      get_carregamento_detalhe_by_representante_backup: {
+        Args: { p_carregamento_id: string; p_representante_id: string }
+        Returns: {
+          agendamento_data_retirada: string
+          agendamento_id: string
+          agendamento_motorista_documento: string
+          agendamento_motorista_nome: string
+          agendamento_placa_caminhao: string
+          agendamento_quantidade: number
+          armazem_id: string
+          cliente_id: string
+          cliente_nome: string
+          created_at: string
+          data_carregando: string
+          data_chegada: string
+          data_documentacao: string
+          data_finalizacao: string
+          data_inicio: string
+          docs_retorno_url: string
+          docs_retorno_xml_url: string
+          etapa_atual: number
+          id: string
+          liberacao_pedido_interno: string
+          numero_nf: string
+          observacao_carregando: string
+          observacao_chegada: string
+          observacao_documentacao: string
+          observacao_finalizacao: string
+          observacao_inicio: string
+          produto_nome: string
+          url_foto_carregando: string
+          url_foto_chegada: string
+          url_foto_finalizacao: string
+          url_foto_inicio: string
+        }[]
+      }
+      get_carregamento_detalhe_universal: {
+        Args: {
+          p_armazem_id?: string
+          p_carregamento_id: string
+          p_cliente_id?: string
+          p_representante_id?: string
+          p_user_id?: string
+          p_user_role: string
+        }
+        Returns: {
+          agendamento_cnpj_transportadora: string
+          agendamento_data_retirada: string
+          agendamento_id: string
+          agendamento_motorista_documento: string
+          agendamento_motorista_nome: string
+          agendamento_placa_caminhao: string
+          agendamento_placa_carreta_1: string
+          agendamento_placa_carreta_2: string
+          agendamento_quantidade: number
+          agendamento_transportadora: string
+          armazem_id: string
+          cliente_id: string
+          cliente_nome: string
+          created_at: string
+          data_carregando: string
+          data_chegada: string
+          data_documentacao: string
+          data_finalizacao: string
+          data_inicio: string
+          docs_remessa_url: string
+          docs_remessa_xml_url: string
+          docs_retorno_url: string
+          docs_retorno_xml_url: string
+          docs_venda_url: string
+          docs_venda_xml_url: string
+          etapa_5a_status: string
+          etapa_5b_status: string
+          etapa_5c_status: string
+          etapa_atual: number
+          id: string
+          liberacao_pedido_interno: string
+          numero_nf: string
+          observacao_carregando: string
+          observacao_chegada: string
+          observacao_documentacao: string
+          observacao_finalizacao: string
+          observacao_inicio: string
+          produto_nome: string
+          url_foto_carregando: string
+          url_foto_chegada: string
+          url_foto_finalizacao: string
+          url_foto_inicio: string
+        }[]
+      }
+      get_carregamentos_by_representante_backup: {
+        Args: { p_representante_id: string }
+        Returns: {
+          agendamento_id: string
+          armazem_cidade: string
+          armazem_estado: string
+          armazem_id: string
+          armazem_nome: string
+          cliente_id: string
+          cliente_nome: string
+          created_at: string
+          data_chegada: string
+          data_retirada: string
+          etapa_atual: number
+          id: string
+          motorista_documento: string
+          motorista_nome: string
+          numero_nf: string
+          pedido_interno: string
+          placa_caminhao: string
+          produto_nome: string
+          quantidade: number
+          url_foto_carregando: string
+          url_foto_chegada: string
+          url_foto_finalizacao: string
+          url_foto_inicio: string
+        }[]
+      }
+      get_carregamentos_universal: {
+        Args: {
+          p_armazem_id?: string
+          p_cliente_id?: string
+          p_representante_id?: string
+          p_user_id?: string
+          p_user_role?: string
+        }
+        Returns: {
+          agendamento_id: string
+          armazem_cidade: string
+          armazem_estado: string
+          armazem_id: string
+          armazem_nome: string
+          cliente_id: string
+          cliente_nome: string
+          cor_carregamento: string
+          created_at: string
+          data_chegada: string
+          data_retirada: string
+          etapa_atual: number
+          finalizado: boolean
+          fotos_total: number
+          id: string
+          motorista_documento: string
+          motorista_nome: string
+          numero_nf: string
+          pedido_interno: string
+          percentual_carregamento: number
+          placa_caminhao: string
+          produto_nome: string
+          quantidade: number
+          status_carregamento: string
+          tooltip_carregamento: string
+          transportadora: string
+          url_foto_carregando: string
+          url_foto_chegada: string
+          url_foto_finalizacao: string
+          url_foto_inicio: string
+        }[]
+      }
+      get_colaboradores: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          role: Database["public"]["Enums"]["user_role"]
+        }[]
+      }
+      get_liberacoes_by_representante_backup: {
+        Args: { p_representante_id: string }
+        Returns: {
+          armazem_cidade: string
+          armazem_estado: string
+          armazem_id: string
+          armazem_nome: string
+          cliente_id: string
+          cliente_nome: string
+          created_at: string
+          data_liberacao: string
+          id: string
+          pedido_interno: string
+          produto_id: string
+          produto_nome: string
+          quantidade_disponivel: number
+          quantidade_liberada: number
+          quantidade_retirada: number
+          status: Database["public"]["Enums"]["liberacao_status"]
+        }[]
+      }
+      get_liberacoes_disponiveis_universal: {
+        Args: {
+          p_cliente_id?: string
+          p_representante_id?: string
+          p_user_id?: string
+          p_user_role?: string
+        }
+        Returns: {
+          armazem_cidade: string
+          armazem_estado: string
+          armazem_id: string
+          armazem_nome: string
+          cliente_id: string
+          cliente_nome: string
+          id: string
+          pedido_interno: string
+          produto_nome: string
+          quantidade_disponivel_real: number
+          quantidade_liberada: number
+          quantidade_retirada: number
+          status: string
+        }[]
+      }
+      get_liberacoes_universal: {
+        Args: {
+          p_armazem_id?: string
+          p_cliente_id?: string
+          p_representante_id?: string
+          p_user_id?: string
+          p_user_role?: string
+        }
+        Returns: {
+          armazem_cidade: string
+          armazem_endereco: string
+          armazem_estado: string
+          armazem_id: string
+          armazem_nome: string
+          cliente_cnpj_cpf: string
+          cliente_id: string
+          cliente_nome: string
+          created_at: string
+          data_liberacao: string
+          finalizada: boolean
+          id: string
+          pedido_interno: string
+          percentual_agendado: number
+          percentual_retirado: number
+          produto_id: string
+          produto_nome: string
+          produto_unidade: string
+          quantidade_agendada: number
+          quantidade_disponivel: number
+          quantidade_liberada: number
+          quantidade_retirada: number
+          status: Database["public"]["Enums"]["liberacao_status"]
+        }[]
+      }
+      get_quantidade_disponivel_liberacao: {
+        Args: { liberacao_uuid: string }
+        Returns: number
+      }
       get_users_with_roles: {
         Args: never
         Returns: {
@@ -517,11 +1111,17 @@ export type Database = {
           roles: Database["public"]["Enums"]["user_role"][]
         }[]
       }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["user_role"]
-          _user_id: string
-        }
+      has_role:
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["user_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { p_role: string }; Returns: boolean }
+      is_representante_of_cliente: {
+        Args: { cliente_uuid: string }
         Returns: boolean
       }
       update_user_role: {
@@ -533,15 +1133,24 @@ export type Database = {
       }
     }
     Enums: {
+      agendamento_status:
+        | "pendente"
+        | "em_andamento"
+        | "concluido"
+        | "cancelado"
+      liberacao_status:
+        | "disponivel"
+        | "parcialmente_agendada"
+        | "totalmente_agendada"
+        | "finalizada"
       status_carregamento:
         | "aguardando"
         | "liberado"
         | "carregando"
         | "carregado"
         | "nf_entregue"
-      status_liberacao: "pendente" | "parcial" | "concluido"
-      tipo_foto: "chegada" | "durante" | "carregado" | "saida"
-      user_role: "logistica" | "cliente" | "armazem" | "admin"
+      tipo_documento_carregamento: "nf" | "xml" | "cte" | "outro"
+      user_role: "admin" | "logistica" | "armazem" | "cliente" | "representante"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -667,8 +1276,23 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
+      agendamento_status: [
+        "pendente",
+        "em_andamento",
+        "concluido",
+        "cancelado",
+      ],
+      liberacao_status: [
+        "disponivel",
+        "parcialmente_agendada",
+        "totalmente_agendada",
+        "finalizada",
+      ],
       status_carregamento: [
         "aguardando",
         "liberado",
@@ -676,9 +1300,8 @@ export const Constants = {
         "carregado",
         "nf_entregue",
       ],
-      status_liberacao: ["pendente", "parcial", "concluido"],
-      tipo_foto: ["chegada", "durante", "carregado", "saida"],
-      user_role: ["logistica", "cliente", "armazem", "admin"],
+      tipo_documento_carregamento: ["nf", "xml", "cte", "outro"],
+      user_role: ["admin", "logistica", "armazem", "cliente", "representante"],
     },
   },
 } as const

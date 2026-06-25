@@ -1,8 +1,8 @@
-// Deno Edge Function: create-customer-user (alinhada com admin-users)
+// Deno Edge Function: create-representante-user
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts';
 
-// Helpers  
+// ---- Helpers ----
 function uuidV4() {
   const buf = new Uint8Array(16);
   crypto.getRandomValues(buf);
@@ -11,24 +11,25 @@ function uuidV4() {
   const hex = Array.from(buf).map((b) => b.toString(16).padStart(2, '0'));
   return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
 }
+
 const WEAK_PASSWORDS = new Set([
-  '123456', '12345678', 'password','senha123','admin123','qwerty','Cliente123'
+  '123456', '12345678', 'password','senha123','admin123','qwerty','Representante123'
 ]);
+
 const BodySchema = z.object({
   nome: z.string().trim().min(2).max(100),
-  cnpj_cpf: z.string().trim().min(11).max(18),
+  cpf: z.string().trim().min(11).max(14),
   email: z.string().trim().email().max(255),
   telefone: z.string().trim().optional().nullable(),
-  endereco: z.string().trim().optional().nullable(),
-  cidade: z.string().trim().optional().nullable(),
-  estado: z.string().length(2).optional().nullable(),
-  cep: z.string().trim().optional().nullable(),
+  regiao_atuacao: z.string().trim().optional().nullable(),
 });
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
+
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
     status,
@@ -40,7 +41,7 @@ function jsonResponse(obj, status) {
 Deno.serve(async (req) => {
   const request_id = uuidV4();
   const timestamp = new Date().toISOString();
-  const logPrefix = '[create-customer-user]';
+  const logPrefix = '[create-representante-user]';
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -48,7 +49,6 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({
       error: 'Method not allowed',
-      details: 'Only POST allowed.',
       stage: 'validation',
       request_id,
       timestamp
@@ -59,16 +59,10 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const envStatus = {
-    hasUrl: !!supabaseUrl,
-    hasAnon: !!supabaseAnonKey,
-    hasServiceRole: !!serviceRoleKey
-  };
-  if (!envStatus.hasUrl || !envStatus.hasAnon || !envStatus.hasServiceRole) {
-    console.error(logPrefix, 'Missing env vars', envStatus);
+  
+  if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
     return jsonResponse({
       error: 'Server not configured',
-      details: envStatus,
       stage: 'env',
       request_id,
       timestamp
@@ -91,7 +85,6 @@ Deno.serve(async (req) => {
     }
     parsedData = parsed.data;
   } catch (e) {
-    console.error(logPrefix, 'JSON parse error', e);
     return jsonResponse({
       error: 'Invalid JSON body',
       details: String(e),
@@ -103,31 +96,30 @@ Deno.serve(async (req) => {
 
   // --- BODY FIELDS ---
   const nome = parsedData.nome;
-  const cnpj_cpf_raw = parsedData.cnpj_cpf;
-  const cnpj_cpf = cnpj_cpf_raw.replace(/\D/g, ''); // NORMALIZAÇÃO
+  const cpf_raw = parsedData.cpf;
+  const cpf = cpf_raw.replace(/\D/g, ''); // NORMALIZAÇÃO
   const email = parsedData.email.toLowerCase();
   const telefone = parsedData.telefone ?? null;
-  const endereco = parsedData.endereco ?? null;
-  const cidade = parsedData.cidade ?? null;
-  const estado = parsedData.estado ?? null;
-  const cep = parsedData.cep ?? null;
+  const regiao_atuacao = parsedData.regiao_atuacao ?? null;
 
   // --- PASSWORD ---
   function gerarSenha() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let senha = 'Cliente';
+    let senha = 'Representante';
     for (let i = 0; i < 4; i++) senha += chars.charAt(Math.floor(Math.random() * chars.length));
     return senha;
   }
+  
   let senhaTemporaria = gerarSenha();
   let attempts = 0;
   while ((!senhaTemporaria || WEAK_PASSWORDS.has(senhaTemporaria)) && attempts < 10) {
     senhaTemporaria = gerarSenha();
     attempts++;
   }
+  
   if (!senhaTemporaria || WEAK_PASSWORDS.has(senhaTemporaria)) {
     return jsonResponse({
-      error: 'Nao foi possivel gerar uma senha valida',
+      error: 'Não foi possível gerar uma senha válida',
       stage: 'validation',
       request_id,
       timestamp
@@ -139,6 +131,7 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } }
     });
+    
     const { data: userInfo } = await userClient.auth.getUser();
     const requester = userInfo?.user;
     if (!requester) {
@@ -151,13 +144,15 @@ Deno.serve(async (req) => {
         email
       }, 401);
     }
+    
     const [{ data: isAdmin, error: roleError1 }, { data: isLogistica, error: roleError2 }] = await Promise.all([
       userClient.rpc('has_role', { _user_id: requester.id, _role: 'admin' }),
       userClient.rpc('has_role', { _user_id: requester.id, _role: 'logistica' }),
     ]);
+    
     if (roleError1 || roleError2 || (!isAdmin && !isLogistica)) {
       return jsonResponse({
-        error: 'Forbidden: Only admin or logistica can create customers',
+        error: 'Forbidden: Only admin or logistica can create representantes',
         details: 'Requester lacks required role',
         stage: 'authCheck',
         request_id,
@@ -172,8 +167,9 @@ Deno.serve(async (req) => {
       email,
       password: senhaTemporaria,
       email_confirm: true,
-      user_metadata: { nome, cnpj_cpf, force_password_change: true }
+      user_metadata: { nome, cpf, force_password_change: true }
     });
+    
     if (authError || !authUser?.user) {
       const msg = authError?.message || 'Unknown creation error';
       const duplicate = /already exists|already been registered|duplicate/i.test(msg);
@@ -187,10 +183,15 @@ Deno.serve(async (req) => {
         email
       }, status);
     }
+    
     const userId = authUser.user.id;
 
     // --- ASSIGN ROLE ---
-    const { error: roleAssignError } = await serviceClient.from('user_roles').insert({ user_id: userId, role: 'cliente' });
+    const { error: roleAssignError } = await serviceClient.from('user_roles').insert({ 
+      user_id: userId, 
+      role: 'representante' 
+    });
+    
     if (roleAssignError) {
       await serviceClient.auth.admin.deleteUser(userId);
       return jsonResponse({
@@ -203,44 +204,40 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
-    // --- CREATE CLIENTE/ROLLBACK DUPLICITY ---
-    const { error: clienteError, data: cliente } = await serviceClient.from('clientes').insert({
+    // --- CREATE REPRESENTANTE ---
+    const { error: representanteError, data: representante } = await serviceClient.from('representantes').insert({
       user_id: userId,
       nome,
-      cnpj_cpf,
+      cpf,
       email,
       telefone,
-      endereco,
-      cidade,
-      estado,
-      cep,
+      regiao_atuacao,
       ativo: true,
-      temp_password: senhaTemporaria  // ✅ NOVA LINHA - Salvar senha temporária
+      temp_password: senhaTemporaria
     }).select().single();
     
-    if (clienteError) {
+    if (representanteError) {
       await serviceClient.from('user_roles').delete().eq('user_id', userId);
       await serviceClient.auth.admin.deleteUser(userId);
-      // Consistente e robusta para duplicidade
-      const isDuplicateKey = clienteError.code === '23505';
-      const isDuplicateEmail = /clientes_email(_unique)?|_email_key/i.test(clienteError.message || '');
-      const isDuplicateCNPJ = /clientes_cnpj_cpf(_unique)?|_cnpj_cpf_key/i.test(clienteError.message || '');
-      let status = 500, errorLabel = 'Failed to create cliente record', errorDetails = clienteError.message;
-      if (isDuplicateKey && (isDuplicateEmail || isDuplicateCNPJ)) {
+      
+      const isDuplicateKey = representanteError.code === '23505';
+      const isDuplicateEmail = /representantes_email(_unique)?|_email_key/i.test(representanteError.message || '');
+      
+      let status = 500, errorLabel = 'Failed to create representante record', errorDetails = representanteError.message;
+      if (isDuplicateKey && isDuplicateEmail) {
         status = 409;
         errorLabel = 'Duplicidade';
-        if (isDuplicateEmail) errorDetails = 'Já existe um cliente com este email.';
-        else if (isDuplicateCNPJ) errorDetails = 'Já existe um cliente com este CNPJ/CPF.';
-        else errorDetails = 'Já existe um cliente com dados duplicados.';
+        errorDetails = 'Já existe um representante com este email.';
       }
+      
       return jsonResponse({
         error: errorLabel,
         details: errorDetails,
-        stage: 'createCliente',
+        stage: 'createRepresentante',
         request_id,
         timestamp,
         email,
-        cnpj_cpf,
+        cpf,
         nome
       }, status);
     }
@@ -249,7 +246,7 @@ Deno.serve(async (req) => {
     return jsonResponse({
       success: true,
       user_id: userId,
-      cliente,
+      representante,
       senha: senhaTemporaria,
       request_id,
       timestamp
