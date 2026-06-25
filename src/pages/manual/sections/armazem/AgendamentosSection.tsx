@@ -1,0 +1,165 @@
+import { Info, AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+export const AgendamentosSection = () => {
+  return (
+    <section id="agendamentos" className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-foreground mb-2">📅 Agendamentos</h2>
+        <p className="text-muted-foreground">Visualize e acompanhe os agendamentos de carregamento do seu armazém.</p>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium text-foreground mb-3">Recursos da página</h4>
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="font-medium text-foreground mb-1">🔍 Busca</p>
+              <p className="text-muted-foreground">Busque por cliente, produto, motorista ou número do pedido</p>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">🎯 Filtros</p>
+              <p className="text-muted-foreground mb-1">Clique em "Filtros" para filtrar por:</p>
+              <ul className="list-disc list-inside text-muted-foreground ml-2">
+                <li>Status (Pendente, Em Andamento, Concluído)</li>
+                <li>Período (data inicial e final)</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">📂 Seções</p>
+              <ul className="list-disc list-inside text-muted-foreground ml-2">
+                <li><strong>Agendamentos Ativos:</strong> Sempre visível</li>
+                <li><strong>Agendamentos Finalizados:</strong> Clique para expandir/recolher</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">👁️ Ver detalhes</p>
+              <p className="text-muted-foreground">Clique em qualquer card para abrir uma janela com informações completas</p>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">🔄 Atualização</p>
+              <p className="text-muted-foreground">A página atualiza automaticamente a cada 30 segundos. Pressione F5 para atualizar manualmente.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Permissões de Agendamentos</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left p-2 font-medium text-foreground">Ação</th>
+                <th className="text-left p-2 font-medium text-foreground">Você pode?</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { action: "Visualizar agendamentos do seu armazém", allowed: true },
+                { action: "Filtrar por data, status ou transportadora", allowed: true },
+                { action: "Ver detalhes de cada agendamento", allowed: true },
+                { action: "Criar novos agendamentos", allowed: false },
+                { action: "Editar agendamentos existentes", allowed: false },
+                { action: "Cancelar agendamentos", allowed: false },
+              ].map((row, i) => (
+                <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
+                  <td className="p-2 text-foreground">{row.action}</td>
+                  <td className="p-2">
+                    {row.allowed ? (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">✅ Sim</Badge>
+                    ) : (
+                      <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">❌ Não</Badge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Como visualizar agendamentos</h3>
+        <div className="space-y-2">
+          {[
+            'Acesse "Agendamentos" no menu lateral',
+            "Você verá a lista de agendamentos do seu armazém",
+            "Use os filtros no topo para refinar a busca por data, status ou transportadora",
+            "Clique em um agendamento para ver os detalhes completos",
+          ].map((step, i) => (
+            <div key={i} className="flex items-start gap-3 text-sm">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0 text-xs mt-0.5">
+                {i + 1}
+              </span>
+              <span className="text-foreground">{step}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Status dos Agendamentos</h3>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {[
+            { status: "Pendente", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400", desc: "Agendamento registrado, aguardando confirmação" },
+            { status: "Confirmado", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400", desc: "Agendamento aprovado e confirmado" },
+            { status: "Realizado", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400", desc: "Carregamento já foi realizado" },
+            { status: "Cancelado", color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400", desc: "Agendamento foi cancelado" },
+          ].map((item, i) => (
+            <Card key={i}>
+              <CardContent className="p-3 flex items-start gap-3">
+                <Badge className={item.color}>{item.status}</Badge>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-4">
+        <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 mb-2">
+          <Info className="h-5 w-5" />
+          <span className="font-medium">Dica</span>
+        </div>
+        <p className="text-sm text-blue-700 dark:text-blue-300">
+          Se precisar criar ou cancelar um agendamento, entre em contato com o usuário de Logística responsável.
+        </p>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Barra de Progresso do Carregamento</h3>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Cada card de agendamento exibe uma barra de progresso roxa que mostra o andamento do carregamento associado:
+            </p>
+            <div className="space-y-2">
+              {[
+                { pct: "0%", label: "Aguardando chegada do veículo" },
+                { pct: "20%", label: "Carregamento do caminhão iniciado" },
+                { pct: "40%", label: "Carregando o caminhão" },
+                { pct: "60%", label: "Carregamento do caminhão finalizado" },
+                { pct: "80%", label: "Anexando documentação" },
+                { pct: "100%", label: "Documentação anexada e processo concluído" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm">
+                  <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 shrink-0 w-12 justify-center">
+                    {item.pct}
+                  </Badge>
+                  <span className="text-foreground">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-3 mt-3">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            💡 <strong>Dica:</strong> Passe o mouse sobre a barra de progresso ou o percentual para ver uma descrição detalhada da etapa atual.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+};

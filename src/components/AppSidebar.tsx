@@ -11,6 +11,7 @@ import {
   BadgeCheck,
   Tag,
   UserCheck,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -264,6 +265,95 @@ export function AppSidebar() {
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* Manual - Armazém */}
+              {userRole === "armazem" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/armazem"
+                      className={`${getMenuClasses("/manual/armazem", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/armazem") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/armazem") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              
+              {/* Manual - Cliente */}
+              {userRole === "cliente" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/cliente"
+                      className={`${getMenuClasses("/manual/cliente", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/cliente") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/cliente") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Manual - Representante */}
+              {userRole === "representante" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/representante"
+                      className={`${getMenuClasses("/manual/representante", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/representante") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/representante") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Manual - Logística */}
+              {userRole === "logistica" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/manual/logistica"
+                      className={`${getMenuClasses("/manual/logistica", isCollapsed)} flex items-center gap-3 px-3 py-2 rounded-md max-md:min-h-[44px]`}
+                      onClick={handleItemClick}
+                    >
+                      <BookOpen 
+                        className={`h-4 w-4 max-md:h-5 max-md:w-5 ${isMenuActive("/manual/logistica") ? 'text-primary' : ''}`} 
+                      />
+                      {!isCollapsed && (
+                        <span className={isMenuActive("/manual/logistica") ? 'text-primary' : ''}>
+                          Manual
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              
+              {/* Sair */}
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   onClick={handleLogout}
