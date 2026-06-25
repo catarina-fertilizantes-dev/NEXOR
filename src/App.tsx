@@ -22,6 +22,7 @@ import Colaboradores from "./pages/Colaboradores";
 import ManualArmazem from "./pages/manual/ManualArmazem";
 import ManualCliente from "./pages/manual/ManualCliente";
 import ManualRepresentante from "./pages/manual/ManualRepresentante";
+import ManualLogistica from "./pages/manual/ManualLogistica";
 import AuthPage from "./pages/AuthPage";
 import ChangePassword from "./pages/ChangePassword";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -237,6 +238,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="representante">
                   <ManualRepresentante />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manual/logistica"
+              element={
+                <ProtectedRoute requiredRole="logistica">
+                  <ManualLogistica />
                 </ProtectedRoute>
               }
             />
