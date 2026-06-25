@@ -441,7 +441,7 @@ const Clientes = () => {
       }
 
       // ✅ FORÇA REFRESH DO TOKEN
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session) {
         toast({
