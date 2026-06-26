@@ -72,6 +72,11 @@ Liberação → Agendamento → Carregamento
   - `quantidade_disponivel` — físico menos comprometimentos de liberações ativas (decrementado ao criar liberação, restaurado ao cancelar)
   - Entrada de estoque requer: Número da Remessa, Nota de Remessa (PDF) e Arquivo XML da Remessa
 
+## Documentação de Referência
+
+- **`docs/UI-STANDARDS.md`** — Padrões visuais e de UX do sistema. Consultar **sempre** antes de implementar qualquer componente, página ou funcionalidade nova. Cobre: textos e variantes de botões, empty states, alertas, badges de status, listas colapsáveis, toasts, tooltips, formulários, ícones por entidade e checklist pré-PR.
+- **`docs/TESTING.md`** — Estratégia de testes, quando rodar cada suite, cobertura atual e checklist de release.
+
 ## Arquitetura de Arquivos
 
 ```
