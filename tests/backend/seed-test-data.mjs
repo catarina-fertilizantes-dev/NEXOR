@@ -96,10 +96,11 @@ if (estoqueExistente) {
   info(`Armazém 2 já tem estoque: ${estoqueExistente.quantidade_disponivel}t — sem alteração`);
 } else {
   const { error } = await sb.from('estoque').insert({
-    armazem_id:           IDS.armazem2,
-    produto_id:           IDS.produto1,
-    quantidade_disponivel: 500,
-    updated_by:           adminId,
+    armazem_id:            IDS.armazem2,
+    produto_id:            IDS.produto1,
+    quantidade:            500,   // estoque FÍSICO — deve ser igual ao disponível na criação
+    quantidade_disponivel: 500,   // estoque DISPONÍVEL — reduz conforme liberações são criadas
+    updated_by:            adminId,
   });
   if (error) fail('Inserir estoque Armazém 2', error);
   else ok('Estoque Armazém 2: 500t inseridos');
