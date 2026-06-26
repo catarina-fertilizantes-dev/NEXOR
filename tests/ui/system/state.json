@@ -1,0 +1,40 @@
+{
+  "users": {
+    "armazem1": {
+      "email": "armazem.joinville@nexortest.com",
+      "tempPassword": "ArmazemCMXR",
+      "finalPassword": "Teste@2026!"
+    },
+    "armazem2": {
+      "email": "armazem.poa@nexortest.com",
+      "tempPassword": "ArmazemW23V",
+      "finalPassword": "Teste@2026!"
+    },
+    "representante1": {
+      "email": "joao.rep@nexortest.com",
+      "tempPassword": "RepresentanteMNDY",
+      "finalPassword": "Teste@2026!"
+    },
+    "colaborador1": {
+      "email": "maria.logistica@nexortest.com",
+      "tempPassword": "Teste@2026!",
+      "finalPassword": "Teste@2026!"
+    },
+    "cliente1": {
+      "email": "agro.co@nexortest.com",
+      "tempPassword": "ClienteKQKN",
+      "finalPassword": "Teste@2026!"
+    },
+    "cliente2": {
+      "email": "fazenda.sj@nexortest.com",
+      "tempPassword": "ClienteYK8Y",
+      "finalPassword": "Teste@2026!"
+    }
+  },
+  "produto1Nome": "Ureia 46%",
+  "armazem1Nome": "Armazém Joinville",
+  "armazem2Nome": "Armazém Porto Alegre",
+  "representante1Nome": "João Representações",
+  "cliente1Nome": "Agro Centro-Oeste Ltda",
+  "cliente2Nome": "Fazenda São João"
+}
