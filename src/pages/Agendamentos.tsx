@@ -787,6 +787,7 @@ const Agendamentos = () => {
 
   const { agendamentosAtivos, agendamentosFinalizados } = useMemo(() => {
     const filtered = agendamentos.filter((a) => {
+      if (a.status === 'cancelado') return false;
       const term = search.trim().toLowerCase();
       if (term) {
         const hay = `${a.cliente} ${a.produto} ${a.pedido} ${a.motorista}`.toLowerCase();
