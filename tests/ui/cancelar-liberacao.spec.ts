@@ -58,21 +58,23 @@ test.describe('Fluxo de cancelamento — admin', () => {
     await expect(page.getByText(/Esta ação é irreversível/i)).toBeVisible();
 
     // Aguarda preview carregar (spinner some e valores aparecem)
-    await page.waitForSelector('text=Quantidade a devolver ao estoque', { timeout: 10000 });
+    // Scope dentro do dialog de cancelamento para evitar conflitos com outros elementos
+    const cancelarDialog = page.getByRole('dialog', { name: /Cancelar Liberação\?/i });
+    await expect(cancelarDialog.getByText('Quantidade a devolver ao estoque')).toBeVisible({ timeout: 12000 });
 
-    // Cards de valores: Liberada, Já retirada, Em carregamento
-    await expect(page.getByText('Liberada')).toBeVisible();
-    await expect(page.getByText(/Já retirada|Retirada/i)).toBeVisible();
-    await expect(page.getByText(/Em carregamento/i)).toBeVisible();
+    // Cards de valores no preview (scoped no dialog)
+    await expect(cancelarDialog.getByText('Liberada', { exact: true })).toBeVisible();
+    await expect(cancelarDialog.getByText(/Já retirada/i)).toBeVisible();
+    await expect(cancelarDialog.getByText(/Em carregamento/i)).toBeVisible();
 
     // Painel verde com "Quantidade a devolver ao estoque"
-    await expect(page.getByText('Quantidade a devolver ao estoque')).toBeVisible();
+    await expect(cancelarDialog.getByText('Quantidade a devolver ao estoque')).toBeVisible();
 
     // O valor devolvido deve ser um número seguido de "t"
-    const valorDevolvido = page.locator('.bg-green-50 p.text-lg, .bg-green-50 p.font-bold').first();
+    const valorDevolvido = cancelarDialog.locator('.bg-green-50 p').last();
     await expect(valorDevolvido).toBeVisible();
     const textoValor = await valorDevolvido.textContent();
-    expect(textoValor).toMatch(/[\d,]+t/);
+    expect(textoValor).toMatch(/[\d,.]+t/);
   });
 
   test('botão "Voltar" fecha dialog sem cancelar', async ({ page }) => {
@@ -93,14 +95,15 @@ test.describe('Fluxo de cancelamento — admin', () => {
     await page.getByRole('button', { name: /Cancelar Liberação/i }).click();
 
     // Aguarda preview
-    await page.waitForSelector('text=Quantidade a devolver ao estoque', { timeout: 10000 });
+    const dlg = page.getByRole('dialog', { name: /Cancelar Liberação\?/i });
+    await expect(dlg.getByText('Quantidade a devolver ao estoque')).toBeVisible({ timeout: 12000 });
 
     // Confirma
     await page.getByRole('button', { name: /Confirmar Cancelamento/i }).click();
 
-    // Toast de sucesso
-    await expect(page.getByText(/Liberação cancelada/i)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/devolvidas ao estoque do armazém/i)).toBeVisible();
+    // Toast de sucesso (exact para evitar o ARIA live region)
+    await expect(page.getByText('Liberação cancelada', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/devolvidas ao estoque do armazém/i).first()).toBeVisible();
 
     // Modal fecha
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 8000 });
@@ -128,9 +131,10 @@ test.describe('Fluxo de cancelamento — admin', () => {
 
     const pedido = await abrirPrimeiraLiberacaoAtiva(page);
     await page.getByRole('button', { name: /Cancelar Liberação/i }).click();
-    await page.waitForSelector('text=Quantidade a devolver ao estoque', { timeout: 10000 });
+    const dlg = page.getByRole('dialog', { name: /Cancelar Liberação\?/i });
+    await expect(dlg.getByText('Quantidade a devolver ao estoque')).toBeVisible({ timeout: 12000 });
     await page.getByRole('button', { name: /Confirmar Cancelamento/i }).click();
-    await expect(page.getByText(/Liberação cancelada/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Liberação cancelada', { exact: true })).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 8000 });
 
     // Seção ativas deve ter 1 item a menos
@@ -155,9 +159,10 @@ test.describe('Fluxo de cancelamento — colaborador (logistica)', () => {
   test('fluxo completo de cancelamento funciona para logistica', async ({ page }) => {
     await abrirPrimeiraLiberacaoAtiva(page);
     await page.getByRole('button', { name: /Cancelar Liberação/i }).click();
-    await page.waitForSelector('text=Quantidade a devolver ao estoque', { timeout: 10000 });
+    const dlg = page.getByRole('dialog', { name: /Cancelar Liberação\?/i });
+    await expect(dlg.getByText('Quantidade a devolver ao estoque')).toBeVisible({ timeout: 12000 });
     await page.getByRole('button', { name: /Confirmar Cancelamento/i }).click();
-    await expect(page.getByText(/Liberação cancelada/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Liberação cancelada', { exact: true })).toBeVisible({ timeout: 10000 });
   });
 });
 
