@@ -8,7 +8,11 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:rls": "node tests/backend/rls-full.mjs && node tests/backend/rls-security.mjs",
+    "test:ui": "playwright test tests/ui/system/03-navigation-by-role.spec.ts tests/ui/system/04-full-flow.spec.ts --project=edge",
+    "test:ui:setup": "playwright test tests/ui/system/01-admin-setup.spec.ts tests/ui/system/02-change-passwords.spec.ts --project=edge",
+    "test:all": "npm run test:rls && npm run test:ui"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
