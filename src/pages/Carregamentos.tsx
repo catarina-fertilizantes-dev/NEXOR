@@ -595,24 +595,11 @@ const Carregamentos = () => {
           <div className="grid gap-3">
             {carregamentosAtivos.map(renderCarregamentoCard)}
             {carregamentosAtivos.length === 0 && (
-              <div className="text-center py-8">
-                <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground text-sm md:text-base">
-                  {hasActiveFilters
-                    ? "Nenhum carregamento ativo encontrado com os filtros aplicados"
-                    : "Nenhum carregamento ativo no momento"}
-                </p>
-                {hasActiveFilters && (
-                  <Button 
-                    size="sm" 
-                    onClick={clearFilters}
-                    className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Limpar Filtros
-                  </Button>
-                )}
-              </div>
+              <p className="text-center text-sm text-muted-foreground py-8">
+                {hasActiveFilters
+                  ? "Nenhum carregamento ativo encontrado com os filtros aplicados."
+                  : "Nenhum carregamento ativo no momento."}
+              </p>
             )}
           </div>
         </div>
@@ -646,22 +633,29 @@ const Carregamentos = () => {
 
         {/* Estado vazio geral - Mobile Otimizado */}
         {carregamentosAtivos.length === 0 && carregamentosFinalizados.length === 0 && (
-          <div className="text-center py-12">
-            <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground text-sm md:text-base">
-              {hasActiveFilters
-                ? "Nenhum carregamento encontrado com os filtros aplicados"
-                : "Nenhum carregamento cadastrado ainda"}
-            </p>
+          <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+            <div className="rounded-full bg-muted p-4">
+              <Truck className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-foreground">
+                {hasActiveFilters ? "Nenhum carregamento encontrado" : "Nenhum carregamento registrado"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? "Nenhum carregamento encontrado com os filtros aplicados"
+                  : "Os carregamentos são criados automaticamente quando um agendamento é registrado."}
+              </p>
+            </div>
             {hasActiveFilters && (
-                <Button 
-                  size="sm" 
-                  onClick={clearFilters}
-                  className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Limpar Filtros
-                </Button>
+              <Button
+                size="sm"
+                onClick={clearFilters}
+                className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Limpar Filtros
+              </Button>
             )}
           </div>
         )}

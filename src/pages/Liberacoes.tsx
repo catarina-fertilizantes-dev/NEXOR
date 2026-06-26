@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, CheckCircle, Package, Building2, User, FileText, Edit3, XCircle } from "lucide-react";
+import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, AlertTriangle, ExternalLink, Calendar, Info, Loader2, CheckCircle, Package, Building2, User, FileText, Edit3, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1529,7 +1529,7 @@ const Liberacoes = () => {
             <div className="py-4 px-1 space-y-4">
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-800">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                  <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                   <div className="text-sm space-y-1">
                     <p className="font-medium text-red-800 dark:text-red-300">Esta ação é irreversível.</p>
                     <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
@@ -1591,7 +1591,7 @@ const Liberacoes = () => {
                 className="min-h-[44px] w-full sm:w-auto btn-secondary"
                 disabled={isCancelando}
               >
-                Voltar
+                Cancelar
               </Button>
               <Button
                 variant="destructive"
@@ -1627,7 +1627,7 @@ const Liberacoes = () => {
                 <>
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                       <div className="text-sm">
                         <p className="font-medium text-amber-800">Atenção:</p>
                         <p className="text-amber-700 text-xs mt-1">
@@ -1764,24 +1764,11 @@ const Liberacoes = () => {
           <div className="grid gap-3">
             {liberacoesAtivas.map(renderLiberacaoCard)}
             {liberacoesAtivas.length === 0 && (
-              <div className="text-center py-8">
-                <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground text-sm md:text-base">
-                  {hasActiveFilters
-                    ? "Nenhuma liberação ativa encontrada com os filtros aplicados"
-                    : "Nenhuma liberação ativa no momento"}
-                </p>
-                {hasActiveFilters && (
-                  <Button 
-                    size="sm" 
-                    onClick={clearFilters}
-                    className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Limpar Filtros
-                  </Button>
-                )}
-              </div>
+              <p className="text-center text-sm text-muted-foreground py-8">
+                {hasActiveFilters
+                  ? "Nenhuma liberação ativa encontrada com os filtros aplicados."
+                  : "Nenhuma liberação ativa no momento."}
+              </p>
             )}
           </div>
         </div>
@@ -1839,21 +1826,36 @@ const Liberacoes = () => {
         )}
 
         {liberacoesAtivas.length === 0 && liberacoesFinalizadas.length === 0 && liberacoesCanceladas.length === 0 && (
-          <div className="text-center py-12">
-            <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground text-sm md:text-base">
-              {hasActiveFilters
-                ? "Nenhuma liberação encontrada com os filtros aplicados"
-                : "Nenhuma liberação cadastrada ainda"}
-            </p>
-            {hasActiveFilters && (
+          <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+            <div className="rounded-full bg-muted p-4">
+              <ClipboardList className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-foreground">
+                {hasActiveFilters ? "Nenhuma liberação encontrada" : "Nenhuma liberação cadastrada"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? "Nenhuma liberação encontrada com os filtros aplicados."
+                  : "Comece criando a primeira liberação do sistema."}
+              </p>
+            </div>
+            {hasActiveFilters ? (
               <Button
                 size="sm"
                 onClick={clearFilters}
-                className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
               >
                 <X className="h-4 w-4 mr-2" />
                 Limpar Filtros
+              </Button>
+            ) : canCreate && (
+              <Button
+                className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+                onClick={() => setDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Liberação
               </Button>
             )}
           </div>

@@ -1366,21 +1366,36 @@ const Clientes = () => {
       
       {/* Estado vazio */}
       {filteredClientes.length === 0 && (
-        <div className="text-center py-12">
-          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            {hasActiveFilters
-              ? "Nenhum cliente encontrado com os filtros aplicados"
-              : "Nenhum cliente cadastrado ainda"}
-          </p>
-          {hasActiveFilters && (
-            <Button 
-              size="sm" 
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="rounded-full bg-muted p-4">
+            <Users className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">
+              {hasActiveFilters ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {hasActiveFilters
+                ? "Nenhum cliente encontrado com os filtros aplicados."
+                : "Comece cadastrando o primeiro cliente do sistema."}
+            </p>
+          </div>
+          {hasActiveFilters ? (
+            <Button
+              size="sm"
               onClick={handleClearFilters}
-              className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
             >
               <X className="h-4 w-4 mr-2" />
               Limpar Filtros
+            </Button>
+          ) : canCreate && (
+            <Button
+              className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Cliente
             </Button>
           )}
         </div>

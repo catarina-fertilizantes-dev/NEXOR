@@ -1518,46 +1518,49 @@ const Agendamentos = () => {
           )}
 
           {agendamentos.length === 0 && (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum agendamento encontrado</h3>
-                <p className="text-muted-foreground mb-4">
-                  {canCreate 
+            <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+              <div className="rounded-full bg-muted p-4">
+                <Calendar className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-foreground">Nenhum agendamento cadastrado</h3>
+                <p className="text-sm text-muted-foreground">
+                  {canCreate
                     ? "Comece criando seu primeiro agendamento de retirada."
-                    : "Aguarde a criação de agendamentos pela equipe responsável."
-                  }
+                    : "Aguarde a criação de agendamentos pela equipe responsável."}
                 </p>
-                {canCreate && (
-                  <Button 
-                    onClick={() => setDialogOpen(true)} 
-                    className="btn-primary min-h-[44px] max-md:min-h-[44px]"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Novo Agendamento
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+              </div>
+              {canCreate && (
+                <Button
+                  onClick={() => setDialogOpen(true)}
+                  className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Agendamento
+                </Button>
+              )}
+            </div>
           )}
 
           {agendamentos.length > 0 && showingCount === 0 && (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum resultado encontrado</h3>
-                <p className="text-muted-foreground mb-4">
+            <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+              <div className="rounded-full bg-muted p-4">
+                <FilterIcon className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-foreground">Nenhum resultado encontrado</h3>
+                <p className="text-sm text-muted-foreground">
                   Ajuste os filtros para encontrar os agendamentos desejados.
                 </p>
-                <Button 
-                  onClick={clearFilters} 
-                  className="btn-secondary min-h-[44px] max-md:min-h-[44px]"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Limpar Filtros
-                </Button>
-              </CardContent>
-            </Card>
+              </div>
+              <Button
+                onClick={clearFilters}
+                className="btn-secondary min-h-[44px] max-md:min-h-[44px]"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Limpar Filtros
+              </Button>
+            </div>
           )}
         </div>
 
