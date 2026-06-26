@@ -163,6 +163,13 @@ const Liberacoes = () => {
 
   const [showCancelarDialog, setShowCancelarDialog] = useState(false);
   const [isCancelando, setIsCancelando] = useState(false);
+  const [isLoadingPreviewCancelamento, setIsLoadingPreviewCancelamento] = useState(false);
+  const [previewCancelamento, setPreviewCancelamento] = useState<{
+    quantidade_a_devolver: number;
+    quantidade_em_andamento: number;
+    quantidade_retirada: number;
+    quantidade_liberada: number;
+  } | null>(null);
   const [secaoCanceladasExpandida, setSecaoCanceladasExpandida] = useState(false);
 
   const [showAlterarArmazem, setShowAlterarArmazem] = useState(false);
@@ -734,24 +741,44 @@ const Liberacoes = () => {
     }
   };
 
+  const handleAbrirCancelarDialog = async () => {
+    if (!detalhesLiberacao) return;
+    setShowCancelarDialog(true);
+    setPreviewCancelamento(null);
+    setIsLoadingPreviewCancelamento(true);
+    try {
+      const { data, error } = await supabase.rpc('calcular_cancelamento_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string; quantidade_a_devolver: number; quantidade_em_andamento: number; quantidade_retirada: number; quantidade_liberada: number };
+      if (!result.success) throw new Error(result.error);
+      setPreviewCancelamento(result);
+    } catch {
+      // Se o preview falhar, o dialog ainda abre — só não mostra o valor calculado
+    } finally {
+      setIsLoadingPreviewCancelamento(false);
+    }
+  };
+
   const handleCancelarLiberacao = async () => {
     if (!detalhesLiberacao) return;
     setIsCancelando(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: rpcData, error } = await (supabase as any).rpc('cancelar_liberacao', {
+      const { data, error } = await supabase.rpc('cancelar_liberacao', {
         p_liberacao_id: detalhesLiberacao.id,
-        p_user_id: userData.user?.id,
+        p_user_id: userData.user?.id ?? '',
       });
       if (error) throw error;
-      const data = rpcData as { success: boolean; error?: string; quantidade_devolvida: number };
-      if (!data.success) throw new Error(data.error);
+      const result = data as { success: boolean; error?: string; quantidade_devolvida: number };
+      if (!result.success) throw new Error(result.error);
       toast({
         title: "Liberação cancelada",
-        description: `${Number(data.quantidade_devolvida).toLocaleString('pt-BR')}t devolvidas ao estoque do armazém.`,
+        description: `${Number(result.quantidade_devolvida).toLocaleString('pt-BR')}t devolvidas ao estoque do armazém.`,
       });
       setShowCancelarDialog(false);
+      setPreviewCancelamento(null);
       setDetalhesLiberacao(null);
       queryClient.invalidateQueries({ queryKey: ["liberacoes"] });
     } catch (err) {
@@ -1472,7 +1499,7 @@ const Liberacoes = () => {
                !detalhesLiberacao?.finalizada && (
                 <Button
                   variant="destructive"
-                  onClick={() => setShowCancelarDialog(true)}
+                  onClick={handleAbrirCancelarDialog}
                   className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto"
                 >
                   <XCircle className="h-4 w-4 mr-2" />
@@ -1490,7 +1517,7 @@ const Liberacoes = () => {
         </Dialog>
 
         {/* Dialog de Confirmação de Cancelamento */}
-        <Dialog open={showCancelarDialog} onOpenChange={(open) => !open && setShowCancelarDialog(false)}>
+        <Dialog open={showCancelarDialog} onOpenChange={(open) => { if (!open) { setShowCancelarDialog(false); setPreviewCancelamento(null); } }}>
           <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
             <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
               <DialogTitle className="text-lg pr-2 mt-1">Cancelar Liberação?</DialogTitle>
@@ -1508,14 +1535,39 @@ const Liberacoes = () => {
                     <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
                       <li>Agendamentos não iniciados serão arquivados</li>
                       <li>Carregamentos não iniciados serão removidos</li>
-                      <li>A quantidade não comprometida será devolvida ao estoque do armazém</li>
-                      <li>Carregamentos em andamento continuarão até sua conclusão</li>
+                      <li>Carregamentos em andamento continuarão até sua conclusão natural</li>
                     </ul>
                   </div>
                 </div>
               </div>
 
-              {detalhesLiberacao && (
+              {isLoadingPreviewCancelamento ? (
+                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando impacto...
+                </div>
+              ) : previewCancelamento ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="p-2 bg-muted rounded-lg">
+                      <p className="text-xs text-muted-foreground">Liberada</p>
+                      <p className="font-semibold text-sm">{previewCancelamento.quantidade_liberada.toLocaleString('pt-BR')}t</p>
+                    </div>
+                    <div className="p-2 bg-muted rounded-lg">
+                      <p className="text-xs text-muted-foreground">Já retirada</p>
+                      <p className="font-semibold text-sm text-orange-600">{previewCancelamento.quantidade_retirada.toLocaleString('pt-BR')}t</p>
+                    </div>
+                    <div className="p-2 bg-muted rounded-lg">
+                      <p className="text-xs text-muted-foreground">Em carregamento</p>
+                      <p className="font-semibold text-sm text-yellow-600">{previewCancelamento.quantidade_em_andamento.toLocaleString('pt-BR')}t</p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/20 dark:border-green-800 text-center">
+                    <p className="text-xs text-green-700 dark:text-green-400">Quantidade a devolver ao estoque</p>
+                    <p className="text-lg font-bold text-green-800 dark:text-green-300">{previewCancelamento.quantidade_a_devolver.toLocaleString('pt-BR')}t</p>
+                  </div>
+                </div>
+              ) : detalhesLiberacao && (
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="p-2 bg-muted rounded-lg">
                     <p className="text-xs text-muted-foreground">Liberada</p>
@@ -1535,7 +1587,7 @@ const Liberacoes = () => {
 
             <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-2 justify-end">
               <Button
-                onClick={() => setShowCancelarDialog(false)}
+                onClick={() => { setShowCancelarDialog(false); setPreviewCancelamento(null); }}
                 className="min-h-[44px] w-full sm:w-auto btn-secondary"
                 disabled={isCancelando}
               >
@@ -1544,7 +1596,7 @@ const Liberacoes = () => {
               <Button
                 variant="destructive"
                 onClick={handleCancelarLiberacao}
-                disabled={isCancelando}
+                disabled={isCancelando || isLoadingPreviewCancelamento}
                 className="min-h-[44px] w-full sm:w-auto"
               >
                 {isCancelando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
