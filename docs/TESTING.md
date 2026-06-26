@@ -115,19 +115,18 @@ Após o setup, as credenciais ficam salvas em `tests/ui/system/state.json`.
 | `02-change-passwords.spec.ts` | 5 | Troca de senha obrigatória no primeiro login |
 | `03-navigation-by-role.spec.ts` | 12 | Menus visíveis e páginas acessíveis por role |
 | `04-full-flow.spec.ts` | 8 | Isolamento de dados + fluxo Agendamento→Carregamento |
+| `05-carregamento-etapas.spec.ts` | 9 | Progressão completa etapa 1→6; uploads de foto por etapa; sub-etapas 5a/5b/5c com diferentes roles; verificação de redução de estoque |
+| `06-liberacao-cancelamento.spec.ts` | 5 | Cancelamento sem agendamentos; preview de impacto; cancelamento com agendamento ativo; acesso restrito (cliente não pode cancelar) |
+| `07-agendamentos-avancados.spec.ts` | 6 | Representante cria agendamento; status parcialmente→totalmente agendada; validação de quantidade excessiva; isolamento rep vs clientes não-representados |
 
 ### Cenários ainda não cobertos por testes automatizados
 
 Os itens abaixo devem ser **testados manualmente** antes de cada release:
 
-- Progressão completa do carregamento (etapas 1→6)
-- Upload de documentos nas sub-etapas 5a/5b/5c
-- Verificação de redução de estoque após etapa 6
-- Cancelamento de liberação (com e sem agendamentos ativos)
-- Múltiplos agendamentos para a mesma liberação (`parcialmente_agendada` → `totalmente_agendada`)
-- Representante criando agendamento para cliente que representa
-- Alteração de armazém em uma liberação
-- Entrada de estoque (nova remessa)
+- Alteração de armazém em uma liberação (`alterar_armazem_liberacao`)
+- Entrada de estoque nova remessa (adicionar quantidade ao armazém)
+- Cancelamento de agendamento (funcionalidade ainda não implementada na UI)
+- Edição de cadastros (clientes, armazéns, etc. — ainda não implementado)
 
 ---
 

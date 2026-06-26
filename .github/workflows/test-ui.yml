@@ -32,8 +32,23 @@ jobs:
         env:
           CI: true
 
-      - name: Run full flow tests
+      - name: Run full flow & isolation tests
         run: npx playwright test tests/ui/system/04-full-flow.spec.ts --project=chromium
+        env:
+          CI: true
+
+      - name: Run carregamento full progression (etapas 1-6)
+        run: npx playwright test tests/ui/system/05-carregamento-etapas.spec.ts --project=chromium
+        env:
+          CI: true
+
+      - name: Run liberacao cancellation tests
+        run: npx playwright test tests/ui/system/06-liberacao-cancelamento.spec.ts --project=chromium
+        env:
+          CI: true
+
+      - name: Run advanced agendamento tests
+        run: npx playwright test tests/ui/system/07-agendamentos-avancados.spec.ts --project=chromium
         env:
           CI: true
 
