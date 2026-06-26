@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:rls": "node tests/backend/rls-full.mjs && node tests/backend/rls-security.mjs",
-    "test:ui": "playwright test tests/ui/system/03-navigation-by-role.spec.ts tests/ui/system/04-full-flow.spec.ts tests/ui/system/05-carregamento-etapas.spec.ts tests/ui/system/06-liberacao-cancelamento.spec.ts tests/ui/system/07-agendamentos-avancados.spec.ts --project=edge",
+    "test:ui": "playwright test tests/ui/system/03-navigation-by-role.spec.ts tests/ui/system/04-full-flow.spec.ts tests/ui/system/05-carregamento-etapas.spec.ts tests/ui/system/06-liberacao-cancelamento.spec.ts tests/ui/system/07-agendamentos-avancados.spec.ts tests/ui/system/08-estoque-e-armazem.spec.ts --project=edge",
     "test:ui:setup": "playwright test tests/ui/system/01-admin-setup.spec.ts tests/ui/system/02-change-passwords.spec.ts --project=edge",
     "test:all": "npm run test:rls && npm run test:ui"
   },

@@ -52,6 +52,11 @@ jobs:
         env:
           CI: true
 
+      - name: Run estoque entrada and alterar armazem tests
+        run: npx playwright test tests/ui/system/08-estoque-e-armazem.spec.ts --project=chromium
+        env:
+          CI: true
+
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4

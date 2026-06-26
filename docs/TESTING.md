@@ -118,15 +118,14 @@ Após o setup, as credenciais ficam salvas em `tests/ui/system/state.json`.
 | `05-carregamento-etapas.spec.ts` | 9 | Progressão completa etapa 1→6; uploads de foto por etapa; sub-etapas 5a/5b/5c com diferentes roles; verificação de redução de estoque |
 | `06-liberacao-cancelamento.spec.ts` | 5 | Cancelamento sem agendamentos; preview de impacto; cancelamento com agendamento ativo; acesso restrito (cliente não pode cancelar) |
 | `07-agendamentos-avancados.spec.ts` | 6 | Representante cria agendamento; status parcialmente→totalmente agendada; validação de quantidade excessiva; isolamento rep vs clientes não-representados |
+| `08-estoque-e-armazem.spec.ts` | 11 | Entrada de estoque (nova remessa com PDF+XML); verificação de aumento de quantidade; acesso restrito por role; alteração de armazém de liberação disponível; bloqueio para liberação totalmente agendada |
 
 ### Cenários ainda não cobertos por testes automatizados
 
-Os itens abaixo devem ser **testados manualmente** antes de cada release:
+Os itens abaixo devem ser **testados manualmente** antes de cada release (funcionalidades ainda não implementadas na UI):
 
-- Alteração de armazém em uma liberação (`alterar_armazem_liberacao`)
-- Entrada de estoque nova remessa (adicionar quantidade ao armazém)
-- Cancelamento de agendamento (funcionalidade ainda não implementada na UI)
-- Edição de cadastros (clientes, armazéns, etc. — ainda não implementado)
+- Cancelamento de agendamento
+- Edição de cadastros (clientes, armazéns, produtos, representantes)
 
 ---
 
