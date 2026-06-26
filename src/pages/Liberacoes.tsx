@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, CheckCircle, Package, Building2, User, FileText, Edit3 } from "lucide-react";
+import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, CheckCircle, Package, Building2, User, FileText, Edit3, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,12 +19,13 @@ import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 
-type StatusLiberacao = "disponivel" | "parcialmente_agendada" | "totalmente_agendada";
+type StatusLiberacao = "disponivel" | "parcialmente_agendada" | "totalmente_agendada" | "cancelada";
 
 const STATUS_LIBERACAO = [
   { id: "disponivel", nome: "Disponível", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
   { id: "parcialmente_agendada", nome: "Parcialmente Agendada", cor: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
   { id: "totalmente_agendada", nome: "Totalmente Agendada", cor: "bg-blue-100 text-blue-800 hover:bg-blue-200" },
+  { id: "cancelada", nome: "Cancelada", cor: "bg-red-100 text-red-800 hover:bg-red-200" },
 ];
 
 interface LiberacaoItem {
@@ -54,6 +55,8 @@ const getLiberacaoStatusTooltip = (status: StatusLiberacao) => {
       return "Esta liberação possui agendamentos, mas ainda há quantidade disponível";
     case "totalmente_agendada":
       return "Toda a quantidade desta liberação já foi agendada para retirada";
+    case "cancelada":
+      return "Esta liberação foi cancelada";
     default:
       return "";
   }
@@ -157,6 +160,10 @@ const Liberacoes = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [detalhesLiberacao, setDetalhesLiberacao] = useState<LiberacaoItem | null>(null);
   const [secaoFinalizadasExpandida, setSecaoFinalizadasExpandida] = useState(false);
+
+  const [showCancelarDialog, setShowCancelarDialog] = useState(false);
+  const [isCancelando, setIsCancelando] = useState(false);
+  const [secaoCanceladasExpandida, setSecaoCanceladasExpandida] = useState(false);
 
   const [showAlterarArmazem, setShowAlterarArmazem] = useState(false);
   const [novoArmazemId, setNovoArmazemId] = useState("");
@@ -460,7 +467,7 @@ const Liberacoes = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedArmazens, setSelectedArmazens] = useState<string[]>([]);
-  const allStatuses: StatusLiberacao[] = ["disponivel", "parcialmente_agendada", "totalmente_agendada"];
+  const allStatuses: StatusLiberacao[] = ["disponivel", "parcialmente_agendada", "totalmente_agendada", "cancelada"];
   const allArmazens = useMemo(
     () => Array.from(new Set(liberacoes.map((l) => l.armazem).filter(Boolean))) as string[],
     [liberacoes]
@@ -480,7 +487,7 @@ const Liberacoes = () => {
     setSelectedArmazens([]);
   };
 
-  const { liberacoesAtivas, liberacoesFinalizadas } = useMemo(() => {
+  const { liberacoesAtivas, liberacoesFinalizadas, liberacoesCanceladas } = useMemo(() => {
     const filtered = liberacoes.filter((l) => {
       const term = search.trim().toLowerCase();
       if (term) {
@@ -500,9 +507,10 @@ const Liberacoes = () => {
       }
       return true;
     });
-    const ativas = filtered.filter(l => !l.finalizada);
-    const finalizadas = filtered.filter(l => l.finalizada);
-    return { liberacoesAtivas: ativas, liberacoesFinalizadas: finalizadas };
+    const ativas = filtered.filter(l => !l.finalizada && l.status !== 'cancelada');
+    const finalizadas = filtered.filter(l => l.finalizada && l.status !== 'cancelada');
+    const canceladas = filtered.filter(l => l.status === 'cancelada');
+    return { liberacoesAtivas: ativas, liberacoesFinalizadas: finalizadas, liberacoesCanceladas: canceladas };
   }, [liberacoes, search, selectedStatuses, selectedArmazens, dateFrom, dateTo]);
 
   useEffect(() => {
@@ -511,7 +519,13 @@ const Liberacoes = () => {
     }
   }, [search, liberacoesFinalizadas.length, secaoFinalizadasExpandida]);
 
-  const showingCount = liberacoesAtivas.length + liberacoesFinalizadas.length;
+  useEffect(() => {
+    if (search.trim() && liberacoesCanceladas.length > 0 && !secaoCanceladasExpandida) {
+      setSecaoCanceladasExpandida(true);
+    }
+  }, [search, liberacoesCanceladas.length, secaoCanceladasExpandida]);
+
+  const showingCount = liberacoesAtivas.length + liberacoesFinalizadas.length + liberacoesCanceladas.length;
   const totalCount = liberacoes.length;
   const activeAdvancedCount =
     (selectedStatuses.length ? 1 : 0) +
@@ -698,6 +712,8 @@ const Liberacoes = () => {
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
       case "totalmente_agendada":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
+      case "cancelada":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
     }
@@ -711,8 +727,41 @@ const Liberacoes = () => {
         return "Parcialmente Agendada";
       case "totalmente_agendada":
         return "Totalmente Agendada";
+      case "cancelada":
+        return "Cancelada";
       default:
         return status;
+    }
+  };
+
+  const handleCancelarLiberacao = async () => {
+    if (!detalhesLiberacao) return;
+    setIsCancelando(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error } = await (supabase as any).rpc('cancelar_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+        p_user_id: userData.user?.id,
+      });
+      if (error) throw error;
+      const data = rpcData as { success: boolean; error?: string; quantidade_devolvida: number };
+      if (!data.success) throw new Error(data.error);
+      toast({
+        title: "Liberação cancelada",
+        description: `${Number(data.quantidade_devolvida).toLocaleString('pt-BR')}t devolvidas ao estoque do armazém.`,
+      });
+      setShowCancelarDialog(false);
+      setDetalhesLiberacao(null);
+      queryClient.invalidateQueries({ queryKey: ["liberacoes"] });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao cancelar liberação",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsCancelando(false);
     }
   };
 
@@ -1334,8 +1383,9 @@ const Liberacoes = () => {
                         <p className="text-sm font-medium break-words">{detalhesLiberacao.armazem}</p>
                       </div>
 
-                      {(hasRole("admin") || hasRole("logistica")) && 
-                       detalhesLiberacao.status !== 'totalmente_agendada' && 
+                      {(hasRole("admin") || hasRole("logistica")) &&
+                       detalhesLiberacao.status !== 'totalmente_agendada' &&
+                       detalhesLiberacao.status !== 'cancelada' &&
                        !detalhesLiberacao.finalizada && (
                         <Button
                           size="sm"
@@ -1416,12 +1466,89 @@ const Liberacoes = () => {
               )}
             </div>
 
-            <div className="pt-4 border-t border-border bg-background flex justify-end">
-              <Button 
+            <div className="pt-4 border-t border-border bg-background flex flex-col sm:flex-row gap-2 justify-between">
+              {(hasRole("logistica") || hasRole("admin")) &&
+               detalhesLiberacao?.status !== 'cancelada' &&
+               !detalhesLiberacao?.finalizada && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowCancelarDialog(true)}
+                  className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Cancelar Liberação
+                </Button>
+              )}
+              <Button
                 onClick={() => setDetalhesLiberacao(null)}
-                className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-secondary"
+                className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-secondary sm:ml-auto"
               >
                 Fechar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Confirmação de Cancelamento */}
+        <Dialog open={showCancelarDialog} onOpenChange={(open) => !open && setShowCancelarDialog(false)}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Cancelar Liberação?</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesLiberacao?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-4">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="text-sm space-y-1">
+                    <p className="font-medium text-red-800 dark:text-red-300">Esta ação é irreversível.</p>
+                    <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
+                      <li>Agendamentos não iniciados serão arquivados</li>
+                      <li>Carregamentos não iniciados serão removidos</li>
+                      <li>A quantidade não comprometida será devolvida ao estoque do armazém</li>
+                      <li>Carregamentos em andamento continuarão até sua conclusão</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {detalhesLiberacao && (
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="p-2 bg-muted rounded-lg">
+                    <p className="text-xs text-muted-foreground">Liberada</p>
+                    <p className="font-semibold text-sm">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
+                  </div>
+                  <div className="p-2 bg-muted rounded-lg">
+                    <p className="text-xs text-muted-foreground">Retirada</p>
+                    <p className="font-semibold text-sm text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
+                  </div>
+                  <div className="p-2 bg-muted rounded-lg">
+                    <p className="text-xs text-muted-foreground">Agendada</p>
+                    <p className="font-semibold text-sm text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-2 justify-end">
+              <Button
+                onClick={() => setShowCancelarDialog(false)}
+                className="min-h-[44px] w-full sm:w-auto btn-secondary"
+                disabled={isCancelando}
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancelarLiberacao}
+                disabled={isCancelando}
+                className="min-h-[44px] w-full sm:w-auto"
+              >
+                {isCancelando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Confirmar Cancelamento
               </Button>
             </div>
           </DialogContent>
@@ -1488,7 +1615,7 @@ const Liberacoes = () => {
                         value={novoArmazemId} 
                         onValueChange={(v) => {
                           setNovoArmazemId(v);
-                          setAlertArmazem(true);
+                          markAsChangedArmazem();
                         }}
                         disabled={isAlterandoArmazem}
                       >
@@ -1633,7 +1760,33 @@ const Liberacoes = () => {
           </div>
         )}
 
-        {liberacoesAtivas.length === 0 && liberacoesFinalizadas.length === 0 && (
+        {liberacoesCanceladas.length > 0 && (
+          <div className="space-y-4">
+            <Button
+              onClick={() => setSecaoCanceladasExpandida(!secaoCanceladasExpandida)}
+              className="w-full justify-between bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 min-h-[44px] max-md:min-h-[44px] dark:bg-red-950/20 dark:hover:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+            >
+              <div className="flex items-center gap-2">
+                <XCircle className="h-5 w-5" />
+                <span className="text-sm font-medium">
+                  Liberações Canceladas ({liberacoesCanceladas.length})
+                </span>
+              </div>
+              {secaoCanceladasExpandida ?
+                <ChevronUp className="h-4 w-4" /> :
+                <ChevronDown className="h-4 w-4" />
+              }
+            </Button>
+
+            {secaoCanceladasExpandida && (
+              <div className="grid gap-3">
+                {liberacoesCanceladas.map(renderLiberacaoCard)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {liberacoesAtivas.length === 0 && liberacoesFinalizadas.length === 0 && liberacoesCanceladas.length === 0 && (
           <div className="text-center py-12">
             <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground text-sm md:text-base">
@@ -1642,8 +1795,8 @@ const Liberacoes = () => {
                 : "Nenhuma liberação cadastrada ainda"}
             </p>
             {hasActiveFilters && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={clearFilters}
                 className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
               >

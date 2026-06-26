@@ -1051,7 +1051,7 @@ const Agendamentos = () => {
           subtitle="Gerencie os agendamentos de retirada"
           icon={Calendar}
           actions={
-            canCreate && (
+            canCreate && liberacoesDisponiveis && liberacoesDisponiveis.length > 0 && (
               <Dialog open={dialogOpen} onOpenChange={(open) => {
                 if (!open && isCreating) return;
                 if (!open) {
