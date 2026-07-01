@@ -385,6 +385,27 @@ export type Database = {
         }
         Relationships: []
       }
+      config_tempo_etapas: {
+        Row: {
+          etapa: number
+          nome: string
+          tempo_maximo_minutos: number
+          updated_at: string
+        }
+        Insert: {
+          etapa: number
+          nome: string
+          tempo_maximo_minutos: number
+          updated_at?: string
+        }
+        Update: {
+          etapa?: number
+          nome?: string
+          tempo_maximo_minutos?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       estoque: {
         Row: {
           armazem_id: string
@@ -1293,5 +1314,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.108.0 (currently installed v2.84.2)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
