@@ -588,6 +588,7 @@ export type Database = {
         Row: {
           ativo: boolean | null
           created_at: string | null
+          estoque_minimo: number | null
           id: string
           nome: string
           unidade: string | null
@@ -596,6 +597,7 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           created_at?: string | null
+          estoque_minimo?: number | null
           id?: string
           nome: string
           unidade?: string | null
@@ -604,6 +606,7 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           created_at?: string | null
+          estoque_minimo?: number | null
           id?: string
           nome?: string
           unidade?: string | null
