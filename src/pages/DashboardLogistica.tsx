@@ -62,7 +62,13 @@ function TitleWithInfo({ title, tooltip, className }: { title: string; tooltip: 
       <TooltipProvider>
         <Tooltip delayDuration={100}>
           <TooltipTrigger asChild>
-            <Info className="h-3.5 w-3.5 text-muted-foreground/70 cursor-help" />
+            <Info
+              className="h-3.5 w-3.5 text-muted-foreground/70 cursor-help"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            />
           </TooltipTrigger>
           <TooltipContent>
             <p className="max-w-[220px]">{tooltip}</p>
@@ -81,6 +87,7 @@ function EntityListCard({
   names,
   isLoading,
   emptyLabel,
+  to,
 }: {
   title: string;
   tooltip: string;
@@ -88,6 +95,7 @@ function EntityListCard({
   names: string[] | undefined;
   isLoading: boolean;
   emptyLabel: string;
+  to?: string;
 }) {
   const [expandido, setExpandido] = useState(false);
   const lista = names ?? [];
@@ -95,11 +103,17 @@ function EntityListCard({
   const restantes = lista.length - visiveis.length;
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
+    <Card className={`overflow-hidden transition-all hover:shadow-md ${to ? "hover:border-primary/40" : ""}`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <TitleWithInfo title={title} tooltip={tooltip} />
+            {to ? (
+              <Link to={to} className="inline-flex hover:underline underline-offset-2">
+                <TitleWithInfo title={title} tooltip={tooltip} />
+              </Link>
+            ) : (
+              <TitleWithInfo title={title} tooltip={tooltip} />
+            )}
             <p className="mt-2 text-3xl font-bold text-foreground">
               {isLoading ? "…" : lista.length}
             </p>
@@ -385,9 +399,14 @@ function EstoqueBaixoCard({ itens, isLoading }: { itens: EstoqueBaixoItem[] | un
                 <p className="text-sm font-medium truncate">{item.produto}</p>
                 <p className="text-xs text-muted-foreground truncate">{item.armazem}</p>
               </div>
-              <Badge className="bg-red-100 text-red-800 hover:bg-red-100 shrink-0 font-normal">
-                {item.quantidade} / {item.minimo} {item.unidade}
-              </Badge>
+              <div className="flex flex-col items-end gap-0.5 shrink-0">
+                <Badge className="bg-red-100 text-red-800 hover:bg-red-100 font-normal">
+                  {item.quantidade} {item.unidade} em estoque
+                </Badge>
+                <span className="text-[11px] text-muted-foreground">
+                  mínimo configurado: {item.minimo} {item.unidade}
+                </span>
+              </div>
             </Link>
           ))}
         </div>
@@ -676,6 +695,7 @@ const DashboardLogistica = () => {
               icon={ClipboardList}
               variant="primary"
               tooltip="Liberações que ainda têm quantidade disponível para ser agendada ou retirada."
+              to="/liberacoes"
             />
             <StatCard
               title="Liberações sem Agendamento"
@@ -683,6 +703,7 @@ const DashboardLogistica = () => {
               icon={ClipboardX}
               variant="warning"
               tooltip="Liberações que ainda não tiveram nenhuma retirada agendada."
+              to="/liberacoes"
             />
             <StatCard
               title="Agendamentos Hoje"
@@ -690,6 +711,7 @@ const DashboardLogistica = () => {
               icon={Calendar}
               variant="primary"
               tooltip="Retiradas agendadas para o dia de hoje."
+              to="/agendamentos"
             />
             <StatCard
               title="Agendamentos Amanhã"
@@ -697,6 +719,7 @@ const DashboardLogistica = () => {
               icon={CalendarDays}
               variant="default"
               tooltip="Retiradas agendadas para amanhã."
+              to="/agendamentos"
             />
             <StatCard
               title="Agendamentos da Semana"
@@ -704,6 +727,7 @@ const DashboardLogistica = () => {
               icon={CalendarRange}
               variant="default"
               tooltip="Retiradas agendadas para os próximos 7 dias (incluindo hoje)."
+              to="/agendamentos"
             />
           </div>
         </section>
@@ -726,6 +750,7 @@ const DashboardLogistica = () => {
               icon={Truck}
               variant="primary"
               tooltip="Carregamentos que já foram iniciados, mas ainda não foram finalizados."
+              to="/carregamentos"
             />
             <StatCard
               title="Finalizados Hoje"
@@ -733,6 +758,7 @@ const DashboardLogistica = () => {
               icon={CheckCircle2}
               variant="success"
               tooltip="Carregamentos que foram finalizados hoje."
+              to="/carregamentos"
             />
             <StatCard
               title="Carregamentos Atrasados"
@@ -740,6 +766,7 @@ const DashboardLogistica = () => {
               icon={AlertTriangle}
               variant="warning"
               tooltip="Carregamentos parados na etapa atual há mais tempo do que o limite configurado para essa etapa."
+              to="/carregamentos"
             />
           </div>
           <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -760,6 +787,7 @@ const DashboardLogistica = () => {
               names={operacoesHoje?.armazens}
               isLoading={loadingOperacoesHoje}
               emptyLabel="Nenhum armazém com operação hoje."
+              to="/armazens"
             />
             <EntityListCard
               title="Clientes com Operação Hoje"
@@ -768,6 +796,7 @@ const DashboardLogistica = () => {
               names={operacoesHoje?.clientes}
               isLoading={loadingOperacoesHoje}
               emptyLabel="Nenhum cliente com operação hoje."
+              to="/clientes"
             />
           </div>
         </section>
