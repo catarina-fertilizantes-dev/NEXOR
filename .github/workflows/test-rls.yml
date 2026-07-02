@@ -1,0 +1,32 @@
+name: Backend — RLS & Business Logic
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  rls-tests:
+    name: RLS & Security Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run RLS full suite
+        run: node tests/backend/rls-full.mjs
+
+      - name: Run RLS security suite
+        run: node tests/backend/rls-security.mjs

@@ -15,7 +15,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tag, Plus, Filter as FilterIcon, Loader2, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tag, Plus, Filter as FilterIcon, Loader2, X, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +61,7 @@ const Produtos = () => {
   const [novoProduto, setNovoProduto] = useState({
     nome: "",
     unidade: "" as Unidade,
+    estoqueMinimo: "",
   });
 
   const [detalhesProduto, setDetalhesProduto] = useState<Produto | null>(null);
@@ -71,7 +73,7 @@ const Produtos = () => {
   const [isTogglingStatus, setIsTogglingStatus] = useState<Record<string, boolean>>({});
 
   const resetForm = () => {
-    setNovoProduto({ nome: "", unidade: "" });
+    setNovoProduto({ nome: "", unidade: "", estoqueMinimo: "" });
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -131,11 +133,21 @@ const Produtos = () => {
   }, []);
 
   const handleCreateProduto = async () => {
-    const { nome, unidade } = novoProduto;
+    const { nome, unidade, estoqueMinimo } = novoProduto;
     if (!nome.trim() || !unidade) {
       toast({
         variant: "destructive",
         title: "Preencha os campos obrigatórios",
+      });
+      return;
+    }
+
+    const estoqueMinimoNum = estoqueMinimo.trim() ? Number(estoqueMinimo) : null;
+    if (estoqueMinimo.trim() && (isNaN(estoqueMinimoNum!) || estoqueMinimoNum! <= 0)) {
+      toast({
+        variant: "destructive",
+        title: "Estoque mínimo inválido",
+        description: "Informe um número maior que zero, ou deixe em branco.",
       });
       return;
     }
@@ -167,7 +179,7 @@ const Produtos = () => {
 
       const { error } = await supabase
         .from("produtos")
-        .insert([{ nome: nome.trim(), unidade, ativo: true }]);
+        .insert([{ nome: nome.trim(), unidade, ativo: true, estoque_minimo: estoqueMinimoNum }]);
       if (error) {
         toast({
           variant: "destructive",
@@ -345,6 +357,39 @@ const Produtos = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor="estoqueMinimo" className="text-sm font-medium">Estoque Mínimo</Label>
+                        <TooltipProvider>
+                          <Tooltip delayDuration={100}>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3.5 w-3.5 text-muted-foreground/70 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-[220px]">
+                                Valor mínimo de estoque desse produto nos armazéns. Quando o estoque físico de algum
+                                armazém ficar abaixo desse valor, o produto aparece no alerta de Estoque Baixo do
+                                dashboard.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Input
+                        id="estoqueMinimo"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={novoProduto.estoqueMinimo}
+                        onChange={e => {
+                          setNovoProduto({ ...novoProduto, estoqueMinimo: e.target.value });
+                          markAsChanged();
+                        }}
+                        placeholder="Opcional"
+                        disabled={isCreating}
+                        className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                      />
+                    </div>
                   </div>
 
                   {/* Botões no final do conteúdo */}
@@ -426,6 +471,14 @@ const Produtos = () => {
                         </Badge>
                       </div>
                     </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Estoque Mínimo:</Label>
+                      <p className="font-semibold text-sm md:text-base">
+                        {detalhesProduto.estoque_minimo != null
+                          ? `${detalhesProduto.estoque_minimo} ${detalhesProduto.unidade ?? ""}`
+                          : "Não configurado"}
+                      </p>
+                    </div>
                     <div className="sm:col-span-2">
                       <Label className="text-xs text-muted-foreground">Criado em:</Label>
                       <p className="font-semibold text-sm md:text-base">{detalhesProduto.created_at ? new Date(detalhesProduto.created_at).toLocaleString('pt-BR') : "—"}</p>
@@ -466,6 +519,12 @@ const Produtos = () => {
                   <span className="text-muted-foreground">Criado em:</span>{" "}
                   {produto.created_at ? new Date(produto.created_at).toLocaleDateString('pt-BR') : "—"}
                 </p>
+                {produto.estoque_minimo != null && (
+                  <p>
+                    <span className="text-muted-foreground">Estoque mínimo:</span>{" "}
+                    {produto.estoque_minimo} {produto.unidade}
+                  </p>
+                )}
               </div>
               {canCreate && (
                 <div className="flex items-center justify-between pt-3 border-t">
@@ -496,21 +555,36 @@ const Produtos = () => {
 
       {/* Estado vazio */}
       {filteredProdutos.length === 0 && (
-        <div className="text-center py-12">
-          <Tag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            {hasActiveFilters
-              ? "Nenhum produto encontrado com os filtros aplicados"
-              : "Nenhum produto cadastrado ainda"}
-          </p>
-          {hasActiveFilters && (
-            <Button 
-              size="sm" 
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="rounded-full bg-muted p-4">
+            <Tag className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">
+              {hasActiveFilters ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {hasActiveFilters
+                ? "Nenhum produto encontrado com os filtros aplicados."
+                : "Comece cadastrando o primeiro produto do sistema."}
+            </p>
+          </div>
+          {hasActiveFilters ? (
+            <Button
+              size="sm"
               onClick={handleClearFilters}
-              className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
             >
               <X className="h-4 w-4 mr-2" />
               Limpar Filtros
+            </Button>
+          ) : canCreate && (
+            <Button
+              className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Produto
             </Button>
           )}
         </div>

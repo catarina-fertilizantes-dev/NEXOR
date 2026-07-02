@@ -37,7 +37,7 @@ const checkUserActiveStatus = async (userId: string): Promise<{ active: boolean;
     }
 
     console.log('✅ [DEBUG] Status check resultado:', data);
-    return data || { active: true, role: null, message: 'Sem dados - acesso permitido' };
+    return (data as { active: boolean; role: string | null; message: string } | null) || { active: true, role: null, message: 'Sem dados - acesso permitido' };
   } catch (err) {
     console.error('❌ [ERROR] Erro inesperado na verificação de status:', err);
     // 🛡️ FALLBACK SEGURO: Em caso de erro, permitir acesso
@@ -76,29 +76,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // 🚧 FUNÇÃO TEMPORÁRIA: Redirecionamento por role enquanto Dashboard não está implementado
-  // TODO: REMOVER esta função quando os dashboards personalizados forem implementados
-  // Após implementação dos dashboards, todos os perfis devem ser redirecionados para "/" (Dashboard)
+  // 🚧 FUNÇÃO TEMPORÁRIA: Redirecionamento por role enquanto os dashboards de
+  // cliente, armazém e representante não estão implementados.
+  // TODO: REMOVER esta função quando todos os dashboards personalizados forem implementados
+  // Admin e Logística já têm dashboard próprio e vão para "/".
   const getDefaultRouteForRole = (role: string | null): string => {
     console.log('🚧 [TEMP] Redirecionamento temporário para role:', role);
-    
+
     if (!role) {
       console.log('🚧 [TEMP] Role não definida, redirecionando para /agendamentos');
       return "/agendamentos"; // Fallback padrão
     }
-    
+
     switch (role) {
       case "admin":
       case "logistica":
+        console.log('🚧 [TEMP] Admin/Logística → / (Dashboard)');
+        return "/";
+
       case "cliente":        // 🆕 CORRIGIDO: Cliente tem acesso a Liberações
-      case "representante":  // �� CORRIGIDO: Representante tem acesso a Liberações
-        console.log('🚧 [TEMP] Admin/Logística/Cliente/Representante → /liberacoes');
+      case "representante":  // 🆕 CORRIGIDO: Representante tem acesso a Liberações
+        console.log('🚧 [TEMP] Cliente/Representante → /liberacoes');
         return "/liberacoes"; // Primeira página disponível para estes perfis
-      
+
       case "armazem":
         console.log('🚧 [TEMP] Armazém → /agendamentos');
         return "/agendamentos"; // Primeira página disponível para armazém (excluído de liberações)
-      
+
       default:
         console.log('🚧 [TEMP] Role desconhecida, redirecionando para /agendamentos');
         return "/agendamentos"; // Fallback padrão

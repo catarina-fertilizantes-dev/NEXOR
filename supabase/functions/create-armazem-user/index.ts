@@ -1,317 +1,326 @@
-// Edge Function to create armazem (warehouse) users with service role
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
-
-// Blacklist de senhas fracas
-const WEAK_PASSWORDS = new Set(['123456', '12345678', 'password', 'senha123', 'admin123', 'qwerty']);
-
-// Validar senha gerada
-const validatePassword = (password: string): boolean => {
-  return password.length >= 6 && 
-         password.length <= 128 && 
-         !WEAK_PASSWORDS.has(password.toLowerCase());
+// Edge Function: create-armazem-user (V3 - Corrigido e atualizado para salvar email, cep e cnpj_cpf)
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts';
+// ---- Helpers ----
+function uuidV4() {
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+  buf[6] = buf[6] & 0x0f | 0x40;
+  buf[8] = buf[8] & 0x3f | 0x80;
+  const hex = Array.from(buf).map((b)=>b.toString(16).padStart(2, '0'));
+  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+}
+const WEAK_PASSWORDS = new Set([
+  '123456',
+  '12345678',
+  'password',
+  'senha123',
+  'admin123',
+  'qwerty',
+  'Armazem123'
+]);
+const validatePassword = (password)=>{
+  return password.length >= 6 && password.length <= 128 && !WEAK_PASSWORDS.has(password.toLowerCase());
 };
-
+// ATUALIZAÇÃO: BodySchema agora inclui email, cep e cnpj_cpf como campos opcionais ou obrigatórios.
 const BodySchema = z.object({
   nome: z.string().trim().min(2).max(100),
   email: z.string().trim().email().max(255),
-  cidade: z.string().trim().min(2),
+  cidade: z.string().trim().min(2).max(100),
   estado: z.string().length(2),
-  telefone: z.string().trim().optional(),
-  endereco: z.string().trim().optional(),
-  capacidade_total: z.number().optional(),
-  armazem_id: z.string().uuid().optional(), // If linking to existing armazem
+  capacidade_total: z.number().min(0).optional().nullable(),
+  telefone: z.string().trim().optional().nullable(),
+  endereco: z.string().trim().optional().nullable(),
+  cep: z.string().trim().min(5).max(10).optional().nullable(),      // <-- novo campo
+  cnpj_cpf: z.string().trim().min(11).max(18),                     // <-- novo campo, obrigatório (igual ao frontend)
 });
-
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
-
-Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "content-type": "application/json", ...corsHeaders },
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: {
+      'content-type': 'application/json',
+      ...corsHeaders
+    }
+  });
+}
+Deno.serve(async (req)=>{
+  const request_id = uuidV4();
+  const timestamp = new Date().toISOString();
+  const logPrefix = '[create-armazem-user]';
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: corsHeaders
     });
   }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
-    return new Response(JSON.stringify({ error: "Server not configured" }), {
-      status: 500,
-      headers: { "content-type": "application/json", ...corsHeaders },
-    });
+  if (req.method !== 'POST') {
+    return jsonResponse({
+      error: 'Method not allowed',
+      stage: 'validation',
+      request_id,
+      timestamp
+    }, 405);
   }
-
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const envStatus = {
+    hasUrl: !!supabaseUrl,
+    hasAnon: !!supabaseAnonKey,
+    hasServiceRole: !!serviceRoleKey
+  };
+  if (!envStatus.hasUrl || !envStatus.hasAnon || !envStatus.hasServiceRole) {
+    console.error(logPrefix, 'Missing env vars', envStatus);
+    return jsonResponse({
+      error: 'Server not configured',
+      details: envStatus,
+      stage: 'env',
+      request_id,
+      timestamp
+    }, 500);
+  }
+  let parsedData = null;
   try {
-    const body = await req.json();
-    const parsed = BodySchema.safeParse(body);
+    const raw = await req.json();
+    const parsed = BodySchema.safeParse(raw);
     if (!parsed.success) {
-      return new Response(
-        JSON.stringify({ error: "Invalid payload", details: parsed.error.flatten() }),
-        { status: 400, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
+      return jsonResponse({
+        error: 'Invalid payload',
+        details: parsed.error.flatten(),
+        stage: 'validation',
+        request_id,
+        timestamp
+      }, 400);
     }
-
-    const { nome, email, cidade, estado, telefone, endereco, capacidade_total, armazem_id } = parsed.data;
-
-    // Check if requester is admin or logistica
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
-    });
-
-    const { data: userInfo } = await userClient.auth.getUser();
-    const requester = userInfo?.user;
-    if (!requester) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Check if user has admin or logistica role
-    const { data: hasPermission } = await userClient.rpc("has_role", {
-      _user_id: requester.id,
-      _role: "admin",
-    });
-
-    const { data: hasLogisticaRole } = await userClient.rpc("has_role", {
-      _user_id: requester.id,
-      _role: "logistica",
-    });
-
-    if (!hasPermission && !hasLogisticaRole) {
-      return new Response(JSON.stringify({ error: "Forbidden: Only admin or logistica can create armazem users" }), {
-        status: 403,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Generate random password
-    const gerarSenha = (): string => {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let senha = "Armazem";
-      for (let i = 0; i < 4; i++) {
-        senha += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return senha;
-    };
-
-    let senhaTemporaria = gerarSenha();
-
-    // Garantir que a senha não está na blacklist (com limite de tentativas)
-    let attempts = 0;
-    const MAX_ATTEMPTS = 10;
-    while (!validatePassword(senhaTemporaria) && attempts < MAX_ATTEMPTS) {
-      senhaTemporaria = gerarSenha();
-      attempts++;
-    }
-
-    // Se após MAX_ATTEMPTS ainda não gerou uma senha válida, retornar erro
-    if (!validatePassword(senhaTemporaria)) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: "Não foi possível gerar uma senha válida",
-          stage: "validation"
-        }),
-        { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    // Service role client
-    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-
-    // 1. Create Auth user
-    const { data: authUser, error: authError } = await serviceClient.auth.admin.createUser({
-      email,
-      password: senhaTemporaria,
-      email_confirm: true,
-      user_metadata: {
-        nome,
-        force_password_change: true,
-      },
-    });
-
-    if (authError || !authUser?.user) {
-      // Check if error is due to duplicate email
-      const errorMsg = authError?.message?.toLowerCase() || '';
-      const isDuplicateEmail = errorMsg.includes('already been registered') || 
-                                errorMsg.includes('already exists') ||
-                                errorMsg.includes('duplicate');
-      
-      if (isDuplicateEmail) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Duplicidade", 
-            details: "Já existe um armazém com este email."
-          }),
-          { status: 409, headers: { "content-type": "application/json", ...corsHeaders } },
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ error: "Failed to create user", details: authError?.message }),
-        { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    const userId = authUser.user.id;
-
-    // Helper function to rollback user creation if role assignment fails
-    const assignRoleOrRollback = async (uid: string, desiredRole: string) => {
-      const { error: roleError } = await serviceClient
-        .from("user_roles")
-        .upsert({ user_id: uid, role: desiredRole }, { onConflict: "user_id,role" });
-
-      if (roleError) {
-        console.error("Role assignment failed, rolling back user:", roleError);
-        // Rollback: delete the auth user
-        const { error: deleteError } = await serviceClient.auth.admin.deleteUser(uid);
-        if (deleteError) {
-          console.error("Failed to rollback user creation:", deleteError);
-        }
-        throw new Error(`Failed to assign role: ${roleError.message}`);
-      }
-    };
-
-    // 2. Assign role "armazem" with rollback on error
-    try {
-      await assignRoleOrRollback(userId, "armazem");
-    } catch (error) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: "Falha ao atribuir role. Usuário não foi criado. Tente novamente ou contate suporte.",
-          details: error instanceof Error ? error.message : "Unknown error"
-        }),
-        { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    // 3. Link to armazem or create new armazem
-    let armazemData;
-    if (armazem_id) {
-      // Link to existing armazem
-      const { data, error: updateError } = await serviceClient
-        .from("armazens")
-        .update({ user_id: userId })
-        .eq("id", armazem_id)
-        .select()
-        .single();
-
-      if (updateError) {
-        // Rollback on link error
-        console.error("Failed to link armazem, rolling back user:", updateError);
-        const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId);
-        if (deleteError) {
-          console.error("Failed to rollback user creation:", deleteError);
-        }
-        
-        return new Response(
-          JSON.stringify({ error: "Failed to link armazem", details: updateError.message }),
-          { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-        );
-      }
-      armazemData = data;
-    } else {
-      // Create new armazem
-      const { data, error: createError } = await serviceClient
-        .from("armazens")
-        .insert({
-          nome,
-          email,
-          cidade,
-          estado,
-          telefone: telefone || null,
-          endereco: endereco || null,
-          capacidade_total: capacidade_total || null,
-          capacidade_disponivel: capacidade_total || null,
-          user_id: userId,
-          ativo: true,
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        // Check if error is due to duplicate nome or cidade
-        const errorMsg = createError.message?.toLowerCase() || '';
-        const errorCode = (createError as { code?: string }).code || '';
-        
-        const isDuplicateNome = errorMsg.includes('armazens_nome') || 
-                                 ((errorCode === '23505') && errorMsg.includes('nome'));
-        const isDuplicateCidade = errorMsg.includes('armazens_cidade') || 
-                                   ((errorCode === '23505') && errorMsg.includes('cidade'));
-        
-        if (isDuplicateNome || isDuplicateCidade) {
-          // Rollback: delete the auth user since armazem creation failed
-          console.error("Armazem creation failed due to duplicate, rolling back user:", createError);
-          const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId);
-          if (deleteError) {
-            console.error("Failed to rollback user creation:", deleteError);
-          }
-          
-          let duplicateMessage = "Já existe um armazém com estes dados.";
-          if (isDuplicateNome) {
-            duplicateMessage = "Já existe um armazém com este nome.";
-          } else if (isDuplicateCidade) {
-            duplicateMessage = "Já existe um armazém nesta cidade.";
-          }
-          
-          return new Response(
-            JSON.stringify({ 
-              error: "Duplicidade", 
-              details: duplicateMessage
-            }),
-            { status: 409, headers: { "content-type": "application/json", ...corsHeaders } },
-          );
-        }
-        
-        // For other errors, also rollback
-        console.error("Armazem creation failed, rolling back user:", createError);
-        const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId);
-        if (deleteError) {
-          console.error("Failed to rollback user creation:", deleteError);
-        }
-        
-        return new Response(
-          JSON.stringify({ error: "Failed to create armazem", details: createError.message }),
-          { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-        );
-      }
-      armazemData = data;
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        user_id: userId,
-        armazem: armazemData,
-        senha: senhaTemporaria,
-      }),
-      {
-        status: 200,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      },
-    );
+    parsedData = parsed.data;
   } catch (e) {
-    console.error("Unexpected error:", e);
-    return new Response(
-      JSON.stringify({ error: "Unexpected error occurred while creating armazem user" }),
-      {
-        status: 500,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      },
-    );
+    console.error(logPrefix, 'JSON parse error', e);
+    return jsonResponse({
+      error: 'Invalid JSON body',
+      details: String(e),
+      stage: 'validation',
+      request_id,
+      timestamp
+    }, 400);
   }
+
+  // EXTRAI OS NOVOS CAMPOS TAMBÉM
+  const { nome, email, cidade, estado, capacidade_total, telefone, endereco, cep, cnpj_cpf } = parsedData;
+  const emailLower = email.toLowerCase();
+  console.log(logPrefix, 'Start request', {
+    email: emailLower,
+    nome,
+    cidade,
+    request_id,
+    cep,
+    cnpj_cpf
+  });
+  // Check permissions
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: req.headers.get('Authorization') ?? ''
+      }
+    }
+  });
+  const { data: userInfo } = await userClient.auth.getUser();
+  const requester = userInfo?.user;
+  if (!requester) {
+    return jsonResponse({
+      error: 'Unauthorized',
+      details: 'Missing or invalid auth token',
+      stage: 'authCheck',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 401);
+  }
+  console.log(logPrefix, 'Requester', {
+    id: requester.id
+  });
+  const { data: hasPermission, error: roleCheckError } = await userClient.rpc('has_role', {
+    _user_id: requester.id,
+    _role: 'admin'
+  });
+  const { data: hasLogisticaRole } = await userClient.rpc('has_role', {
+    _user_id: requester.id,
+    _role: 'logistica'
+  });
+  if (roleCheckError || !hasPermission && !hasLogisticaRole) {
+    return jsonResponse({
+      error: 'Forbidden: Only admin or logistica can create armazem users',
+      details: 'Requester lacks required role',
+      stage: 'authCheck',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 403);
+  }
+  // Generate password
+  const gerarSenha = ()=>{
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let senha = 'Armazem';
+    for(let i = 0; i < 4; i++){
+      senha += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return senha;
+  };
+  let senhaTemporaria = gerarSenha();
+  let attempts = 0;
+  const MAX_ATTEMPTS = 10;
+  while(!validatePassword(senhaTemporaria) && attempts < MAX_ATTEMPTS){
+    senhaTemporaria = gerarSenha();
+    attempts++;
+  }
+  if (!validatePassword(senhaTemporaria)) {
+    return jsonResponse({
+      error: 'Nao foi possivel gerar uma senha valida',
+      details: 'Password generation failed after multiple attempts',
+      stage: 'validation',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 500);
+  }
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+  // 1. Create Auth user
+  console.log(logPrefix, 'Creating user', {
+    email: emailLower
+  });
+  const { data: authUser, error: authError } = await serviceClient.auth.admin.createUser({
+    email: emailLower,
+    password: senhaTemporaria,
+    email_confirm: true,
+    user_metadata: {
+      nome,
+      cidade,
+      estado,
+      force_password_change: true
+    }
+  });
+  if (authError || !authUser?.user) {
+    const msg = authError?.message || 'Unknown creation error';
+    const duplicate = /already exists|duplicate|already been registered/i.test(msg);
+    const status = duplicate ? 409 : 500;
+    console.error(logPrefix, 'Create user error', authError);
+    let errorDetails = msg;
+    if (duplicate) {
+      errorDetails = 'Este email ja esta cadastrado no sistema. ';
+    }
+    return jsonResponse({
+      error: 'Failed to create user',
+      details: errorDetails,
+      stage: 'createUser',
+      request_id,
+      timestamp,
+      email: emailLower,
+      supabase_error_code: authError?.status
+    }, status);
+  }
+  const userId = authUser.user.id;
+  console.log(logPrefix, 'User created', {
+    userId
+  });
+  // Post-create verification with retry
+  let verify = await serviceClient.auth.admin.getUserById(userId);
+  if (!verify?.data?.user) {
+    console.log(logPrefix, 'First verify failed, retrying.. .');
+    await new Promise((resolve)=>setTimeout(resolve, 500));
+    verify = await serviceClient.auth.admin.getUserById(userId);
+  }
+  if (!verify?.data?.user) {
+    console.error(logPrefix, 'Post-create verification failed, rolling back.');
+    await serviceClient.auth.admin.deleteUser(userId);
+    return jsonResponse({
+      error: 'Post creation verification failed',
+      details: 'User not retrievable after creation',
+      stage: 'postCreateVerify',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 500);
+  }
+  // 2.  Assign role "armazem" with rollback
+  const { error: roleError } = await serviceClient.from('user_roles').insert({
+    user_id: userId,
+    role: 'armazem'
+  });
+  if (roleError) {
+    console.error(logPrefix, 'Role error, rolling back', roleError);
+    await serviceClient.auth.admin.deleteUser(userId);
+    return jsonResponse({
+      error: 'Failed to assign role',
+      details: roleError.message,
+      stage: 'assignRole',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 500);
+  }
+  console.log(logPrefix, 'Role assigned', {
+    userId,
+    role: 'armazem'
+  });
+  // 3. Create armazem record with rollback
+  // ✅ MODIFICAÇÃO: INCLUA temp_password no insert!
+  const { data: armazem, error: armazemError } = await serviceClient.from('armazens').insert({
+    nome,
+    cidade,
+    estado,
+    email: emailLower,
+    capacidade_total: capacidade_total || null,
+    capacidade_disponivel: capacidade_total || null,
+    telefone: telefone || null,
+    endereco: endereco || null,
+    cep: cep || null,
+    cnpj_cpf: cnpj_cpf,
+    user_id: userId,
+    ativo: true,
+    temp_password: senhaTemporaria  // ✅ NOVA LINHA - Salvar senha temporária
+  }).select().single();
+  
+  if (armazemError) {
+    console.error(logPrefix, 'Armazem insert error, rolling back', armazemError);
+    // Rollback: delete role and user
+    await serviceClient.from('user_roles').delete().eq('user_id', userId);
+    await serviceClient.auth.admin.deleteUser(userId);
+    // Check if error is duplicate nome or cidade
+    const isDuplicateNome = armazemError.message?.includes('armazens_nome_unique') || armazemError.message?.includes('armazens_nome_key');
+    const isDuplicateCidade = armazemError.message?.includes('armazens_cidade_unique') || armazemError.message?.includes('armazens_cidade_key');
+    let errorDetails = armazemError.message;
+    if (isDuplicateNome) {
+      errorDetails = 'Ja existe um armazem com este nome.';
+    } else if (isDuplicateCidade) {
+      errorDetails = 'Ja existe um armazem nesta cidade.';
+    }
+    return jsonResponse({
+      error: 'Failed to create armazem record',
+      details: errorDetails,
+      stage: 'createArmazem',
+      request_id,
+      timestamp,
+      email: emailLower,
+      nome,
+      cidade
+    }, 500);
+  }
+  console.log(logPrefix, 'Armazem record created', {
+    userId,
+    nome,
+    cidade,
+    cep,
+    cnpj_cpf
+  });
+  return jsonResponse({
+    success: true,
+    user_id: userId,
+    armazem,
+    senha: senhaTemporaria,
+    timestamp,
+    request_id
+  }, 200);
 });

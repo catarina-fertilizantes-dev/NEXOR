@@ -1,17 +1,19 @@
-// Edge Function to create customer users with service role
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { z } from "https://deno.land/x/zod@v3.23.8/mod.ts";
+// Deno Edge Function: create-customer-user (alinhada com admin-users)
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts';
 
-// Blacklist de senhas fracas
-const WEAK_PASSWORDS = new Set(['123456', '12345678', 'password', 'senha123', 'admin123', 'qwerty']);
-
-// Validar senha gerada
-const validatePassword = (password: string): boolean => {
-  return password.length >= 6 && 
-         password.length <= 128 && 
-         !WEAK_PASSWORDS.has(password.toLowerCase());
-};
-
+// Helpers  
+function uuidV4() {
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+  buf[6] = buf[6] & 0x0f | 0x40;
+  buf[8] = buf[8] & 0x3f | 0x80;
+  const hex = Array.from(buf).map((b) => b.toString(16).padStart(2, '0'));
+  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+}
+const WEAK_PASSWORDS = new Set([
+  '123456', '12345678', 'password','senha123','admin123','qwerty','Cliente123'
+]);
 const BodySchema = z.object({
   nome: z.string().trim().min(2).max(100),
   cnpj_cpf: z.string().trim().min(11).max(18),
@@ -22,267 +24,245 @@ const BodySchema = z.object({
   estado: z.string().length(2).optional().nullable(),
   cep: z.string().trim().optional().nullable(),
 });
-
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'content-type': 'application/json', ...corsHeaders }
+  });
+}
 
+// ---- MAIN ----
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  const request_id = uuidV4();
+  const timestamp = new Date().toISOString();
+  const logPrefix = '[create-customer-user]';
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+  if (req.method !== 'POST') {
+    return jsonResponse({
+      error: 'Method not allowed',
+      details: 'Only POST allowed.',
+      stage: 'validation',
+      request_id,
+      timestamp
+    }, 405);
   }
 
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "content-type": "application/json", ...corsHeaders },
-    });
+  // --- ENV VARS ---
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const envStatus = {
+    hasUrl: !!supabaseUrl,
+    hasAnon: !!supabaseAnonKey,
+    hasServiceRole: !!serviceRoleKey
+  };
+  if (!envStatus.hasUrl || !envStatus.hasAnon || !envStatus.hasServiceRole) {
+    console.error(logPrefix, 'Missing env vars', envStatus);
+    return jsonResponse({
+      error: 'Server not configured',
+      details: envStatus,
+      stage: 'env',
+      request_id,
+      timestamp
+    }, 500);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // --- VALIDATION ---
+  let parsedData = null;
+  try {
+    const raw = await req.json();
+    const parsed = BodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return jsonResponse({
+        error: 'Invalid payload',
+        details: parsed.error.flatten(),
+        stage: 'validation',
+        request_id,
+        timestamp
+      }, 400);
+    }
+    parsedData = parsed.data;
+  } catch (e) {
+    console.error(logPrefix, 'JSON parse error', e);
+    return jsonResponse({
+      error: 'Invalid JSON body',
+      details: String(e),
+      stage: 'validation',
+      request_id,
+      timestamp
+    }, 400);
+  }
 
-  if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
-    return new Response(JSON.stringify({ error: "Server not configured" }), {
-      status: 500,
-      headers: { "content-type": "application/json", ...corsHeaders },
-    });
+  // --- BODY FIELDS ---
+  const nome = parsedData.nome;
+  const cnpj_cpf_raw = parsedData.cnpj_cpf;
+  const cnpj_cpf = cnpj_cpf_raw.replace(/\D/g, ''); // NORMALIZAÇÃO
+  const email = parsedData.email.toLowerCase();
+  const telefone = parsedData.telefone ?? null;
+  const endereco = parsedData.endereco ?? null;
+  const cidade = parsedData.cidade ?? null;
+  const estado = parsedData.estado ?? null;
+  const cep = parsedData.cep ?? null;
+
+  // --- PASSWORD ---
+  function gerarSenha() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let senha = 'Cliente';
+    for (let i = 0; i < 4; i++) senha += chars.charAt(Math.floor(Math.random() * chars.length));
+    return senha;
+  }
+  let senhaTemporaria = gerarSenha();
+  let attempts = 0;
+  while ((!senhaTemporaria || WEAK_PASSWORDS.has(senhaTemporaria)) && attempts < 10) {
+    senhaTemporaria = gerarSenha();
+    attempts++;
+  }
+  if (!senhaTemporaria || WEAK_PASSWORDS.has(senhaTemporaria)) {
+    return jsonResponse({
+      error: 'Nao foi possivel gerar uma senha valida',
+      stage: 'validation',
+      request_id,
+      timestamp
+    }, 500);
   }
 
   try {
-    const body = await req.json();
-    const parsed = BodySchema.safeParse(body);
-    if (!parsed.success) {
-      return new Response(
-        JSON.stringify({ error: "Invalid payload", details: parsed.error.flatten() }),
-        { status: 400, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    const { nome, cnpj_cpf, email, telefone, endereco, cidade, estado, cep } = parsed.data;
-
-    // Check if requester is admin or logistica
+    // --- AUTH CHECK (admin ou logistica) ---
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } }
     });
-
     const { data: userInfo } = await userClient.auth.getUser();
     const requester = userInfo?.user;
     if (!requester) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      });
+      return jsonResponse({
+        error: 'Unauthorized',
+        details: 'Missing or invalid auth token',
+        stage: 'authCheck',
+        request_id,
+        timestamp,
+        email
+      }, 401);
+    }
+    const [{ data: isAdmin, error: roleError1 }, { data: isLogistica, error: roleError2 }] = await Promise.all([
+      userClient.rpc('has_role', { _user_id: requester.id, _role: 'admin' }),
+      userClient.rpc('has_role', { _user_id: requester.id, _role: 'logistica' }),
+    ]);
+    if (roleError1 || roleError2 || (!isAdmin && !isLogistica)) {
+      return jsonResponse({
+        error: 'Forbidden: Only admin or logistica can create customers',
+        details: 'Requester lacks required role',
+        stage: 'authCheck',
+        request_id,
+        timestamp,
+        email
+      }, 403);
     }
 
-    // Check if user has admin or logistica role
-    const { data: hasPermission, error: roleCheckError } = await userClient.rpc("has_role", {
-      _user_id: requester.id,
-      _role: "admin",
-    });
-
-    const { data: hasLogisticaRole } = await userClient.rpc("has_role", {
-      _user_id: requester.id,
-      _role: "logistica",
-    });
-
-    if (roleCheckError || (!hasPermission && !hasLogisticaRole)) {
-      return new Response(JSON.stringify({ error: "Forbidden: Only admin or logistica can create customers" }), {
-        status: 403,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Generate random password
-    const gerarSenha = (): string => {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let senha = "Cliente";
-      for (let i = 0; i < 4; i++) {
-        senha += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return senha;
-    };
-
-    let senhaTemporaria = gerarSenha();
-
-    // Garantir que a senha não está na blacklist (com limite de tentativas)
-    let attempts = 0;
-    const MAX_ATTEMPTS = 10;
-    while (!validatePassword(senhaTemporaria) && attempts < MAX_ATTEMPTS) {
-      senhaTemporaria = gerarSenha();
-      attempts++;
-    }
-
-    // Se após MAX_ATTEMPTS ainda não gerou uma senha válida, retornar erro
-    if (!validatePassword(senhaTemporaria)) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: "Não foi possível gerar uma senha válida",
-          stage: "validation"
-        }),
-        { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    // Service role client
+    // --- CREATE USER ---
     const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-
-    // 1. Create Auth user
     const { data: authUser, error: authError } = await serviceClient.auth.admin.createUser({
       email,
       password: senhaTemporaria,
       email_confirm: true,
-      user_metadata: {
-        nome,
-        cnpj_cpf,
-        force_password_change: true,
-      },
+      user_metadata: { nome, cnpj_cpf, force_password_change: true }
     });
-
     if (authError || !authUser?.user) {
-      // Check if error is due to duplicate email
-      const errorMsg = authError?.message?.toLowerCase() || '';
-      const isDuplicateEmail = errorMsg.includes('already been registered') || 
-                                errorMsg.includes('already exists') ||
-                                errorMsg.includes('duplicate');
-      
-      if (isDuplicateEmail) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Duplicidade", 
-            details: "Já existe um cliente com este email."
-          }),
-          { status: 409, headers: { "content-type": "application/json", ...corsHeaders } },
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ error: "Failed to create user", details: authError?.message }),
-        { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
+      const msg = authError?.message || 'Unknown creation error';
+      const duplicate = /already exists|already been registered|duplicate/i.test(msg);
+      const status = duplicate ? 409 : 500;
+      return jsonResponse({
+        error: duplicate ? 'Duplicidade' : 'Failed to create user',
+        details: duplicate ? 'Já existe um usuário com este email.' : msg,
+        stage: 'createUser',
+        request_id,
+        timestamp,
+        email
+      }, status);
     }
-
     const userId = authUser.user.id;
 
-    // Helper function to rollback user creation if role assignment fails
-    const assignRoleOrRollback = async (uid: string, desiredRole: string) => {
-      const { error: roleError } = await serviceClient
-        .from("user_roles")
-        .upsert({ user_id: uid, role: desiredRole }, { onConflict: "user_id,role" });
-
-      if (roleError) {
-        console.error("Role assignment failed, rolling back user:", roleError);
-        // Rollback: delete the auth user
-        const { error: deleteError } = await serviceClient.auth.admin.deleteUser(uid);
-        if (deleteError) {
-          console.error("Failed to rollback user creation:", deleteError);
-        }
-        throw new Error(`Failed to assign role: ${roleError.message}`);
-      }
-    };
-
-    // 2. Assign role "cliente" with rollback on error
-    try {
-      await assignRoleOrRollback(userId, "cliente");
-    } catch (error) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: "Falha ao atribuir role. Usuário não foi criado. Tente novamente ou contate suporte.",
-          details: error instanceof Error ? error.message : "Unknown error"
-        }),
-        { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
+    // --- ASSIGN ROLE ---
+    const { error: roleAssignError } = await serviceClient.from('user_roles').insert({ user_id: userId, role: 'cliente' });
+    if (roleAssignError) {
+      await serviceClient.auth.admin.deleteUser(userId);
+      return jsonResponse({
+        error: 'Failed to assign role',
+        details: roleAssignError.message,
+        stage: 'assignRole',
+        request_id,
+        timestamp,
+        email
+      }, 500);
     }
 
-    // 3. Create cliente record
-    const { data: cliente, error: clienteError } = await serviceClient
-      .from("clientes")
-      .insert({
-        nome,
-        cnpj_cpf,
-        email,
-        telefone: telefone || null,
-        endereco: endereco || null,
-        cidade: cidade || null,
-        estado: estado || null,
-        cep: cep || null,
-        user_id: userId,
-        ativo: true,
-      })
-      .select()
-      .single();
-
+    // --- CREATE CLIENTE/ROLLBACK DUPLICITY ---
+    const { error: clienteError, data: cliente } = await serviceClient.from('clientes').insert({
+      user_id: userId,
+      nome,
+      cnpj_cpf,
+      email,
+      telefone,
+      endereco,
+      cidade,
+      estado,
+      cep,
+      ativo: true,
+      temp_password: senhaTemporaria  // ✅ NOVA LINHA - Salvar senha temporária
+    }).select().single();
+    
     if (clienteError) {
-      // Check if error is due to duplicate CNPJ/CPF or email
-      const errorMsg = clienteError.message?.toLowerCase() || '';
-      const errorCode = (clienteError as { code?: string }).code || '';
-      
-      const isDuplicateCNPJ = errorMsg.includes('clientes_cnpj_cpf') || 
-                               errorMsg.includes('cnpj_cpf') ||
-                               (errorCode === '23505' && (errorMsg.includes('cnpj') || errorMsg.includes('cpf')));
-      const isDuplicateEmail = errorMsg.includes('clientes_email') || 
-                                errorMsg.includes('duplicate') && errorMsg.includes('email');
-      
-      if (isDuplicateCNPJ || isDuplicateEmail) {
-        // Rollback: delete the auth user since cliente creation failed
-        console.error("Cliente creation failed due to duplicate, rolling back user:", clienteError);
-        const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId);
-        if (deleteError) {
-          console.error("Failed to rollback user creation:", deleteError);
-        }
-        
-        const duplicateMessage = isDuplicateCNPJ 
-          ? "Já existe um cliente com este CNPJ/CPF."
-          : "Já existe um cliente com este email.";
-        
-        return new Response(
-          JSON.stringify({ 
-            error: "Duplicidade", 
-            details: duplicateMessage
-          }),
-          { status: 409, headers: { "content-type": "application/json", ...corsHeaders } },
-        );
+      await serviceClient.from('user_roles').delete().eq('user_id', userId);
+      await serviceClient.auth.admin.deleteUser(userId);
+      // Consistente e robusta para duplicidade
+      const isDuplicateKey = clienteError.code === '23505';
+      const isDuplicateEmail = /clientes_email(_unique)?|_email_key/i.test(clienteError.message || '');
+      const isDuplicateCNPJ = /clientes_cnpj_cpf(_unique)?|_cnpj_cpf_key/i.test(clienteError.message || '');
+      let status = 500, errorLabel = 'Failed to create cliente record', errorDetails = clienteError.message;
+      if (isDuplicateKey && (isDuplicateEmail || isDuplicateCNPJ)) {
+        status = 409;
+        errorLabel = 'Duplicidade';
+        if (isDuplicateEmail) errorDetails = 'Já existe um cliente com este email.';
+        else if (isDuplicateCNPJ) errorDetails = 'Já existe um cliente com este CNPJ/CPF.';
+        else errorDetails = 'Já existe um cliente com dados duplicados.';
       }
-      
-      // For other errors, also rollback
-      console.error("Cliente creation failed, rolling back user:", clienteError);
-      const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId);
-      if (deleteError) {
-        console.error("Failed to rollback user creation:", deleteError);
-      }
-      
-      return new Response(
-        JSON.stringify({ error: "Failed to create cliente", details: clienteError.message }),
-        { status: 500, headers: { "content-type": "application/json", ...corsHeaders } },
-      );
+      return jsonResponse({
+        error: errorLabel,
+        details: errorDetails,
+        stage: 'createCliente',
+        request_id,
+        timestamp,
+        email,
+        cnpj_cpf,
+        nome
+      }, status);
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        user_id: userId,
-        cliente,
-        senha: senhaTemporaria,
-      }),
-      {
-        status: 200,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      },
-    );
-  } catch (e) {
-    console.error("Unexpected error:", e);
-    return new Response(
-      JSON.stringify({ error: "Unexpected error occurred while creating customer" }),
-      {
-        status: 500,
-        headers: { "content-type": "application/json", ...corsHeaders },
-      },
-    );
+    // --- SUCCESS ---
+    return jsonResponse({
+      success: true,
+      user_id: userId,
+      cliente,
+      senha: senhaTemporaria,
+      request_id,
+      timestamp
+    }, 200);
+
+  } catch (err) {
+    console.error(logPrefix, 'Unexpected error:', err);
+    return jsonResponse({
+      error: "Unexpected error",
+      details: String(err),
+      stage: 'unexpected',
+      request_id,
+      timestamp
+    }, 500);
   }
 });

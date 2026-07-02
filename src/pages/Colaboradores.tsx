@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { Users, UserPlus, Shield, BadgeCheck, Loader2 } from "lucide-react";
+import { Users, UserPlus, Shield, BadgeCheck, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -548,12 +548,23 @@ const handleCreateUser = async () => {
               </div>
             </div>
           ) : users.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Nenhum colaborador encontrado.</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Apenas usuários com role "admin" ou "logistica" são exibidos aqui.
-              </p>
+            <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+              <div className="rounded-full bg-muted p-4">
+                <Users className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-foreground">Nenhum colaborador cadastrado</h3>
+                <p className="text-sm text-muted-foreground">
+                  Comece cadastrando o primeiro colaborador do sistema.
+                </p>
+              </div>
+              <Button
+                className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+                onClick={() => setDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Colaborador
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">

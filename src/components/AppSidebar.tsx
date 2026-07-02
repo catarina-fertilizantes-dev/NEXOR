@@ -28,14 +28,15 @@ import {
 } from "@/components/ui/sidebar";
 
 const upperMenuItems = [
-  // TODO: Dashboard temporariamente desabilitado para release público
-  // Será reabilitado após otimização dos dashboards por perfil
-  // {
-  //   title: "Dashboard",
-  //   url: "/",
-  //   icon: LayoutDashboard,
-  //   resource: null,
-  // },
+  // Dashboard disponível apenas para admin/logística por enquanto.
+  // TODO: remover requiresRole quando os dashboards de cliente/armazém/representante existirem
+  {
+    title: "Dashboard",
+    url: "/",
+    icon: LayoutDashboard,
+    resource: null,
+    requiresRole: ["admin", "logistica"] as const,
+  },
   {
     title: "Liberações",
     url: "/liberacoes",
@@ -155,7 +156,8 @@ export function AppSidebar() {
       }
 
       if ('requiresRole' in item && item.requiresRole) {
-        const hasRequiredRole = userRole ? item.requiresRole.includes(userRole) : false;
+        const requiresRole = item.requiresRole as readonly string[];
+        const hasRequiredRole = userRole ? requiresRole.includes(userRole) : false;
         if (!hasRequiredRole) {
           return false;
         }
@@ -181,7 +183,7 @@ export function AppSidebar() {
   };
 
   const visibleUpperMenuItems = permissionsLoading
-    ? [] // Alterado: removido upperMenuItems[0] já que Dashboard foi comentado
+    ? []
     : filterMenuItems(upperMenuItems);
 
   const visibleLowerMenuItems = permissionsLoading
