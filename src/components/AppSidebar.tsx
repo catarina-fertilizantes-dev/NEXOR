@@ -28,14 +28,11 @@ import {
 } from "@/components/ui/sidebar";
 
 const upperMenuItems = [
-  // Dashboard disponível para admin/logística/armazém por enquanto.
-  // TODO: remover requiresRole quando os dashboards de cliente/representante existirem
   {
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
     resource: null,
-    requiresRole: ["admin", "logistica", "armazem"] as const,
   },
   {
     title: "Liberações",

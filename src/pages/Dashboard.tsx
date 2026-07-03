@@ -1,13 +1,11 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import DashboardLogistica from "./DashboardLogistica";
 import DashboardArmazem from "./DashboardArmazem";
+import DashboardCliente from "./DashboardCliente";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Dispatcher: cada perfil tem seu próprio dashboard.
-// Cliente e representante ainda não têm dashboard dedicado — enquanto isso,
-// são redirecionados para sua rota padrão atual.
 const Dashboard = () => {
-  const { userRole, getDefaultRouteForRole } = useAuth();
+  const { userRole } = useAuth();
 
   if (userRole === "admin" || userRole === "logistica") {
     return <DashboardLogistica />;
@@ -17,7 +15,11 @@ const Dashboard = () => {
     return <DashboardArmazem />;
   }
 
-  return <Navigate to={getDefaultRouteForRole(userRole)} replace />;
+  if (userRole === "cliente" || userRole === "representante") {
+    return <DashboardCliente />;
+  }
+
+  return null;
 };
 
 export default Dashboard;

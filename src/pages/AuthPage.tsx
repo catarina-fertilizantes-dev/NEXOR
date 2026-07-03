@@ -15,11 +15,8 @@ const signInSchema = z.object({
 });
 
 const AuthPage = () => {
-  console.log("🔍 [DEBUG AUTH] AuthPage renderizado");  
-  // 🚧 MODIFICAÇÃO TEMPORÁRIA: Adicionado getDefaultRouteForRole para redirecionamento por perfil
-  // TODO: Remover getDefaultRouteForRole quando dashboards personalizados forem implementados
-  // Após implementação dos dashboards, voltar ao redirecionamento original: <Navigate to="/" replace />
-  const { user, userRole, loading, signIn, getDefaultRouteForRole } = useAuth();
+  console.log("🔍 [DEBUG AUTH] AuthPage renderizado");
+  const { user, userRole, loading, signIn } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,27 +30,8 @@ const AuthPage = () => {
     signingIn
   });
 
-  // 🚧 REDIRECIONAMENTO TEMPORÁRIO: Aguarda role ser carregada antes de redirecionar
-  // ORIGINAL: return <Navigate to="/" replace />;
-  // TODO: Voltar ao redirecionamento original quando dashboards forem implementados
   if (user && !loading) {
-    // ⏳ Aguarda a role ser carregada do banco antes de redirecionar
-    if (userRole !== null) {
-      const defaultRoute = getDefaultRouteForRole(userRole);
-      console.log('🚧 [TEMP] Redirecionando usuário logado para:', defaultRoute, 'com role:', userRole);
-      return <Navigate to={defaultRoute} replace />;
-    } else {
-      // 🔄 Role ainda está carregando, mostra loading ou aguarda
-      console.log('⏳ [TEMP] Aguardando role ser carregada...');
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-            <p className="text-sm text-muted-foreground">Carregando perfil...</p>
-          </div>
-        </div>
-      );
-    }
+    return <Navigate to="/" replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent) => {

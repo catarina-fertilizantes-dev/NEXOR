@@ -16,7 +16,6 @@ interface AuthContextType {
   needsPasswordChange: boolean;
   recoveryMode: boolean;
   clearRecoveryMode: () => void;
-  getDefaultRouteForRole: (role: string | null) => string; // 🆕 FUNÇÃO TEMPORÁRIA
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,36 +72,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('❌ [ERROR] Erro inesperado ao buscar role:', err);
       setUserRole(null);
-    }
-  };
-
-  // 🚧 FUNÇÃO TEMPORÁRIA: Redirecionamento por role enquanto os dashboards de
-  // cliente e representante não estão implementados.
-  // TODO: REMOVER esta função quando todos os dashboards personalizados forem implementados
-  // Admin, Logística e Armazém já têm dashboard próprio e vão para "/".
-  const getDefaultRouteForRole = (role: string | null): string => {
-    console.log('🚧 [TEMP] Redirecionamento temporário para role:', role);
-
-    if (!role) {
-      console.log('🚧 [TEMP] Role não definida, redirecionando para /agendamentos');
-      return "/agendamentos"; // Fallback padrão
-    }
-
-    switch (role) {
-      case "admin":
-      case "logistica":
-      case "armazem":
-        console.log('🚧 [TEMP] Admin/Logística/Armazém → / (Dashboard)');
-        return "/";
-
-      case "cliente":        // 🆕 CORRIGIDO: Cliente tem acesso a Liberações
-      case "representante":  // 🆕 CORRIGIDO: Representante tem acesso a Liberações
-        console.log('🚧 [TEMP] Cliente/Representante → /liberacoes');
-        return "/liberacoes"; // Primeira página disponível para estes perfis
-
-      default:
-        console.log('🚧 [TEMP] Role desconhecida, redirecionando para /agendamentos');
-        return "/agendamentos"; // Fallback padrão
     }
   };
 
@@ -365,8 +334,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       hasRole,
       needsPasswordChange,
       recoveryMode,
-      clearRecoveryMode,
-      getDefaultRouteForRole // 🆕 FUNÇÃO TEMPORÁRIA
+      clearRecoveryMode
     }}>
       {children}
     </AuthContext.Provider>

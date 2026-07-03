@@ -394,6 +394,24 @@ export type Database = {
         }
         Relationships: []
       }
+      config_liberacao_prazo: {
+        Row: {
+          dias_alerta: number
+          id: boolean
+          prazo_maximo_dias: number
+        }
+        Insert: {
+          dias_alerta?: number
+          id?: boolean
+          prazo_maximo_dias?: number
+        }
+        Update: {
+          dias_alerta?: number
+          id?: boolean
+          prazo_maximo_dias?: number
+        }
+        Relationships: []
+      }
       config_tempo_etapas: {
         Row: {
           etapa: number
