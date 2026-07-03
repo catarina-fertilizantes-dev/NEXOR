@@ -25,7 +25,7 @@ export const StatCard = ({ title, value, icon: Icon, trend, variant = "default",
   }[variant];
 
   const iconBgClass = {
-    default: "bg-muted",
+    default: "bg-muted-foreground",
     primary: gradientClass,
     success: gradientClass,
     warning: gradientClass,

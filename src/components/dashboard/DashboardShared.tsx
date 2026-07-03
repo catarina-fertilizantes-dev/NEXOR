@@ -34,6 +34,15 @@ export const formatarDataHora = (iso: string) => {
   return `${dd}/${mm} ${hh}:${min}`;
 };
 
+// Formata uma data DATE-only ("YYYY-MM-DD", sem horário) lendo os componentes
+// diretamente da string — evita o bug de `new Date("YYYY-MM-DD")` ser
+// interpretado como UTC-meia-noite e exibir a data/hora errada em fusos
+// horários negativos (ex: UTC-3 mostraria 21h do dia anterior).
+export const formatarData = (isoDate: string) => {
+  const [, mes, dia] = isoDate.slice(0, 10).split("-");
+  return `${dia}/${mes}`;
+};
+
 // Formata minutos como "Xh Ymin" (ou só "Ymin" se < 1h). null = sem amostras.
 export const formatarDuracaoMinutos = (minutos: number | null) => {
   if (minutos == null) return "Sem dados";
@@ -123,7 +132,7 @@ export function EntityListCard({
             )}
             <p className="mt-2 text-3xl font-bold text-foreground">{isLoading ? "…" : lista.length}</p>
           </div>
-          <div className="rounded-xl p-3 bg-muted">
+          <div className="rounded-xl p-3 bg-muted-foreground">
             <Icon className="h-6 w-6 text-white" />
           </div>
         </div>
@@ -310,7 +319,9 @@ export function FunilEtapasCard({
               <CartesianGrid horizontal={false} strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
               <YAxis type="category" dataKey="etapa" tickLine={false} axisLine={false} width={90} />
-              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+              <ChartTooltip
+                content={<ChartTooltipContent hideLabel formatter={(value) => <span>{value}</span>} />}
+              />
               <Bar dataKey="quantidade" radius={4}>
                 {chartData.map((entry) => (
                   <Cell
@@ -335,6 +346,9 @@ export interface ProximoAgendamentoItem {
   armazem: string;
   produto: string;
   dataRetirada: string;
+  pedidoInterno: string;
+  quantidade: number;
+  unidade: string;
 }
 
 // Próximas retiradas agendadas, para não precisar sair do dashboard para ver o que vem a seguir.
@@ -371,9 +385,13 @@ export function ProximosAgendamentosCard({
                 <p className="text-xs text-muted-foreground truncate">
                   {item.produto} • {item.armazem}
                 </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  Pedido {item.pedidoInterno} •{" "}
+                  {item.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} {item.unidade}
+                </p>
               </div>
               <Badge variant="secondary" className="shrink-0 font-normal">
-                {formatarDataHora(item.dataRetirada)}
+                {formatarData(item.dataRetirada)}
               </Badge>
             </Link>
           ))}

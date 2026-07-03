@@ -29,6 +29,11 @@
       "email": "fazenda.sj@nexortest.com",
       "tempPassword": "ClienteYK8Y",
       "finalPassword": "Teste@2026!"
+    },
+    "cliente3": {
+      "email": "serraverde@nexortest.com",
+      "tempPassword": "ClienteYJY7",
+      "finalPassword": "Teste@2026!"
     }
   },
   "produto1Nome": "Ureia 46%",
@@ -36,5 +41,6 @@
   "armazem2Nome": "Armazém Porto Alegre",
   "representante1Nome": "João Representações",
   "cliente1Nome": "Agro Centro-Oeste Ltda",
-  "cliente2Nome": "Fazenda São João"
+  "cliente2Nome": "Fazenda São João",
+  "cliente3Nome": "Fazenda Serra Verde"
 }

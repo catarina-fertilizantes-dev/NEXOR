@@ -30,6 +30,7 @@ import {
   ProximoAgendamentoItem,
   TitleWithInfo,
   formatarDataHora,
+  formatarData,
 } from "@/components/dashboard/DashboardShared";
 
 const formatarPlaca = (placa?: string | null) => {
@@ -170,7 +171,7 @@ function VeiculosAgendadosCard({
                 </div>
               </div>
               <Badge variant="secondary" className="shrink-0 font-normal">
-                {formatarDataHora(item.dataRetirada)}
+                {formatarData(item.dataRetirada)}
               </Badge>
             </div>
           ))}
@@ -550,7 +551,7 @@ const DashboardCliente = () => {
             "id, cliente_id, clientes(nome), pedido_interno, produtos(nome, unidade), quantidade_liberada, quantidade_retirada, data_liberacao, created_at"
           )
           .in("cliente_id", clienteIds)
-          .in("status", ["disponivel", "parcialmente_agendada"]),
+          .in("status", ["disponivel", "parcialmente_agendada", "totalmente_agendada"]),
       ]);
       if (configError) throw configError;
       if (liberacoesError) throw liberacoesError;
@@ -601,7 +602,9 @@ const DashboardCliente = () => {
     queryFn: async (): Promise<ProximoAgendamentoItem[]> => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("id, data_retirada, clientes(nome), armazens(nome), liberacoes(produtos(nome))")
+        .select(
+          "id, data_retirada, quantidade, clientes(nome), armazens(nome), liberacoes(pedido_interno, produtos(nome, unidade))"
+        )
         .in("cliente_id", clienteIds)
         .gte("data_retirada", new Date().toISOString())
         .neq("status", "cancelado")
@@ -615,6 +618,9 @@ const DashboardCliente = () => {
         armazem: a.armazens?.nome ?? "Armazém",
         produto: a.liberacoes?.produtos?.nome ?? "Produto",
         dataRetirada: a.data_retirada as string,
+        pedidoInterno: a.liberacoes?.pedido_interno ?? "-",
+        quantidade: Number(a.quantidade ?? 0),
+        unidade: a.liberacoes?.produtos?.unidade ?? "",
       }));
     },
     enabled: habilitado,
@@ -779,7 +785,7 @@ const DashboardCliente = () => {
               title="Total Retirado no Mês"
               value={formatarVolume(retiradoMesData?.total, loadingRetiradoMes)}
               icon={PackageCheck}
-              variant="default"
+              variant="primary"
               tooltip="Soma da quantidade dos carregamentos finalizados neste mês."
             />
           </div>

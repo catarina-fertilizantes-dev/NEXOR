@@ -428,7 +428,9 @@ const DashboardLogistica = () => {
     queryFn: async (): Promise<ProximoAgendamentoItem[]> => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("id, data_retirada, clientes(nome), armazens(nome), liberacoes(produtos(nome))")
+        .select(
+          "id, data_retirada, quantidade, clientes(nome), armazens(nome), liberacoes(pedido_interno, produtos(nome, unidade))"
+        )
         .gte("data_retirada", new Date().toISOString())
         .neq("status", "cancelado")
         .order("data_retirada", { ascending: true })
@@ -441,6 +443,9 @@ const DashboardLogistica = () => {
         armazem: a.armazens?.nome ?? "Armazém",
         produto: a.liberacoes?.produtos?.nome ?? "Produto",
         dataRetirada: a.data_retirada as string,
+        pedidoInterno: a.liberacoes?.pedido_interno ?? "-",
+        quantidade: Number(a.quantidade ?? 0),
+        unidade: a.liberacoes?.produtos?.unidade ?? "",
       }));
     },
     refetchInterval: 60_000,
