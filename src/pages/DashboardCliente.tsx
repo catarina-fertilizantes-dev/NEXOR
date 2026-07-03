@@ -802,7 +802,7 @@ const DashboardCliente = () => {
 
         <section>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Liberações</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <StatCard
               title="Liberações em Aberto"
               value={valor(liberacoesAbertasData?.total, loadingLiberacoesAbertas)}
@@ -818,6 +818,8 @@ const DashboardCliente = () => {
               variant="primary"
               tooltip="Quantidade ainda não agendada das liberações em aberto."
             />
+          </div>
+          <div className="mt-4">
             <EntityListCard
               title="Armazéns com Liberação Aberta"
               tooltip="Armazéns onde há liberações em aberto para retirada."

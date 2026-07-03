@@ -32,9 +32,11 @@ export const StatCard = ({ title, value, icon: Icon, trend, variant = "default",
   }[variant];
 
   const card = (
-    <Card className={`overflow-hidden transition-all hover:shadow-md ${to ? "cursor-pointer hover:border-primary/40" : ""}`}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
+    <Card
+      className={`h-full flex flex-col overflow-hidden transition-all hover:shadow-md ${to ? "cursor-pointer hover:border-primary/40" : ""}`}
+    >
+      <CardContent className="flex-1 flex items-center p-6">
+        <div className="flex w-full items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-muted-foreground">{title}</p>
@@ -74,7 +76,7 @@ export const StatCard = ({ title, value, icon: Icon, trend, variant = "default",
 
   if (to) {
     return (
-      <Link to={to} className="block">
+      <Link to={to} className="block h-full">
         {card}
       </Link>
     );
