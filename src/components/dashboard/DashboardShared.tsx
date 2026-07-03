@@ -396,17 +396,22 @@ export interface EstoqueBaixoItem {
 
 // Produtos com estoque físico abaixo do mínimo cadastrado, por armazém.
 // Só aparece aqui o produto que tiver "estoque_minimo" configurado no cadastro de Produtos.
-export function EstoqueBaixoCard({ itens, isLoading }: { itens: EstoqueBaixoItem[] | undefined; isLoading: boolean }) {
+export function EstoqueBaixoCard({
+  itens,
+  isLoading,
+  tooltip = "Produtos com quantidade física abaixo do mínimo configurado, em algum armazém.",
+}: {
+  itens: EstoqueBaixoItem[] | undefined;
+  isLoading: boolean;
+  tooltip?: string;
+}) {
   const lista = itens ?? [];
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <TitleWithInfo
-            title="Estoque Baixo"
-            tooltip="Produtos com quantidade física abaixo do mínimo configurado, em algum armazém."
-          />
+          <TitleWithInfo title="Estoque Baixo" tooltip={tooltip} />
           <span className="text-2xl font-bold text-foreground">{isLoading ? "…" : lista.length}</span>
         </div>
       </CardHeader>

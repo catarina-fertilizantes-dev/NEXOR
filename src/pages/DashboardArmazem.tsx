@@ -362,7 +362,7 @@ const DashboardArmazem = () => {
               value={valor(agendamentosHoje, loadingAgendamentosHoje)}
               icon={Calendar}
               variant="primary"
-              tooltip="Retiradas agendadas para o dia de hoje neste armazém."
+              tooltip="Retiradas agendadas para o dia de hoje."
               to="/agendamentos"
             />
             <StatCard
@@ -370,7 +370,7 @@ const DashboardArmazem = () => {
               value={valor(agendamentosSemana, loadingAgendamentosSemana)}
               icon={CalendarRange}
               variant="default"
-              tooltip="Retiradas agendadas para os próximos 7 dias (incluindo hoje) neste armazém."
+              tooltip="Retiradas agendadas para os próximos 7 dias (incluindo hoje)."
               to="/agendamentos"
             />
             <StatCard
@@ -396,7 +396,7 @@ const DashboardArmazem = () => {
               value={valor(carregamentosAndamento, loadingCarregamentosAndamento)}
               icon={Truck}
               variant="primary"
-              tooltip="Carregamentos deste armazém já iniciados, mas ainda não finalizados."
+              tooltip="Carregamentos já iniciados, mas ainda não finalizados."
               to="/carregamentos"
             />
             <StatCard
@@ -404,7 +404,7 @@ const DashboardArmazem = () => {
               value={valor(carregamentosFinalizadosHoje, loadingCarregamentosFinalizadosHoje)}
               icon={CheckCircle2}
               variant="success"
-              tooltip="Carregamentos deste armazém finalizados hoje."
+              tooltip="Carregamentos finalizados hoje."
               to="/carregamentos"
             />
             <StatCard
@@ -442,23 +442,23 @@ const DashboardArmazem = () => {
               value={loadingTemposMedios ? "…" : formatarDuracaoMinutos(temposMedios?.tempoTotalProcesso ?? null)}
               icon={History}
               variant="default"
-              tooltip="Tempo completo do processo, desde a chegada até a finalização da documentação."
+              tooltip="Tempo completo do processo, desde a chegada do caminhão até a finalização da documentação."
             />
             <StatCard
-              title="Até o 1º Documento"
+              title="Documentos de Retorno"
               value={loadingTemposMedios ? "…" : formatarDuracaoMinutos(temposMedios?.ateOPrimeiroDocumento ?? null)}
               icon={FileClock}
               variant="default"
-              tooltip="Tempo médio entre o carregamento ser finalizado e o primeiro dos 3 documentos ser anexado."
+              tooltip="Tempo médio entre o carregamento ser finalizado e os documentos de retorno serem anexados."
             />
             <StatCard
-              title="Doc. Logística → Finalização"
+              title="Documentos de Remessa"
               value={
                 loadingTemposMedios ? "…" : formatarDuracaoMinutos(temposMedios?.docLogisticaAteFinalizacao ?? null)
               }
               icon={FileCheck2}
               variant="default"
-              tooltip="Tempo médio entre a logística anexar a Nota de Venda e o armazém concluir os documentos restantes, finalizando o processo."
+              tooltip="Tempo médio entre a logística anexar os documentos de venda e o armazém anexar os documentos de remessa, finalizando o processo."
             />
           </div>
         </section>
@@ -471,14 +471,14 @@ const DashboardArmazem = () => {
               value={formatarVolume(volumeHoje, loadingVolumeHoje)}
               icon={Package}
               variant="primary"
-              tooltip="Soma da quantidade dos carregamentos finalizados hoje neste armazém."
+              tooltip="Soma da quantidade dos carregamentos finalizados hoje."
             />
             <StatCard
               title="Volume Carregado no Mês"
               value={formatarVolume(volumeMes, loadingVolumeMes)}
               icon={PackageCheck}
               variant="default"
-              tooltip="Soma da quantidade dos carregamentos finalizados neste mês neste armazém."
+              tooltip="Soma da quantidade dos carregamentos finalizados neste mês."
             />
           </div>
         </section>
@@ -490,7 +490,11 @@ const DashboardArmazem = () => {
               isLoading={loadingDocumentacaoPendente}
               responsavelFilter={["armazem"]}
             />
-            <EstoqueBaixoCard itens={estoqueBaixo} isLoading={loadingEstoqueBaixo} />
+            <EstoqueBaixoCard
+              itens={estoqueBaixo}
+              isLoading={loadingEstoqueBaixo}
+              tooltip="Produtos com quantidade física abaixo do mínimo configurado."
+            />
           </div>
         </section>
       </div>
