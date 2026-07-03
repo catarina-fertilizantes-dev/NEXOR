@@ -77,9 +77,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // 🚧 FUNÇÃO TEMPORÁRIA: Redirecionamento por role enquanto os dashboards de
-  // cliente, armazém e representante não estão implementados.
+  // cliente e representante não estão implementados.
   // TODO: REMOVER esta função quando todos os dashboards personalizados forem implementados
-  // Admin e Logística já têm dashboard próprio e vão para "/".
+  // Admin, Logística e Armazém já têm dashboard próprio e vão para "/".
   const getDefaultRouteForRole = (role: string | null): string => {
     console.log('🚧 [TEMP] Redirecionamento temporário para role:', role);
 
@@ -91,17 +91,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     switch (role) {
       case "admin":
       case "logistica":
-        console.log('🚧 [TEMP] Admin/Logística → / (Dashboard)');
+      case "armazem":
+        console.log('🚧 [TEMP] Admin/Logística/Armazém → / (Dashboard)');
         return "/";
 
       case "cliente":        // 🆕 CORRIGIDO: Cliente tem acesso a Liberações
       case "representante":  // 🆕 CORRIGIDO: Representante tem acesso a Liberações
         console.log('🚧 [TEMP] Cliente/Representante → /liberacoes');
         return "/liberacoes"; // Primeira página disponível para estes perfis
-
-      case "armazem":
-        console.log('🚧 [TEMP] Armazém → /agendamentos');
-        return "/agendamentos"; // Primeira página disponível para armazém (excluído de liberações)
 
       default:
         console.log('🚧 [TEMP] Role desconhecida, redirecionando para /agendamentos');

@@ -112,6 +112,7 @@ const ETAPAS = [
         campo_url: "docs_retorno_url",
         campo_xml: "docs_retorno_xml_url",
         campo_status: "etapa_5a_status",
+        campo_concluida_em: "etapa_5a_concluida_em",
         roles_permitidos: ["armazem"],
         cor: "bg-yellow-600 text-white",
         descricao: "Armazém anexa Nota de Retorno + XML"
@@ -123,6 +124,7 @@ const ETAPAS = [
         campo_url: "docs_venda_url",
         campo_xml: "docs_venda_xml_url",
         campo_status: "etapa_5b_status",
+        campo_concluida_em: "etapa_5b_concluida_em",
         roles_permitidos: ["admin", "logistica"],
         cor: "bg-amber-600 text-white",
         descricao: "Logística anexa Nota de Venda + XML"
@@ -134,6 +136,7 @@ const ETAPAS = [
         campo_url: "docs_remessa_url",
         campo_xml: "docs_remessa_xml_url",
         campo_status: "etapa_5c_status",
+        campo_concluida_em: "etapa_5c_concluida_em",
         roles_permitidos: ["armazem"],
         cor: "bg-orange-600 text-white",
         descricao: "Armazém anexa Nota de Remessa + XML"
@@ -507,6 +510,7 @@ const CarregamentoDetalhe = () => {
 
       const updateData: any = {
         [subEtapa.campo_status]: 'concluida',
+        [subEtapa.campo_concluida_em]: new Date().toISOString(),
         updated_by: user?.id,
       };
 

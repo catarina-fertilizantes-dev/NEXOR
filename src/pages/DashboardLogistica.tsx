@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -14,402 +13,123 @@ import {
   AlertTriangle,
   Warehouse,
   Building2,
-  Users,
-  LucideIcon,
-  Info,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  startOfDayISO,
+  endOfDayISO,
+  addDays,
+  ENTRADA_ETAPA_FIELD,
+  EntityListCard,
+  DocumentacaoPendenteCard,
+  DocumentacaoPendenteItem,
+  SUB_ETAPAS_DOCUMENTACAO,
+  FunilEtapasCard,
+  ETAPA_LABELS,
+  ProximosAgendamentosCard,
+  ProximoAgendamentoItem,
+  EstoqueBaixoCard,
+  EstoqueBaixoItem,
+  TitleWithInfo,
+  formatarDuracaoMinutos,
+  media,
+} from "@/components/dashboard/DashboardShared";
 
-const startOfDayISO = (d: Date) => {
-  const copy = new Date(d);
-  copy.setHours(0, 0, 0, 0);
-  return copy.toISOString();
-};
-const endOfDayISO = (d: Date) => {
-  const copy = new Date(d);
-  copy.setHours(23, 59, 59, 999);
-  return copy.toISOString();
-};
-const addDays = (d: Date, n: number) => {
-  const copy = new Date(d);
-  copy.setDate(copy.getDate() + n);
-  return copy;
-};
-
-// Timestamp de entrada em cada etapa: o campo_data da etapa N-1 marca a
-// conclusão de N-1 e, portanto, a entrada em N. A etapa 1 usa created_at.
-const ENTRADA_ETAPA_FIELD: Record<number, string | null> = {
-  1: null, // usa created_at
-  2: "data_chegada",
-  3: "data_inicio",
-  4: "data_carregando",
-  5: "data_finalizacao",
-};
-
-const NOMES_VISIVEIS = 6;
-
-// Título com ícone de informação + tooltip, reutilizado nos cards do dashboard.
-function TitleWithInfo({ title, tooltip, className }: { title: string; tooltip: string; className?: string }) {
-  return (
-    <div className={`flex items-center gap-1.5 ${className ?? ""}`}>
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <TooltipProvider>
-        <Tooltip delayDuration={100}>
-          <TooltipTrigger asChild>
-            <Info
-              className="h-3.5 w-3.5 text-muted-foreground/70 cursor-help"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="max-w-[220px]">{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
-  );
+interface TemposArmazemRow {
+  armazemId: string;
+  nome: string;
+  tempoEspera: number | null;
+  tempoCarregamento: number | null;
+  tempoTotalProcesso: number | null;
+  finalizadoAte1Doc: number | null;
+  doc1AteDoc2: number | null;
+  doc2AteFinalizacao: number | null;
 }
 
-// Card com contagem + lista de nomes (armazéns/clientes com operação hoje).
-function EntityListCard({
-  title,
-  tooltip,
-  icon: Icon,
-  names,
-  isLoading,
-  emptyLabel,
-  to,
-}: {
-  title: string;
-  tooltip: string;
-  icon: LucideIcon;
-  names: string[] | undefined;
-  isLoading: boolean;
-  emptyLabel: string;
-  to?: string;
-}) {
-  const [expandido, setExpandido] = useState(false);
-  const lista = names ?? [];
-  const visiveis = expandido ? lista : lista.slice(0, NOMES_VISIVEIS);
-  const restantes = lista.length - visiveis.length;
-
-  return (
-    <Card className={`overflow-hidden transition-all hover:shadow-md ${to ? "hover:border-primary/40" : ""}`}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            {to ? (
-              <Link to={to} className="inline-flex hover:underline underline-offset-2">
-                <TitleWithInfo title={title} tooltip={tooltip} />
-              </Link>
-            ) : (
-              <TitleWithInfo title={title} tooltip={tooltip} />
-            )}
-            <p className="mt-2 text-3xl font-bold text-foreground">
-              {isLoading ? "…" : lista.length}
-            </p>
-          </div>
-          <div className="rounded-xl p-3 bg-muted">
-            <Icon className="h-6 w-6 text-white" />
-          </div>
-        </div>
-
-        {!isLoading && lista.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {visiveis.map((nome) => (
-              <Badge key={nome} variant="secondary" className="font-normal">
-                {nome}
-              </Badge>
-            ))}
-            {restantes > 0 && (
-              <button
-                type="button"
-                onClick={() => setExpandido(true)}
-                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-              >
-                +{restantes} mais
-              </button>
-            )}
-            {expandido && lista.length > NOMES_VISIVEIS && (
-              <button
-                type="button"
-                onClick={() => setExpandido(false)}
-                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-              >
-                mostrar menos
-              </button>
-            )}
-          </div>
-        )}
-
-        {!isLoading && lista.length === 0 && (
-          <p className="mt-4 text-xs text-muted-foreground">{emptyLabel}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-type Responsavel = "armazem" | "logistica";
-
-const RESPONSAVEL_STYLE: Record<Responsavel, { className: string; icon: LucideIcon }> = {
-  armazem: { className: "bg-amber-100 text-amber-800 hover:bg-amber-100", icon: Warehouse },
-  logistica: { className: "bg-indigo-100 text-indigo-800 hover:bg-indigo-100", icon: Users },
-};
-
-const SUB_ETAPAS_DOCUMENTACAO: Array<{ campo: "etapa_5a_status" | "etapa_5b_status" | "etapa_5c_status"; label: string; responsavel: Responsavel }> = [
-  { campo: "etapa_5a_status", label: "Docs. Retorno", responsavel: "armazem" },
-  { campo: "etapa_5b_status", label: "Docs. Venda", responsavel: "logistica" },
-  { campo: "etapa_5c_status", label: "Docs. Remessa", responsavel: "armazem" },
-];
-
-interface DocumentacaoPendenteItem {
-  id: string;
-  cliente: string;
-  armazem: string;
-  pendencias: Array<{ label: string; responsavel: Responsavel }>;
-}
-
-// Carregamentos parados na etapa 5 com pelo menos um dos 3 documentos faltando,
-// destacando visualmente de quem é a responsabilidade (armazém ou logística).
-function DocumentacaoPendenteCard({
-  itens,
-  isLoading,
-}: {
-  itens: DocumentacaoPendenteItem[] | undefined;
-  isLoading: boolean;
-}) {
-  const lista = itens ?? [];
+// Médias dos últimos 30 dias, quebradas por armazém, para a logística
+// identificar rapidamente qual armazém está com gargalo em qual etapa.
+function TemposPorArmazemCard({ dados, isLoading }: { dados: TemposArmazemRow[] | undefined; isLoading: boolean }) {
+  const linhas = dados ?? [];
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <TitleWithInfo
-            title="Documentação Pendente"
-            tooltip="Carregamentos na etapa de Documentação com pelo menos um dos 3 documentos ainda não anexado."
-          />
-          <span className="text-2xl font-bold text-foreground">{isLoading ? "…" : lista.length}</span>
-        </div>
-        <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Warehouse className="h-3 w-3 text-amber-600" /> Armazém
-          </span>
-          <span className="flex items-center gap-1">
-            <Users className="h-3 w-3 text-indigo-600" /> Logística
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {!isLoading && lista.length === 0 && (
-          <p className="text-xs text-muted-foreground">Nenhuma documentação pendente.</p>
-        )}
-        <div className="space-y-2">
-          {lista.map((item) => (
-            <Link
-              key={item.id}
-              to={`/carregamentos/${item.id}`}
-              className="flex flex-wrap items-center justify-between gap-2 rounded border p-2.5 hover:bg-muted/50 transition-colors"
-            >
-              <div className="text-sm min-w-0">
-                <span className="font-medium">{item.cliente}</span>
-                <span className="text-muted-foreground"> • {item.armazem}</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {item.pendencias.map((p) => {
-                  const style = RESPONSAVEL_STYLE[p.responsavel];
-                  const RIcon = style.icon;
-                  return (
-                    <Badge key={p.label} className={`${style.className} gap-1 font-normal`}>
-                      <RIcon className="h-3 w-3" />
-                      {p.label}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </Link>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-const ETAPA_LABELS = ["Chegada", "Início", "Carregando", "Finalizado", "Documentação"];
-
-const funilChartConfig: ChartConfig = {
-  quantidade: { label: "Carregamentos" },
-};
-
-// Quantos carregamentos ativos (etapa < 6) estão em cada etapa agora —
-// mostra visualmente onde a operação está represada.
-function FunilEtapasCard({
-  data,
-  isLoading,
-}: {
-  data: Array<{ etapa: string; quantidade: number }> | undefined;
-  isLoading: boolean;
-}) {
-  const chartData = data ?? [];
-  const semDados = chartData.every((d) => d.quantidade === 0);
-
-  return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
-      <CardHeader className="pb-2">
         <TitleWithInfo
-          title="Funil de Carregamentos por Etapa"
-          tooltip="Quantidade de carregamentos ativos (ainda não finalizados) em cada etapa do processo, agora."
+          title="Tempos por Armazém (últimos 30 dias)"
+          tooltip="Tempo médio de operação e de documentação de cada armazém, para identificar onde há gargalo."
         />
       </CardHeader>
-      <CardContent>
-        {!isLoading && semDados ? (
-          <p className="text-xs text-muted-foreground">Nenhum carregamento em andamento no momento.</p>
+      <CardContent className="pt-0">
+        {!isLoading && linhas.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum carregamento finalizado nos últimos 30 dias.</p>
         ) : (
-          <ChartContainer config={funilChartConfig} className="aspect-auto h-[220px] w-full">
-            <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 16 }}>
-              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-              <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="etapa" tickLine={false} axisLine={false} width={90} />
-              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              <Bar dataKey="quantidade" radius={4}>
-                {chartData.map((entry) => (
-                  <Cell
-                    key={entry.etapa}
-                    fill={entry.etapa === "Documentação" ? "hsl(var(--warning))" : "hsl(var(--primary))"}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead rowSpan={2} className="align-bottom">
+                  Armazém
+                </TableHead>
+                <TableHead colSpan={3} className="text-center border-l">
+                  Operação
+                </TableHead>
+                <TableHead colSpan={3} className="text-center border-l">
+                  Documentação
+                </TableHead>
+              </TableRow>
+              <TableRow>
+                <TableHead className="border-l text-xs" title="Chegada até início do carregamento">
+                  Espera
+                </TableHead>
+                <TableHead className="text-xs" title="Início até finalização do carregamento">
+                  Carregamento
+                </TableHead>
+                <TableHead className="text-xs" title="Chegada até finalização de toda a documentação">
+                  Total
+                </TableHead>
+                <TableHead className="border-l text-xs" title="Carregamento finalizado até o 1º documento (armazém)">
+                  Finalizado → 1º Doc
+                </TableHead>
+                <TableHead className="text-xs" title="1º documento (armazém) até 2º documento (logística)">
+                  1º → 2º Doc
+                </TableHead>
+                <TableHead className="text-xs" title="2º documento (logística) até a finalização (armazém)">
+                  2º Doc → Fim
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-xs text-muted-foreground">
+                    Carregando…
+                  </TableCell>
+                </TableRow>
+              ) : (
+                linhas.map((row) => (
+                  <TableRow key={row.armazemId}>
+                    <TableCell className="font-medium">
+                      <Link to="/armazens" className="hover:underline underline-offset-2">
+                        {row.nome}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="border-l text-sm">{formatarDuracaoMinutos(row.tempoEspera)}</TableCell>
+                    <TableCell className="text-sm">{formatarDuracaoMinutos(row.tempoCarregamento)}</TableCell>
+                    <TableCell className="text-sm">{formatarDuracaoMinutos(row.tempoTotalProcesso)}</TableCell>
+                    <TableCell className="border-l text-sm">
+                      {formatarDuracaoMinutos(row.finalizadoAte1Doc)}
+                    </TableCell>
+                    <TableCell className="text-sm">{formatarDuracaoMinutos(row.doc1AteDoc2)}</TableCell>
+                    <TableCell className="text-sm">{formatarDuracaoMinutos(row.doc2AteFinalizacao)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-const formatarDataHora = (iso: string) => {
-  const d = new Date(iso);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm} ${hh}:${min}`;
-};
-
-interface ProximoAgendamentoItem {
-  id: string;
-  cliente: string;
-  armazem: string;
-  produto: string;
-  dataRetirada: string;
-}
-
-// Próximas retiradas agendadas, para não precisar sair do dashboard para ver o que vem a seguir.
-function ProximosAgendamentosCard({
-  itens,
-  isLoading,
-}: {
-  itens: ProximoAgendamentoItem[] | undefined;
-  isLoading: boolean;
-}) {
-  const lista = itens ?? [];
-
-  return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
-      <CardHeader className="pb-3">
-        <TitleWithInfo
-          title="Próximos Agendamentos"
-          tooltip="As próximas retiradas agendadas, da mais próxima para a mais distante."
-        />
-      </CardHeader>
-      <CardContent className="pt-0">
-        {!isLoading && lista.length === 0 && (
-          <p className="text-xs text-muted-foreground">Nenhum agendamento futuro.</p>
-        )}
-        <div className="space-y-2">
-          {lista.map((item) => (
-            <Link
-              key={item.id}
-              to="/agendamentos"
-              className="flex items-center justify-between gap-3 rounded border p-2.5 hover:bg-muted/50 transition-colors"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{item.cliente}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {item.produto} • {item.armazem}
-                </p>
-              </div>
-              <Badge variant="secondary" className="shrink-0 font-normal">
-                {formatarDataHora(item.dataRetirada)}
-              </Badge>
-            </Link>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface EstoqueBaixoItem {
-  id: string;
-  produto: string;
-  armazem: string;
-  quantidade: number;
-  minimo: number;
-  unidade: string;
-}
-
-// Produtos com estoque físico abaixo do mínimo cadastrado, por armazém.
-// Só aparece aqui o produto que tiver "estoque_minimo" configurado (produtos.tsx ainda não tem esse campo no formulário).
-function EstoqueBaixoCard({ itens, isLoading }: { itens: EstoqueBaixoItem[] | undefined; isLoading: boolean }) {
-  const lista = itens ?? [];
-
-  return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <TitleWithInfo
-            title="Estoque Baixo"
-            tooltip="Produtos com quantidade física abaixo do mínimo configurado, em algum armazém."
-          />
-          <span className="text-2xl font-bold text-foreground">{isLoading ? "…" : lista.length}</span>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {!isLoading && lista.length === 0 && (
-          <p className="text-xs text-muted-foreground">Nenhum produto abaixo do mínimo configurado.</p>
-        )}
-        <div className="space-y-2">
-          {lista.map((item) => (
-            <Link
-              key={item.id}
-              to="/estoque"
-              className="flex items-center justify-between gap-3 rounded border p-2.5 hover:bg-muted/50 transition-colors"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{item.produto}</p>
-                <p className="text-xs text-muted-foreground truncate">{item.armazem}</p>
-              </div>
-              <div className="flex flex-col items-end gap-0.5 shrink-0">
-                <Badge className="bg-red-100 text-red-800 hover:bg-red-100 font-normal">
-                  {item.quantidade} {item.unidade} em estoque
-                </Badge>
-                <span className="text-[11px] text-muted-foreground">
-                  mínimo configurado: {item.minimo} {item.unidade}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
       </CardContent>
     </Card>
   );
@@ -422,6 +142,7 @@ const DashboardLogistica = () => {
   const inicioAmanha = startOfDayISO(addDays(hoje, 1));
   const fimAmanha = endOfDayISO(addDays(hoje, 1));
   const fimSemana = endOfDayISO(addDays(hoje, 6));
+  const inicioJanela30d = startOfDayISO(addDays(hoje, -30));
 
   const { data: liberacoesAbertas, isLoading: loadingLiberacoesAbertas } = useQuery({
     queryKey: ["dash-liberacoes-abertas"],
@@ -522,6 +243,10 @@ const DashboardLogistica = () => {
     refetchInterval: 60_000,
   });
 
+  // Etapa 1 (aguardando chegada) não entra nessa métrica: data_retirada do
+  // agendamento é um DATE (sem horário), então não dá para medir atraso em
+  // minutos com precisão — e a chegada em si não é uma ação já registrada.
+  // Só etapas 2-5, com timestamp exato (ver ENTRADA_ETAPA_FIELD), contam.
   const { data: carregamentosAtrasados, isLoading: loadingCarregamentosAtrasados } = useQuery({
     queryKey: ["dash-carregamentos-atrasados"],
     queryFn: async () => {
@@ -530,7 +255,8 @@ const DashboardLogistica = () => {
           supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos"),
           supabase
             .from("carregamentos")
-            .select("id,etapa_atual,created_at,data_chegada,data_inicio,data_carregando,data_finalizacao")
+            .select("id,etapa_atual,data_chegada,data_inicio,data_carregando,data_finalizacao")
+            .gte("etapa_atual", 2)
             .lt("etapa_atual", 6),
         ]);
       if (configError) throw configError;
@@ -539,11 +265,10 @@ const DashboardLogistica = () => {
       const limites = new Map((config ?? []).map((c) => [c.etapa, c.tempo_maximo_minutos]));
       const agora = Date.now();
 
-      return (emAndamento ?? []).filter((c) => {
+      return (emAndamento ?? []).filter((c: any) => {
         const limiteMinutos = limites.get(c.etapa_atual);
         if (!limiteMinutos) return false;
-        const campoEntrada = ENTRADA_ETAPA_FIELD[c.etapa_atual];
-        const entradaISO = campoEntrada ? (c as any)[campoEntrada] : c.created_at;
+        const entradaISO = c[ENTRADA_ETAPA_FIELD[c.etapa_atual] as string];
         if (!entradaISO) return false;
         const minutosDecorridos = (agora - new Date(entradaISO).getTime()) / 60_000;
         return minutosDecorridos > limiteMinutos;
@@ -626,6 +351,76 @@ const DashboardLogistica = () => {
       return ETAPA_LABELS.map((label, index) => ({ etapa: label, quantidade: contagem[index + 1] ?? 0 }));
     },
     refetchInterval: 60_000,
+  });
+
+  // Tempos médios (últimos 30 dias), quebrados por armazém: os 3 tempos gerais
+  // (mesmas definições de calcularEstatisticas() em CarregamentoDetalhe.tsx) e
+  // os 3 segmentos de documentação. A ordem das sub-etapas é sempre 5a
+  // (armazém) → 5b (logística) → 5c (armazém) — ver getProximaSubEtapa em
+  // CarregamentoDetalhe.tsx.
+  const { data: temposPorArmazem, isLoading: loadingTemposPorArmazem } = useQuery({
+    queryKey: ["dash-tempos-por-armazem"],
+    queryFn: async (): Promise<TemposArmazemRow[]> => {
+      const { data, error } = await supabase
+        .from("carregamentos")
+        .select(
+          "armazem_id, armazens(nome), data_chegada, data_inicio, data_finalizacao, data_documentacao, etapa_5a_concluida_em, etapa_5b_concluida_em"
+        )
+        .gte("data_finalizacao", inicioJanela30d)
+        .not("data_finalizacao", "is", null);
+      if (error) throw error;
+
+      const porArmazem = new Map<string, { nome: string; linhas: any[] }>();
+      (data ?? []).forEach((c: any) => {
+        if (!c.armazem_id) return;
+        if (!porArmazem.has(c.armazem_id)) {
+          porArmazem.set(c.armazem_id, { nome: c.armazens?.nome ?? "Armazém", linhas: [] });
+        }
+        porArmazem.get(c.armazem_id)!.linhas.push(c);
+      });
+
+      return Array.from(porArmazem.entries())
+        .map(([armazemId, { nome, linhas }]) => ({
+          armazemId,
+          nome,
+          tempoEspera: media(
+            linhas
+              .filter((l) => l.data_chegada && l.data_inicio)
+              .map((l) => (new Date(l.data_inicio).getTime() - new Date(l.data_chegada).getTime()) / 60_000)
+          ),
+          tempoCarregamento: media(
+            linhas
+              .filter((l) => l.data_inicio && l.data_finalizacao)
+              .map((l) => (new Date(l.data_finalizacao).getTime() - new Date(l.data_inicio).getTime()) / 60_000)
+          ),
+          tempoTotalProcesso: media(
+            linhas
+              .filter((l) => l.data_chegada && l.data_documentacao)
+              .map((l) => (new Date(l.data_documentacao).getTime() - new Date(l.data_chegada).getTime()) / 60_000)
+          ),
+          finalizadoAte1Doc: media(
+            linhas
+              .filter((l) => l.data_finalizacao && l.etapa_5a_concluida_em)
+              .map((l) => (new Date(l.etapa_5a_concluida_em).getTime() - new Date(l.data_finalizacao).getTime()) / 60_000)
+          ),
+          doc1AteDoc2: media(
+            linhas
+              .filter((l) => l.etapa_5a_concluida_em && l.etapa_5b_concluida_em)
+              .map(
+                (l) => (new Date(l.etapa_5b_concluida_em).getTime() - new Date(l.etapa_5a_concluida_em).getTime()) / 60_000
+              )
+          ),
+          doc2AteFinalizacao: media(
+            linhas
+              .filter((l) => l.etapa_5b_concluida_em && l.data_documentacao)
+              .map(
+                (l) => (new Date(l.data_documentacao).getTime() - new Date(l.etapa_5b_concluida_em).getTime()) / 60_000
+              )
+          ),
+        }))
+        .sort((a, b) => a.nome.localeCompare(b.nome));
+    },
+    refetchInterval: 120_000,
   });
 
   const { data: proximosAgendamentos, isLoading: loadingProximosAgendamentos } = useQuery({
@@ -773,6 +568,10 @@ const DashboardLogistica = () => {
             <FunilEtapasCard data={funilEtapas} isLoading={loadingFunilEtapas} />
             <DocumentacaoPendenteCard itens={documentacaoPendente} isLoading={loadingDocumentacaoPendente} />
           </div>
+        </section>
+
+        <section>
+          <TemposPorArmazemCard dados={temposPorArmazem} isLoading={loadingTemposPorArmazem} />
         </section>
 
         <section>

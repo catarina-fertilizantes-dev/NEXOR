@@ -175,8 +175,11 @@ export type Database = {
           docs_retorno_xml_url: string | null
           docs_venda_url: string | null
           docs_venda_xml_url: string | null
+          etapa_5a_concluida_em: string | null
           etapa_5a_status: string | null
+          etapa_5b_concluida_em: string | null
           etapa_5b_status: string | null
+          etapa_5c_concluida_em: string | null
           etapa_5c_status: string | null
           etapa_atual: number
           id: string
@@ -211,8 +214,11 @@ export type Database = {
           docs_retorno_xml_url?: string | null
           docs_venda_url?: string | null
           docs_venda_xml_url?: string | null
+          etapa_5a_concluida_em?: string | null
           etapa_5a_status?: string | null
+          etapa_5b_concluida_em?: string | null
           etapa_5b_status?: string | null
+          etapa_5c_concluida_em?: string | null
           etapa_5c_status?: string | null
           etapa_atual?: number
           id?: string
@@ -247,8 +253,11 @@ export type Database = {
           docs_retorno_xml_url?: string | null
           docs_venda_url?: string | null
           docs_venda_xml_url?: string | null
+          etapa_5a_concluida_em?: string | null
           etapa_5a_status?: string | null
+          etapa_5b_concluida_em?: string | null
           etapa_5b_status?: string | null
+          etapa_5c_concluida_em?: string | null
           etapa_5c_status?: string | null
           etapa_atual?: number
           id?: string
