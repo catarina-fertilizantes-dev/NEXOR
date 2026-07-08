@@ -124,6 +124,16 @@ Usuários de `admin` e `logistica` (Colaboradores) criados diretamente na págin
 - `can_upload_foto_for_carregamento(id)` — RLS para uploads de fotos
 - `insert_carregamento_from_agendamento()` — trigger SECURITY DEFINER; cria carregamento automaticamente ao inserir agendamento
 
+## Setup em Máquina Nova
+
+Depois de clonar o repositório, faltam 3 coisas que não vêm pelo git (autenticação é local por máquina):
+
+1. **`.env.local`** — copiar manualmente (chave anon do Supabase Dev). Não commitado por segurança.
+2. **`gh auth login`** — autenticação do GitHub CLI, por máquina/keyring do SO.
+3. **`supabase login`** — autenticação do Supabase CLI, por máquina. O *link* do projeto Dev já vem automático via `supabase/config.toml` (versionado). **Atenção:** a mesma conta tem acesso também ao projeto de produção — confirmar sempre qual projeto está selecionado antes de rodar qualquer comando destrutivo (ver `docs/ops/`).
+
+**Vercel:** nada a configurar — o deploy é automático via integração Git↔Vercel a cada push, não é acessado via CLI neste projeto.
+
 ## Notas Operacionais para Claude Code
 
 - **Nunca inserir dados de teste via SQL direto** (`supabase db query` ou similar) — já causou erros de lógica de dados no passado (mesmo com os triggers do banco disparando corretamente, o caminho de validação da UI é diferente). Sempre criar dados de teste pela UI real (ver `docs/TESTING.md`). SQL direto só é aceitável para *editar* colunas de data/timestamp em registros já criados corretamente pela UI (backdating para simular dados históricos que a interface não permite datar no passado).
