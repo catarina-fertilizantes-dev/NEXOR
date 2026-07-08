@@ -76,6 +76,8 @@ Liberação → Agendamento → Carregamento
 
 - **`docs/UI-STANDARDS.md`** — Padrões visuais e de UX do sistema. Consultar **sempre** antes de implementar qualquer componente, página ou funcionalidade nova. Cobre: textos e variantes de botões, empty states, alertas, badges de status, listas colapsáveis, toasts, tooltips, formulários, ícones por entidade e checklist pré-PR.
 - **`docs/TESTING.md`** — Estratégia de testes, quando rodar cada suite, cobertura atual e checklist de release.
+- **`docs/DASHBOARDS.md`** — Arquitetura dos 3 dashboards por perfil (logística/armazém/cliente), configs DB-only sem tela própria, definições de tempo médio e regras de layout/filtro já resolvidas — consultar antes de mexer em métricas ou cards de dashboard.
+- **`docs/ops/`** — Scripts de manutenção de produção fora do fluxo normal de migrations (ex.: guard-rail contra DELETE/TRUNCATE acidental via dashboard). Ver comentários de cada script antes de rodar.
 
 ## Arquitetura de Arquivos
 
@@ -117,9 +119,14 @@ Usuários de `admin` e `logistica` (Colaboradores) criados diretamente na págin
 - `alterar_armazem_liberacao(id, novo_armazem_id)` — mover liberação entre armazéns
 - `check_user_active_status(user_id)` — valida se usuário está ativo no login
 - `cancelar_liberacao(id)` — cancela liberação e retorna `quantidade_liberada − quantidade_retirada − qty_em_andamento` ao `quantidade_disponivel` do estoque
-- `calcular_cancelamento_liberacao(id)` — preview read-only do cálculo de cancelamento (sem side effects)
+- `calcular_cancelamento_liberacao(id)` — preview read-only do cálculo de cancelamento (sem side effects); ao implementar cancelamento de outras entidades, seguir o mesmo padrão: RPC de preview read-only + dialog de confirmação mostrando o impacto + RPC que efetivamente cancela e devolve estoque
 - `can_upload_foto_for_carregamento(id)` — RLS para uploads de fotos
 - `insert_carregamento_from_agendamento()` — trigger SECURITY DEFINER; cria carregamento automaticamente ao inserir agendamento
+
+## Notas Operacionais para Claude Code
+
+- **Nunca inserir dados de teste via SQL direto** (`supabase db query` ou similar) — já causou erros de lógica de dados no passado (mesmo com os triggers do banco disparando corretamente, o caminho de validação da UI é diferente). Sempre criar dados de teste pela UI real (ver `docs/TESTING.md`). SQL direto só é aceitável para *editar* colunas de data/timestamp em registros já criados corretamente pela UI (backdating para simular dados históricos que a interface não permite datar no passado).
+- **A ferramenta de preview automatizada (`mcp__Claude_Preview`) pode não conseguir abrir conexão de rede com o servidor dev local** em alguns ambientes (fica em branco / `chrome-error://chromewebdata/`, mesmo com o servidor respondendo normalmente via `curl`). Se isso acontecer, não insistir — usar Playwright com Edge visível direto via terminal como alternativa: `npx playwright test tests/ui/system/[arquivo].spec.ts --project=edge` (os testes batem no Dev publicado, `nexor-dev.vercel.app`, que é o `baseURL` do `playwright.config.ts`). Causa parcial já corrigida: `vite.config.ts` tem `server: { host: '127.0.0.1' }` para evitar bind só em IPv6.
 
 ## Comandos Úteis
 
