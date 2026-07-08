@@ -126,6 +126,8 @@ Usuários de `admin` e `logistica` (Colaboradores) criados diretamente na págin
 
 ## Setup em Máquina Nova
 
+**Caminho padrão do repositório:** `C:\dev\nexor` em qualquer máquina Windows (fora de pastas sincronizadas por nuvem como OneDrive/Dropbox — sincronizar `.git`/`node_modules` por essas ferramentas gera risco real de corrupção do repositório e lentidão; o próprio git via `clone`/`push`/`pull` já é o mecanismo de sincronização entre máquinas). Ao configurar uma máquina nova, clonar sempre nesse mesmo caminho, para manter os passos e caminhos absolutos (screenshots de teste, etc.) consistentes entre máquinas.
+
 Depois de clonar o repositório, faltam 3 coisas que não vêm pelo git (autenticação é local por máquina):
 
 1. **`.env.local`** — copiar manualmente (chave anon do Supabase Dev). Não commitado por segurança.
