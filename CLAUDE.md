@@ -44,6 +44,7 @@ Liberação → Agendamento → Carregamento
    - Statuses: `disponivel` → `parcialmente_agendada` → `totalmente_agendada` → `finalizada` / `cancelada`
    - Campos chave: `quantidade_liberada`, `quantidade_retirada`, `pedido_interno`
    - Validação inline: a quantidade da liberação não pode exceder o estoque disponível no armazém selecionado
+   - **Ao cancelar** (`cancelar_liberacao`, admin/logistica only): agendamentos não iniciados são arquivados/removidos; carregamentos não iniciados são removidos; carregamentos **em andamento continuam até conclusão natural** (não são interrompidos); nenhum desses agendamentos/carregamentos cancelados aparece mais na interface (decisão de produto, não bug). Colunas de auditoria: `cancelado_por`, `cancelado_em`.
 
 2. **Agendamento** — Cliente ou representante agenda a data/horário de retirada com dados do caminhão e motorista.
    - Statuses: `pendente` → `em_andamento` → `concluido` → `cancelado`
