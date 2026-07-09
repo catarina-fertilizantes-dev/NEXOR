@@ -18,6 +18,8 @@ Sistema de gestão logística que coordena o fluxo completo de liberação, agen
 | `main` | NEXOR Prod (`sxfomgeddxokdxjazdtg`) | Production |
 | `develop` | NEXOR Dev (`vxidpkrsfqyjwwdbvtwc`) | Preview |
 
+**Sempre trabalhar a partir de `develop`.** É o branch padrão do repositório (default branch no GitHub) e para onde todo o dia a dia de implementação, testes e PRs deve apontar. `main` só recebe merge de `develop` quando uma versão está pronta para produção — nunca commitar/desenvolver direto em `main`. Ao iniciar em qualquer máquina, confirmar com `git branch --show-current` que está em `develop` antes de começar a mexer em código.
+
 Credenciais locais em `.env.local`. Supabase CLI instalado.
 
 ## Papéis de Usuário (user_role)
