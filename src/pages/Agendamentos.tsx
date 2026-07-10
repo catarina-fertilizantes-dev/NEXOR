@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -221,6 +222,7 @@ interface AgendamentoItem {
   percentual_carregamento: number;
   cor_carregamento: string;
   tooltip_carregamento: string;
+  carregamento_id: string | null;
   finalizado: boolean;
 }
 
@@ -269,6 +271,7 @@ function validatePlaca(placa: string) {
 
 const Agendamentos = () => {
   useScrollToTop();
+  const navigate = useNavigate();
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -452,6 +455,7 @@ const Agendamentos = () => {
           percentual_carregamento: statusInfo.percentual,
           cor_carregamento: statusInfo.cor,
           tooltip_carregamento: statusInfo.tooltip,
+          carregamento_id: item.carregamento_id ?? null,
           finalizado,
         };
       } else {
@@ -490,6 +494,7 @@ const Agendamentos = () => {
           percentual_carregamento: statusInfo.percentual,
           cor_carregamento: statusInfo.cor,
           tooltip_carregamento: statusInfo.tooltip,
+          carregamento_id: carregamento?.id ?? null,
           finalizado,
         };
       }
@@ -876,14 +881,14 @@ const Agendamentos = () => {
   };
 
   const renderAgendamentoCard = (ag: AgendamentoItem) => (
-    <Card key={ag.id} className="transition-all hover:shadow-md cursor-pointer">
+    <Card key={ag.id} className="border-l-4 border-l-indigo-400 dark:border-l-indigo-500 transition-all hover:shadow-md cursor-pointer">
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="flex justify-start sm:order-2 sm:justify-end">
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
-                  <div 
+                  <div
                     className="flex items-center gap-1 cursor-help"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -898,13 +903,13 @@ const Agendamentos = () => {
                 </TooltipContent>
               </Tooltip>
             </div>
-  
-            <div 
+
+            <div
               className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
               onClick={() => setDetalhesAgendamento(ag)}
             >
-              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary shrink-0">
-                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-white" />
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30 shrink-0">
+                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {ag.pedido}</h3>
@@ -929,70 +934,54 @@ const Agendamentos = () => {
             </div>
           </div>
   
-          <div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2"
+          <div
+            className="grid grid-cols-2 gap-3 text-sm pt-2"
             onClick={() => setDetalhesAgendamento(ag)}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{ag.data}</span>
+              <span className="truncate"><span className="text-muted-foreground">Retirada:</span> {ag.data || "—"}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{formatPlaca(ag.placa)}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate" title={ag.motorista}>{ag.motorista}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate" title={ag.transportadora}>{ag.transportadora || "N/A"}</span>
+              <span className="truncate"><span className="text-muted-foreground">Caminhão:</span> {formatPlaca(ag.placa)}</span>
             </div>
           </div>
-  
-          <div 
-            className="pt-2 border-t"
-            onClick={() => setDetalhesAgendamento(ag)}
-          >
-            <div className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-purple-600 shrink-0" />
-              <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div 
-                      className="bg-purple-500 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${ag.percentual_carregamento}%` }}
-                    ></div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{ag.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium w-8 text-right">
-                      {ag.percentual_carregamento}%
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{ag.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+
+          <div className="pt-3 border-t flex items-center justify-between gap-2">
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <div
+                  className="flex items-center gap-2 min-w-0 cursor-help"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Truck className="h-4 w-4 text-purple-600 shrink-0" />
+                  <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
+                  <Badge variant="secondary" className={`${ag.cor_carregamento} text-xs font-normal whitespace-nowrap`}>
+                    Etapa {ag.etapa_carregamento}/6 · {ag.status_carregamento}
+                  </Badge>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm max-w-[260px]">{ag.tooltip_carregamento}. As etapas do carregamento são acompanhadas na página Carregamentos.</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {ag.carregamento_id && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 shrink-0 gap-1 px-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/carregamentos/${ag.carregamento_id}`);
+                }}
+              >
+                <span className="hidden sm:inline">Ver carregamento</span>
+                <span className="sm:hidden">Ver</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -1719,7 +1708,16 @@ const Agendamentos = () => {
                 </div>
               </div>
               
-              <div className="pt-4 border-t border-border bg-background flex justify-end">
+              <div className="pt-4 border-t border-border bg-background flex flex-col-reverse md:flex-row md:justify-end gap-2">
+                {detalhesAgendamento.carregamento_id && (
+                  <Button
+                    onClick={() => navigate(`/carregamentos/${detalhesAgendamento.carregamento_id}`)}
+                    className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-primary gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Ver carregamento
+                  </Button>
+                )}
                 <Button
                   onClick={() => setDetalhesAgendamento(null)}
                   className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-secondary"

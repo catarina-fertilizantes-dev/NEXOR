@@ -42,10 +42,18 @@ interface LiberacaoItem {
   armazem_id?: string;
   created_at?: string;
   quantidadeAgendada: number;
+  saldo: number;
   percentualRetirado: number;
   percentualAgendado: number;
   finalizada: boolean;
 }
+
+const QUANTIDADE_TOOLTIPS = {
+  liberada: "Quantidade total autorizada nesta liberação para retirada.",
+  agendada: "Quantidade com agendamento em aberto (pendente ou em andamento) e ainda não retirada.",
+  retirada: "Quantidade já retirada do armazém — carregamentos finalizados.",
+  saldo: "Quantidade ainda disponível para agendar. Saldo = Liberada − Agendada − Retirada.",
+} as const;
 
 const getLiberacaoStatusTooltip = (status: StatusLiberacao) => {
   switch (status) {
@@ -245,7 +253,7 @@ const Liberacoes = () => {
           quantidade,
           status
         `)
-        .in("status", ["pendente", "em_andamento", "concluido"]);
+        .in("status", ["pendente", "em_andamento"]);
       if (error) throw error;
       
       const agrupados = (data || []).reduce((acc: Record<string, number>, item) => {
@@ -318,6 +326,7 @@ const Liberacoes = () => {
         quantidade: item.quantidade_liberada,
         quantidadeRetirada: item.quantidade_retirada,
         quantidadeAgendada: item.quantidade_agendada,
+        saldo: item.quantidade_disponivel,
         percentualRetirado: item.percentual_retirado,
         percentualAgendado: item.percentual_agendado,
         pedido: item.pedido_interno,
@@ -347,6 +356,7 @@ const Liberacoes = () => {
         quantidade: item.quantidade_liberada,
         quantidadeRetirada,
         quantidadeAgendada,
+        saldo: Math.max(0, item.quantidade_liberada - quantidadeAgendada - quantidadeRetirada),
         percentualRetirado,
         percentualAgendado,
         pedido: item.pedido_interno,
@@ -842,16 +852,39 @@ const Liberacoes = () => {
                 </div>
                 
                 <div className="mt-2 text-xs text-muted-foreground">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2">
-                    <span className="whitespace-nowrap">
-                      <span className="font-medium text-foreground">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
-                    </span>
-                    <span className="whitespace-nowrap">
-                      <span className="font-medium text-blue-600">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
-                    </span>
-                    <span className="whitespace-nowrap">
-                      <span className="font-medium text-orange-600">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
-                    </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2">
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <span className="whitespace-nowrap cursor-help">
+                          <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.liberada}</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <span className="whitespace-nowrap cursor-help">
+                          <span className="font-medium text-blue-600 underline decoration-dotted decoration-blue-600/40 underline-offset-2">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.agendada}</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <span className="whitespace-nowrap cursor-help">
+                          <span className="font-medium text-orange-600 underline decoration-dotted decoration-orange-600/40 underline-offset-2">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.retirada}</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <span className="whitespace-nowrap cursor-help">
+                          <span className="font-semibold text-green-600 underline decoration-dotted decoration-green-600/40 underline-offset-2">Saldo:</span> {lib.saldo.toLocaleString('pt-BR')}t
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.saldo}</p></TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </div>
@@ -1449,18 +1482,46 @@ const Liberacoes = () => {
                       <Package className="h-4 w-4 text-green-600" />
                       <h3 className="text-base font-semibold text-foreground">Quantidades</h3>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Liberada</Label>
+                        <div className="flex items-center gap-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Liberada</Label>
+                          <Tooltip delayDuration={100}>
+                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
+                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.liberada}</p></TooltipContent>
+                          </Tooltip>
+                        </div>
                         <p className="text-base md:text-lg font-semibold">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Agendada</Label>
+                        <div className="flex items-center gap-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Agendada</Label>
+                          <Tooltip delayDuration={100}>
+                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
+                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.agendada}</p></TooltipContent>
+                          </Tooltip>
+                        </div>
                         <p className="text-base md:text-lg font-semibold text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Retirada</Label>
+                        <div className="flex items-center gap-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Retirada</Label>
+                          <Tooltip delayDuration={100}>
+                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
+                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.retirada}</p></TooltipContent>
+                          </Tooltip>
+                        </div>
                         <p className="text-base md:text-lg font-semibold text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Saldo</Label>
+                          <Tooltip delayDuration={100}>
+                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
+                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.saldo}</p></TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <p className="text-base md:text-lg font-semibold text-green-600">{detalhesLiberacao.saldo.toLocaleString('pt-BR')}t</p>
                       </div>
                     </div>
                   </div>
