@@ -18,6 +18,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validateFileForBucket } from "@/lib/uploadValidation";
 import {
   Loader2,
   CheckCircle,
@@ -931,6 +932,14 @@ const CarregamentoDetalhe = () => {
                           accept=".pdf"
                           onChange={e => {
                             const file = e.target.files?.[0] ?? null;
+                            if (file) {
+                              const result = validateFileForBucket(file, 'carregamento-documentos');
+                              if (!result.valid) {
+                                toast({ variant: 'destructive', title: 'Arquivo inválido', description: result.error });
+                                e.target.value = '';
+                                return;
+                              }
+                            }
                             setSubEtapaFiles(prev => ({
                               ...prev,
                               [subEtapa.id]: { ...prev[subEtapa.id], pdf: file }
@@ -982,6 +991,14 @@ const CarregamentoDetalhe = () => {
                           accept=".xml"
                           onChange={e => {
                             const file = e.target.files?.[0] ?? null;
+                            if (file) {
+                              const result = validateFileForBucket(file, 'carregamento-documentos', { checkMimeType: false });
+                              if (!result.valid) {
+                                toast({ variant: 'destructive', title: 'Arquivo inválido', description: result.error });
+                                e.target.value = '';
+                                return;
+                              }
+                            }
                             setSubEtapaFiles(prev => ({
                               ...prev,
                               [subEtapa.id]: { ...prev[subEtapa.id], xml: file }
@@ -1217,6 +1234,15 @@ const CarregamentoDetalhe = () => {
                     accept="image/*"
                     onChange={e => {
                       const file = e.target.files?.[0] ?? null;
+                      if (file) {
+                        const result = validateFileForBucket(file, 'carregamento-fotos');
+                        if (!result.valid) {
+                          toast({ variant: 'destructive', title: 'Arquivo inválido', description: result.error });
+                          e.target.value = '';
+                          setStageFile(null);
+                          return;
+                        }
+                      }
                       setStageFile(file);
                     }}
                     className="hidden"

@@ -17,6 +17,7 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { formatFileSize, BUCKET_UPLOAD_LIMITS } from "@/lib/uploadValidation";
 
 type StockStatus = "normal" | "baixo";
 type Unidade = "t" | "kg";
@@ -457,10 +458,22 @@ const Estoque = () => {
     const isValidMimeType = allowedTypes.includes(file.type);
 
     if (!isValidExtension || !isValidMimeType) {
-      toast({ 
-        variant: "destructive", 
-        title: "Tipo de arquivo inválido", 
-        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.` 
+      toast({
+        variant: "destructive",
+        title: "Tipo de arquivo inválido",
+        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.`
+      });
+      inputElement.value = '';
+      setterFunction(null);
+      return;
+    }
+
+    const maxSizeBytes = BUCKET_UPLOAD_LIMITS['estoque-documentos'].maxSizeBytes;
+    if (file.size > maxSizeBytes) {
+      toast({
+        variant: "destructive",
+        title: "Arquivo muito grande",
+        description: `O arquivo "${file.name}" tem ${formatFileSize(file.size)} — o limite é ${formatFileSize(maxSizeBytes)}.`
       });
       inputElement.value = '';
       setterFunction(null);
