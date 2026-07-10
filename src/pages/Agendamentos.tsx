@@ -1052,7 +1052,7 @@ const Agendamentos = () => {
           subtitle="Gerencie os agendamentos de retirada"
           icon={Calendar}
           actions={
-            canCreate && liberacoesDisponiveis && liberacoesDisponiveis.length > 0 && (
+            canCreate && temLiberacoesDisponiveis && (
               <Dialog open={dialogOpen} onOpenChange={(open) => {
                 if (!open && isCreating) return;
                 if (!open) {
@@ -1477,20 +1477,30 @@ const Agendamentos = () => {
         )}
 
         <div className="space-y-6">
-          {agendamentosAtivos.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">
-                  Agendamentos Ativos ({agendamentosAtivos.length})
-                </h2>
-              </div>
-              <div className="grid gap-4">
-                {agendamentosAtivos.map(renderAgendamentoCard)}
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">
+                Agendamentos Ativos ({agendamentosAtivos.length})
+              </h2>
             </div>
-          )}
-          
+            <div className="grid gap-4">
+              {agendamentosAtivos.map(renderAgendamentoCard)}
+              {agendamentosAtivos.length === 0 && agendamentosFinalizados.length > 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
+                  <div className="rounded-full bg-muted p-3">
+                    <Calendar className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {hasActiveFilters
+                      ? "Nenhum agendamento ativo encontrado com os filtros aplicados."
+                      : "Nenhum agendamento ativo no momento."}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {agendamentosFinalizados.length > 0 && (
             <div className="space-y-4">
               <Button
@@ -1503,34 +1513,47 @@ const Agendamentos = () => {
                     Agendamentos Finalizados ({agendamentosFinalizados.length})
                   </span>
                 </div>
-                {secaoFinalizadosExpandida ? 
-                  <ChevronUp className="h-4 w-4" /> : 
+                {secaoFinalizadosExpandida ?
+                  <ChevronUp className="h-4 w-4" /> :
                   <ChevronDown className="h-4 w-4" />
                 }
               </Button>
-              
+
               {secaoFinalizadosExpandida && (
-                <div className="grid gap-4">
+                <div className="grid gap-4 rounded-lg bg-gray-50/50 dark:bg-gray-900/20 p-3">
                   {agendamentosFinalizados.map(renderAgendamentoCard)}
                 </div>
               )}
             </div>
           )}
 
-          {agendamentos.length === 0 && (
+          {agendamentosAtivos.length === 0 && agendamentosFinalizados.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
               <div className="rounded-full bg-muted p-4">
                 <Calendar className="h-8 w-8 text-muted-foreground" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-semibold text-foreground">Nenhum agendamento cadastrado</h3>
+                <h3 className="font-semibold text-foreground">
+                  {hasActiveFilters ? "Nenhum agendamento encontrado" : "Nenhum agendamento cadastrado"}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  {canCreate
-                    ? "Comece criando seu primeiro agendamento de retirada."
-                    : "Aguarde a criação de agendamentos pela equipe responsável."}
+                  {hasActiveFilters
+                    ? "Nenhum agendamento encontrado com os filtros aplicados."
+                    : canCreate
+                      ? "Comece criando seu primeiro agendamento de retirada."
+                      : "Aguarde a criação de agendamentos pela equipe responsável."}
                 </p>
               </div>
-              {canCreate && (
+              {hasActiveFilters ? (
+                <Button
+                  size="sm"
+                  onClick={clearFilters}
+                  className="btn-secondary min-h-[44px] max-md:min-h-[44px]"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Limpar Filtros
+                </Button>
+              ) : canCreate && temLiberacoesDisponiveis && (
                 <Button
                   onClick={() => setDialogOpen(true)}
                   className="btn-primary min-h-[44px] max-md:min-h-[44px]"
@@ -1539,27 +1562,6 @@ const Agendamentos = () => {
                   Novo Agendamento
                 </Button>
               )}
-            </div>
-          )}
-
-          {agendamentos.length > 0 && showingCount === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-              <div className="rounded-full bg-muted p-4">
-                <FilterIcon className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-semibold text-foreground">Nenhum resultado encontrado</h3>
-                <p className="text-sm text-muted-foreground">
-                  Ajuste os filtros para encontrar os agendamentos desejados.
-                </p>
-              </div>
-              <Button
-                onClick={clearFilters}
-                className="btn-secondary min-h-[44px] max-md:min-h-[44px]"
-              >
-                <X className="mr-2 h-4 w-4" />
-                Limpar Filtros
-              </Button>
             </div>
           )}
         </div>

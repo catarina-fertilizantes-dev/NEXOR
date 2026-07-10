@@ -594,12 +594,17 @@ const Carregamentos = () => {
           
           <div className="grid gap-3">
             {carregamentosAtivos.map(renderCarregamentoCard)}
-            {carregamentosAtivos.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">
-                {hasActiveFilters
-                  ? "Nenhum carregamento ativo encontrado com os filtros aplicados."
-                  : "Nenhum carregamento ativo no momento."}
-              </p>
+            {carregamentosAtivos.length === 0 && carregamentosFinalizados.length > 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
+                <div className="rounded-full bg-muted p-3">
+                  <Truck className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {hasActiveFilters
+                    ? "Nenhum carregamento ativo encontrado com os filtros aplicados."
+                    : "Nenhum carregamento ativo no momento."}
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -617,14 +622,14 @@ const Carregamentos = () => {
                   Carregamentos Finalizados ({carregamentosFinalizados.length})
                 </span>
               </div>
-              {secaoFinalizadosExpandida ? 
-                <ChevronUp className="h-4 w-4" /> : 
+              {secaoFinalizadosExpandida ?
+                <ChevronUp className="h-4 w-4" /> :
                 <ChevronDown className="h-4 w-4" />
               }
             </Button>
-            
+
             {secaoFinalizadosExpandida && (
-              <div className="grid gap-4">
+              <div className="grid gap-4 rounded-lg bg-gray-50/50 dark:bg-gray-900/20 p-3">
                 {carregamentosFinalizados.map(renderCarregamentoCard)}
               </div>
             )}

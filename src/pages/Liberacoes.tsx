@@ -1763,12 +1763,17 @@ const Liberacoes = () => {
 
           <div className="grid gap-3">
             {liberacoesAtivas.map(renderLiberacaoCard)}
-            {liberacoesAtivas.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">
-                {hasActiveFilters
-                  ? "Nenhuma liberação ativa encontrada com os filtros aplicados."
-                  : "Nenhuma liberação ativa no momento."}
-              </p>
+            {liberacoesAtivas.length === 0 && (liberacoesFinalizadas.length > 0 || liberacoesCanceladas.length > 0) && (
+              <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
+                <div className="rounded-full bg-muted p-3">
+                  <ClipboardList className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {hasActiveFilters
+                    ? "Nenhuma liberação ativa encontrada com os filtros aplicados."
+                    : "Nenhuma liberação ativa no momento."}
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -1785,14 +1790,14 @@ const Liberacoes = () => {
                   Liberações Finalizadas ({liberacoesFinalizadas.length})
                 </span>
               </div>
-              {secaoFinalizadasExpandida ? 
-                <ChevronUp className="h-4 w-4" /> : 
+              {secaoFinalizadasExpandida ?
+                <ChevronUp className="h-4 w-4" /> :
                 <ChevronDown className="h-4 w-4" />
               }
             </Button>
 
             {secaoFinalizadasExpandida && (
-              <div className="grid gap-3">
+              <div className="grid gap-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/20 p-3">
                 {liberacoesFinalizadas.map(renderLiberacaoCard)}
               </div>
             )}
@@ -1818,7 +1823,7 @@ const Liberacoes = () => {
             </Button>
 
             {secaoCanceladasExpandida && (
-              <div className="grid gap-3">
+              <div className="grid gap-3 rounded-lg bg-red-50/50 dark:bg-red-950/10 p-3">
                 {liberacoesCanceladas.map(renderLiberacaoCard)}
               </div>
             )}
