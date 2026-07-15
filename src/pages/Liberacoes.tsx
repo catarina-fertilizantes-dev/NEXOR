@@ -807,88 +807,86 @@ const Liberacoes = () => {
   const temClientesDisponiveis = clientesData && clientesData.length > 0;
 
   const renderLiberacaoCard = (lib: LiberacaoItem) => (
-    <Card key={lib.id} className="transition-all hover:shadow-md cursor-pointer">
+    <Card key={lib.id} className="border-l-4 border-l-blue-500 dark:border-l-blue-400 transition-all hover:shadow-md cursor-pointer">
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="flex justify-start sm:order-2 sm:justify-end">
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Badge className={`${getStatusColor(lib.status)} text-xs px-2 py-1 text-center`}>
-                      {getStatusLabel(lib.status)}
-                    </Badge>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{getLiberacaoStatusTooltip(lib.status)}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div 
-              className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
+          {/* Cabeçalho: ícone + pedido + status */}
+          <div className="flex items-start justify-between gap-3">
+            <div
+              className="flex items-center gap-3 min-w-0"
               onClick={() => setDetalhesLiberacao(lib)}
             >
-              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary shrink-0">
-                <ClipboardList className="h-4 w-4 md:h-5 md:w-5 text-white" />
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                <ClipboardList className="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {lib.pedido}</h3>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{lib.cliente}</span>
-                  </p>
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{lib.produto}</span>
-                  </p>
-                  <p className="whitespace-nowrap break-words">
-                    <span className="font-medium text-foreground">Armazém:</span> {lib.armazem}
-                  </p>
-                </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2">
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <span className="whitespace-nowrap cursor-help">
-                          <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.liberada}</p></TooltipContent>
-                    </Tooltip>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <span className="whitespace-nowrap cursor-help">
-                          <span className="font-medium text-blue-600 underline decoration-dotted decoration-blue-600/40 underline-offset-2">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.agendada}</p></TooltipContent>
-                    </Tooltip>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <span className="whitespace-nowrap cursor-help">
-                          <span className="font-medium text-orange-600 underline decoration-dotted decoration-orange-600/40 underline-offset-2">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.retirada}</p></TooltipContent>
-                    </Tooltip>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <span className="whitespace-nowrap cursor-help">
-                          <span className="font-semibold text-green-600 underline decoration-dotted decoration-green-600/40 underline-offset-2">Saldo:</span> {lib.saldo.toLocaleString('pt-BR')}t
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.saldo}</p></TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              </div>
+              <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {lib.pedido}</h3>
             </div>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <div
+                  className="flex items-center gap-1 cursor-help shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Badge className={`${getStatusColor(lib.status)} text-xs px-2 py-1 text-center`}>
+                    {getStatusLabel(lib.status)}
+                  </Badge>
+                  <Info className="h-3 w-3 text-muted-foreground" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{getLiberacaoStatusTooltip(lib.status)}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Informações em 2 colunas */}
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground"
+            onClick={() => setDetalhesLiberacao(lib)}
+          >
+            <p className="truncate" title={lib.cliente}><span className="font-medium text-foreground">Cliente:</span> {lib.cliente}</p>
+            <p className="truncate" title={lib.produto}><span className="font-medium text-foreground">Produto:</span> {lib.produto}</p>
+            <p className="truncate" title={lib.armazem}><span className="font-medium text-foreground">Armazém:</span> {lib.armazem}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Data:</span> {lib.data}</p>
+          </div>
+
+          {/* Métricas: Liberada / Agendada / Retirada / Saldo */}
+          <div
+            className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground"
+            onClick={() => setDetalhesLiberacao(lib)}
+          >
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <span className="whitespace-nowrap cursor-help">
+                  <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
+                </span>
+              </TooltipTrigger>
+              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.liberada}</p></TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <span className="whitespace-nowrap cursor-help">
+                  <span className="font-medium text-blue-600 underline decoration-dotted decoration-blue-600/40 underline-offset-2">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
+                </span>
+              </TooltipTrigger>
+              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.agendada}</p></TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <span className="whitespace-nowrap cursor-help">
+                  <span className="font-medium text-orange-600 underline decoration-dotted decoration-orange-600/40 underline-offset-2">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
+                </span>
+              </TooltipTrigger>
+              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.retirada}</p></TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <span className="whitespace-nowrap cursor-help">
+                  <span className="font-semibold text-green-600 underline decoration-dotted decoration-green-600/40 underline-offset-2">Saldo:</span> {lib.saldo.toLocaleString('pt-BR')}t
+                </span>
+              </TooltipTrigger>
+              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.saldo}</p></TooltipContent>
+            </Tooltip>
           </div>
 
           <div 
@@ -1843,7 +1841,7 @@ const Liberacoes = () => {
           <div className="space-y-4">
             <Button
               onClick={() => setSecaoFinalizadasExpandida(!secaoFinalizadasExpandida)}
-              className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
+              className="w-full justify-between bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 min-h-[44px] max-md:min-h-[44px] dark:bg-green-950/20 dark:hover:bg-green-950/30 dark:border-green-800 dark:text-green-400"
             >
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5" />
@@ -1858,7 +1856,7 @@ const Liberacoes = () => {
             </Button>
 
             {secaoFinalizadasExpandida && (
-              <div className="grid gap-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/20 p-3">
+              <div className="grid gap-3 rounded-lg bg-green-50/50 dark:bg-green-950/10 p-3">
                 {liberacoesFinalizadas.map(renderLiberacaoCard)}
               </div>
             )}

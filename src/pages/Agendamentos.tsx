@@ -881,73 +881,52 @@ const Agendamentos = () => {
   };
 
   const renderAgendamentoCard = (ag: AgendamentoItem) => (
-    <Card key={ag.id} className="border-l-4 border-l-indigo-400 dark:border-l-indigo-500 transition-all hover:shadow-md cursor-pointer">
+    <Card key={ag.id} className="border-l-4 border-l-violet-500 dark:border-l-violet-400 transition-all hover:shadow-md cursor-pointer">
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="flex justify-start sm:order-2 sm:justify-end">
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div
-                    className="flex items-center gap-1 cursor-help"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Badge className={`${getStatusColor(ag.status)} text-xs px-2 py-1 text-center`}>
-                      {getStatusLabel(ag.status)}
-                    </Badge>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{getAgendamentoStatusTooltip(ag.status)}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
+          {/* Cabeçalho: ícone + pedido + status */}
+          <div className="flex items-start justify-between gap-3">
             <div
-              className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
+              className="flex items-center gap-3 min-w-0"
               onClick={() => setDetalhesAgendamento(ag)}
             >
-              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30 shrink-0">
-                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30 shrink-0">
+                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-violet-600 dark:text-violet-400" />
               </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {ag.pedido}</h3>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{ag.cliente}</span>
-                  </p>
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{ag.produto}</span>
-                  </p>
-                  <p className="whitespace-nowrap break-words">
-                    <span className="font-medium text-foreground">Armazém:</span> {ag.armazem}
-                  </p>
+              <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {ag.pedido}</h3>
+            </div>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <div
+                  className="flex items-center gap-1 cursor-help shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Badge className={`${getStatusColor(ag.status)} text-xs px-2 py-1 text-center`}>
+                    {getStatusLabel(ag.status)}
+                  </Badge>
+                  <Info className="h-3 w-3 text-muted-foreground" />
                 </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Quantidade:</span> {ag.quantidade.toLocaleString('pt-BR')}t
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-  
-          <div
-            className="grid grid-cols-2 gap-3 text-sm pt-2"
-            onClick={() => setDetalhesAgendamento(ag)}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate"><span className="text-muted-foreground">Retirada:</span> {ag.data || "—"}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate"><span className="text-muted-foreground">Caminhão:</span> {formatPlaca(ag.placa)}</span>
-            </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{getAgendamentoStatusTooltip(ag.status)}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
+          {/* Informações em 2 colunas */}
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground"
+            onClick={() => setDetalhesAgendamento(ag)}
+          >
+            <p className="truncate" title={ag.cliente}><span className="font-medium text-foreground">Cliente:</span> {ag.cliente}</p>
+            <p className="truncate" title={ag.produto}><span className="font-medium text-foreground">Produto:</span> {ag.produto}</p>
+            <p className="truncate" title={ag.armazem}><span className="font-medium text-foreground">Armazém:</span> {ag.armazem}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Quantidade:</span> {ag.quantidade.toLocaleString('pt-BR')}t</p>
+            <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {ag.data || "—"}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(ag.placa)}</p>
+          </div>
+
+          {/* Rodapé: etapa do carregamento + atalho */}
           <div className="pt-3 border-t flex items-center justify-between gap-2">
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
@@ -956,7 +935,7 @@ const Agendamentos = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Truck className="h-4 w-4 text-purple-600 shrink-0" />
-                  <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
+                  <span className="text-xs text-purple-600 font-medium shrink-0 hidden sm:inline">Carregamento:</span>
                   <Badge variant="secondary" className={`${ag.cor_carregamento} text-xs font-normal whitespace-nowrap`}>
                     Etapa {ag.etapa_carregamento}/6 · {ag.status_carregamento}
                   </Badge>
@@ -970,8 +949,7 @@ const Agendamentos = () => {
             {ag.carregamento_id && (
               <Button
                 size="sm"
-                variant="ghost"
-                className="h-8 shrink-0 gap-1 px-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+                className="h-8 shrink-0 gap-1 px-2.5 text-xs min-h-[32px] btn-secondary"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/carregamentos/${ag.carregamento_id}`);
@@ -1494,7 +1472,7 @@ const Agendamentos = () => {
             <div className="space-y-4">
               <Button
                 onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
-                className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
+                className="w-full justify-between bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 min-h-[44px] max-md:min-h-[44px] dark:bg-green-950/20 dark:hover:bg-green-950/30 dark:border-green-800 dark:text-green-400"
               >
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5" />
@@ -1509,7 +1487,7 @@ const Agendamentos = () => {
               </Button>
 
               {secaoFinalizadosExpandida && (
-                <div className="grid gap-4 rounded-lg bg-gray-50/50 dark:bg-gray-900/20 p-3">
+                <div className="grid gap-4 rounded-lg bg-green-50/50 dark:bg-green-950/10 p-3">
                   {agendamentosFinalizados.map(renderAgendamentoCard)}
                 </div>
               )}

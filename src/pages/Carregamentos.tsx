@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, Calendar, User, ChevronRight, Building2, CheckCircle } from "lucide-react";
+import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, ChevronRight, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
@@ -316,16 +316,25 @@ const Carregamentos = () => {
   const hasActiveFilters = search.trim() || selectedStatus.length > 0 || dateFrom || dateTo;
 
   const renderCarregamentoCard = (carr: CarregamentoItem) => (
-    <Card key={carr.id} className="transition-all hover:shadow-md cursor-pointer">
+    <Card key={carr.id} className="border-l-4 border-l-amber-500 dark:border-l-amber-400 transition-all hover:shadow-md cursor-pointer">
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          {/* Layout Mobile-First: Badge e fotos lado a lado no topo em mobile, empilhados à direita em desktop */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            {/* Badge e Fotos - Lado a lado em mobile, empilhados à direita em desktop */}
-            <div className="flex justify-between items-center sm:order-2 sm:flex-col sm:items-end sm:gap-2">
+          {/* Cabeçalho: ícone + pedido + status + fotos */}
+          <div className="flex items-start justify-between gap-3">
+            <Link
+              to={`/carregamentos/${carr.id}`}
+              className="flex items-center gap-3 min-w-0 text-inherit no-underline"
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 shrink-0">
+                <Truck className="h-4 w-4 md:h-5 md:w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {carr.pedido}</h3>
+            </Link>
+            <div className="flex flex-col items-end gap-1 shrink-0">
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
-                  <div 
+                  <div
                     className="flex items-center gap-1 cursor-help"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -341,67 +350,26 @@ const Carregamentos = () => {
               </Tooltip>
               <div className="text-xs text-muted-foreground">Fotos: <span className="font-semibold">{carr.fotosTotal}</span></div>
             </div>
-  
-            {/* Conteúdo principal - Segundo em mobile, à esquerda em desktop */}
-            <Link 
-              to={`/carregamentos/${carr.id}`} 
-              className="flex items-start gap-3 md:gap-4 flex-1 w-full text-inherit no-underline sm:order-1"
-              style={{ textDecoration: "none", color: "inherit" }}
-            >
-              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary shrink-0">
-                <Truck className="h-4 w-4 md:h-5 md:w-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {carr.pedido}</h3>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{carr.cliente}</span>
-                  </p>
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{carr.produto}</span>
-                  </p>
-                  <p className="whitespace-nowrap break-words">
-                    <span className="font-medium text-foreground">Armazém:</span> {carr.armazem}
-                  </p>
-                </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Quantidade:</span> {carr.quantidade.toLocaleString('pt-BR')}t
-                  </p>
-                  {carr.numero_nf && (
-                    <p className="whitespace-nowrap mt-1">
-                      <span className="font-medium text-foreground">Nº NF:</span> {carr.numero_nf}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Link>
           </div>
-  
-          {/* Grid de informações - Igual ao Agendamentos */}
-          <Link 
-            to={`/carregamentos/${carr.id}`} 
+
+          {/* Informações em 2 colunas */}
+          <Link
+            to={`/carregamentos/${carr.id}`}
             className="block text-inherit no-underline"
             style={{ textDecoration: "none", color: "inherit" }}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate">{carr.data_retirada !== "N/A" ? new Date(carr.data_retirada).toLocaleDateString("pt-BR") : "N/A"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate">{formatPlaca(carr.placa)}</span>
-              </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate" title={carr.motorista}>{carr.motorista}</span>
-              </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate" title={carr.transportadora}>{carr.transportadora || "N/A"}</span>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+              <p className="truncate" title={carr.cliente}><span className="font-medium text-foreground">Cliente:</span> {carr.cliente}</p>
+              <p className="truncate" title={carr.produto}><span className="font-medium text-foreground">Produto:</span> {carr.produto}</p>
+              <p className="truncate" title={carr.armazem}><span className="font-medium text-foreground">Armazém:</span> {carr.armazem}</p>
+              <p className="truncate"><span className="font-medium text-foreground">Quantidade:</span> {carr.quantidade.toLocaleString('pt-BR')}t</p>
+              <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {carr.data_retirada !== "N/A" ? new Date(carr.data_retirada).toLocaleDateString("pt-BR") : "N/A"}</p>
+              <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(carr.placa)}</p>
+              <p className="truncate" title={carr.motorista}><span className="font-medium text-foreground">Motorista:</span> {carr.motorista}</p>
+              <p className="truncate" title={carr.transportadora}><span className="font-medium text-foreground">Transportadora:</span> {carr.transportadora || "N/A"}</p>
+              {carr.numero_nf && (
+                <p className="truncate sm:col-span-2"><span className="font-medium text-foreground">Nº NF:</span> {carr.numero_nf}</p>
+              )}
             </div>
           </Link>
   
@@ -614,7 +582,7 @@ const Carregamentos = () => {
           <div className="space-y-4">
             <Button
               onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
-              className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
+              className="w-full justify-between bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 min-h-[44px] max-md:min-h-[44px] dark:bg-green-950/20 dark:hover:bg-green-950/30 dark:border-green-800 dark:text-green-400"
             >
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5" />
@@ -629,7 +597,7 @@ const Carregamentos = () => {
             </Button>
 
             {secaoFinalizadosExpandida && (
-              <div className="grid gap-4 rounded-lg bg-gray-50/50 dark:bg-gray-900/20 p-3">
+              <div className="grid gap-4 rounded-lg bg-green-50/50 dark:bg-green-950/10 p-3">
                 {carregamentosFinalizados.map(renderCarregamentoCard)}
               </div>
             )}
