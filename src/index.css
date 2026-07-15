@@ -212,32 +212,36 @@ All colors MUST be HSL.
     @apply transform hover:scale-[1.02] active:scale-[0.98];
   }
 
-  /* 🎯 BOTÃO SECUNDÁRIO - Estilo roxo claro com animação FORÇADO */
+  /* 🎯 BOTÃO SECUNDÁRIO - Contorno elevado (superfície opaca + borda + sombra)
+     Diferencia claramente de badges, que são preenchimentos pastel achatados. */
   .btn-secondary {
-    background-color: hsl(217 91% 60% / 0.1) !important;
-    color: hsl(217 91% 60%) !important;
-    border: 1px solid hsl(217 91% 60% / 0.2) !important;
+    background-color: hsl(var(--card)) !important;
+    color: hsl(var(--primary)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    box-shadow: var(--shadow-sm) !important;
     font-weight: 500 !important;
     transition: all 0.2s ease-out !important;
-    transform: scale(1) !important;
+    transform: translateY(0) !important;
   }
 
   .btn-secondary:hover {
-    background-color: hsl(217 91% 60% / 0.15) !important;
-    color: hsl(217 91% 60%) !important;
-    border-color: hsl(217 91% 60% / 0.3) !important;
-    box-shadow: 0 4px 6px -1px hsl(217 91% 60% / 0.1) !important;
-    transform: scale(1.02) !important;
+    background-color: hsl(var(--muted)) !important;
+    color: hsl(var(--primary)) !important;
+    border-color: hsl(var(--primary) / 0.4) !important;
+    box-shadow: var(--shadow-md) !important;
+    transform: translateY(-1px) !important;
   }
 
   .btn-secondary:active {
-    background-color: hsl(217 91% 60% / 0.2) !important;
-    transform: scale(0.98) !important;
+    background-color: hsl(var(--muted)) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transform: translateY(0) !important;
   }
 
   .btn-secondary:disabled {
     opacity: 0.5 !important;
-    transform: scale(1) !important;
+    box-shadow: none !important;
+    transform: translateY(0) !important;
   }
 
   /* 🎯 ALTERNATIVA - Botão secundário com fundo sutil colorido */
