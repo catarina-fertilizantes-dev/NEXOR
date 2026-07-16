@@ -793,6 +793,14 @@ export type Database = {
         Args: { p_liberacao_id: string }
         Returns: Json
       }
+      can_access_carregamento_arquivo: {
+        Args: { _for_insert?: boolean; _object_name: string; _user_id: string }
+        Returns: boolean
+      }
+      can_access_estoque_arquivo: {
+        Args: { _object_name: string; _user_id: string }
+        Returns: boolean
+      }
       can_upload_documento_for_carregamento: {
         Args: { _carregamento_id: string; _user_id: string }
         Returns: boolean
@@ -948,29 +956,6 @@ export type Database = {
           url_foto_chegada: string
           url_foto_finalizacao: string
           url_foto_inicio: string
-        }[]
-      }
-      get_liberacoes_disponiveis_universal: {
-        Args: {
-          p_cliente_id?: string
-          p_representante_id?: string
-          p_user_id?: string
-          p_user_role?: string
-        }
-        Returns: {
-          armazem_cidade: string
-          armazem_estado: string
-          armazem_id: string
-          armazem_nome: string
-          cliente_id: string
-          cliente_nome: string
-          id: string
-          pedido_interno: string
-          produto_nome: string
-          quantidade_disponivel_real: number
-          quantidade_liberada: number
-          quantidade_retirada: number
-          status: string
         }[]
       }
       get_liberacoes_universal: {
