@@ -37,16 +37,23 @@ const IDS = {
   produto1:       '15cf2cd4-7284-44fd-94e0-61618a3958e5', // Ureia 46% (o que tem estoque/liberação reais)
 };
 
+// Credenciais vêm de tests/backend/.env.local (gitignored) — nunca hardcode
+// email/senha aqui. Rodar com: node --env-file=tests/backend/.env.local ...
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Variável de ambiente ${name} não definida (ver tests/backend/.env.local)`);
+  return value;
+}
 const CREDS = {
-  admin:          { email: 'administrador1@nexorops.com.br',   password: 'DWJ_SHhsc3EN!F2' },
-  colaborador:    { email: 'maria.logistica@nexortest.com',    password: 'Teste@2026!' },
-  cliente1:       { email: 'cliente1@nexorops.com.br',         password: 'Senha@2026' },
-  cliente2:       { email: 'fazenda.sj@nexortest.com',         password: 'Teste@2026!' },
-  cliente3:       { email: 'agro.co@nexortest.com',            password: 'Teste@2026!' },
-  representante1: { email: 'joao.rep@nexortest.com',           password: 'Teste@2026!' },
-  representante2: { email: 'representante2@nexortest.com',     password: 'Teste@2026!' },
-  armazem1:       { email: 'armazem.joinville@nexortest.com',  password: 'Teste@2026!' },
-  armazem2:       { email: 'armazem.poa@nexortest.com',        password: 'Teste@2026!' },
+  admin:          { email: requireEnv('TEST_ADMIN_EMAIL'),           password: requireEnv('TEST_ADMIN_PASSWORD') },
+  colaborador:    { email: requireEnv('TEST_COLABORADOR_EMAIL'),     password: requireEnv('TEST_COLABORADOR_PASSWORD') },
+  cliente1:       { email: requireEnv('TEST_CLIENTE1_EMAIL'),        password: requireEnv('TEST_CLIENTE1_PASSWORD') },
+  cliente2:       { email: requireEnv('TEST_CLIENTE_FAZENDA_SJ_EMAIL'), password: requireEnv('TEST_CLIENTE_FAZENDA_SJ_PASSWORD') },
+  cliente3:       { email: requireEnv('TEST_CLIENTE_AGRO_EMAIL'),    password: requireEnv('TEST_CLIENTE_AGRO_PASSWORD') },
+  representante1: { email: requireEnv('TEST_REPRESENTANTE1_EMAIL'), password: requireEnv('TEST_REPRESENTANTE1_PASSWORD') },
+  representante2: { email: requireEnv('TEST_REPRESENTANTE2_EMAIL'), password: requireEnv('TEST_REPRESENTANTE2_PASSWORD') },
+  armazem1:       { email: requireEnv('TEST_ARMAZEM1_EMAIL'),       password: requireEnv('TEST_ARMAZEM1_PASSWORD') },
+  armazem2:       { email: requireEnv('TEST_ARMAZEM2_EMAIL'),       password: requireEnv('TEST_ARMAZEM2_PASSWORD') },
 };
 
 // ─── Contadores globais ──────────────────────────────────────────────────────

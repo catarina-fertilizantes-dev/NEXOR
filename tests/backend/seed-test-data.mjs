@@ -38,11 +38,13 @@ function info(msg) { console.log(`  ℹ️  ${msg}`); }
 function fail(msg, err) { console.error(`  ❌ ${msg}`, err?.message ?? err); }
 
 // ─── Login como admin ─────────────────────────────────────────────────────────
+// Credenciais vêm de tests/backend/.env.local (gitignored) — nunca hardcode
+// email/senha aqui. Rodar com: node --env-file=tests/backend/.env.local ...
 
 console.log('\n─── Autenticando como admin ───');
 const { error: loginErr } = await sb.auth.signInWithPassword({
-  email: 'administrador1@nexorops.com.br',
-  password: 'DWJ_SHhsc3EN!F2',
+  email: process.env.TEST_ADMIN_EMAIL,
+  password: process.env.TEST_ADMIN_PASSWORD,
 });
 if (loginErr) { console.error('Login falhou:', loginErr.message); process.exit(1); }
 ok('Login como admin confirmado');

@@ -22,17 +22,24 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 // "Representante Teste 2" e "Cliente Sem Representante" foram criados via UI real
 // especificamente para restaurar a cobertura deste suite (2 clientes por
 // representante + 1 cliente órfão para o caso "sem representante").
+// Credenciais vêm de tests/backend/.env.local (gitignored) — nunca hardcode
+// email/senha aqui. Rodar com: node --env-file=tests/backend/.env.local ...
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Variável de ambiente ${name} não definida (ver tests/backend/.env.local)`);
+  return value;
+}
 const USERS = {
-  admin:          { email: 'administrador1@nexorops.com.br',  password: 'DWJ_SHhsc3EN!F2' },
-  colaborador:    { email: 'maria.logistica@nexortest.com',   password: 'Teste@2026!' },
-  cliente1:       { email: 'cliente1@nexorops.com.br',        password: 'Senha@2026' },   // rep2
-  cliente2:       { email: 'fazenda.sj@nexortest.com',        password: 'Teste@2026!' },  // rep2
-  cliente3:       { email: 'cliente.semrep@nexortest.com',    password: 'Teste@2026!' },  // sem rep
-  cliente4:       { email: 'agro.co@nexortest.com',           password: 'Teste@2026!' },  // rep1
-  representante1: { email: 'joao.rep@nexortest.com',          password: 'Teste@2026!' },  // → cli4
-  representante2: { email: 'representante2@nexortest.com',    password: 'Teste@2026!' },  // → cli1, cli2
-  armazem1:       { email: 'armazem.joinville@nexortest.com', password: 'Teste@2026!' },
-  armazem2:       { email: 'armazem.poa@nexortest.com',       password: 'Teste@2026!' },
+  admin:          { email: requireEnv('TEST_ADMIN_EMAIL'),           password: requireEnv('TEST_ADMIN_PASSWORD') },
+  colaborador:    { email: requireEnv('TEST_COLABORADOR_EMAIL'),     password: requireEnv('TEST_COLABORADOR_PASSWORD') },
+  cliente1:       { email: requireEnv('TEST_CLIENTE1_EMAIL'),        password: requireEnv('TEST_CLIENTE1_PASSWORD') },        // rep2
+  cliente2:       { email: requireEnv('TEST_CLIENTE_FAZENDA_SJ_EMAIL'), password: requireEnv('TEST_CLIENTE_FAZENDA_SJ_PASSWORD') }, // rep2
+  cliente3:       { email: requireEnv('TEST_CLIENTE_SEMREP_EMAIL'),  password: requireEnv('TEST_CLIENTE_SEMREP_PASSWORD') },  // sem rep
+  cliente4:       { email: requireEnv('TEST_CLIENTE_AGRO_EMAIL'),    password: requireEnv('TEST_CLIENTE_AGRO_PASSWORD') },    // rep1
+  representante1: { email: requireEnv('TEST_REPRESENTANTE1_EMAIL'), password: requireEnv('TEST_REPRESENTANTE1_PASSWORD') },  // → cli4
+  representante2: { email: requireEnv('TEST_REPRESENTANTE2_EMAIL'), password: requireEnv('TEST_REPRESENTANTE2_PASSWORD') },  // → cli1, cli2
+  armazem1:       { email: requireEnv('TEST_ARMAZEM1_EMAIL'),       password: requireEnv('TEST_ARMAZEM1_PASSWORD') },
+  armazem2:       { email: requireEnv('TEST_ARMAZEM2_EMAIL'),       password: requireEnv('TEST_ARMAZEM2_PASSWORD') },
 };
 
 // IDs reais do banco Dev (ver rls-full.mjs para a mesma lista comentada)
