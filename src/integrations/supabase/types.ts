@@ -807,41 +807,6 @@ export type Database = {
       }
       check_user_active_status: { Args: { user_uuid: string }; Returns: Json }
       clear_user_temp_password: { Args: { user_email: string }; Returns: Json }
-      get_agendamentos_by_representante_backup: {
-        Args: { p_representante_id: string }
-        Returns: {
-          armazem_cidade: string
-          armazem_estado: string
-          armazem_id: string
-          armazem_nome: string
-          carregamento_id: string
-          cliente_cnpj_cpf: string
-          cliente_id: string
-          cliente_nome: string
-          created_at: string
-          created_by: string
-          data_liberacao: string
-          data_retirada: string
-          etapa_atual: number
-          id: string
-          liberacao_id: string
-          motorista_documento: string
-          motorista_nome: string
-          observacoes: string
-          pedido_interno: string
-          placa_caminhao: string
-          produto_id: string
-          produto_nome: string
-          produto_unidade: string
-          quantidade: number
-          quantidade_liberada: number
-          quantidade_retirada: number
-          status: Database["public"]["Enums"]["agendamento_status"]
-          status_liberacao: Database["public"]["Enums"]["liberacao_status"]
-          tipo_caminhao: string
-          updated_at: string
-        }[]
-      }
       get_agendamentos_universal: {
         Args: {
           p_armazem_id?: string
@@ -888,42 +853,6 @@ export type Database = {
           tooltip_carregamento: string
           transportadora: string
           updated_at: string
-        }[]
-      }
-      get_carregamento_detalhe_by_representante_backup: {
-        Args: { p_carregamento_id: string; p_representante_id: string }
-        Returns: {
-          agendamento_data_retirada: string
-          agendamento_id: string
-          agendamento_motorista_documento: string
-          agendamento_motorista_nome: string
-          agendamento_placa_caminhao: string
-          agendamento_quantidade: number
-          armazem_id: string
-          cliente_id: string
-          cliente_nome: string
-          created_at: string
-          data_carregando: string
-          data_chegada: string
-          data_documentacao: string
-          data_finalizacao: string
-          data_inicio: string
-          docs_retorno_url: string
-          docs_retorno_xml_url: string
-          etapa_atual: number
-          id: string
-          liberacao_pedido_interno: string
-          numero_nf: string
-          observacao_carregando: string
-          observacao_chegada: string
-          observacao_documentacao: string
-          observacao_finalizacao: string
-          observacao_inicio: string
-          produto_nome: string
-          url_foto_carregando: string
-          url_foto_chegada: string
-          url_foto_finalizacao: string
-          url_foto_inicio: string
         }[]
       }
       get_carregamento_detalhe_universal: {
@@ -980,34 +909,6 @@ export type Database = {
           url_foto_inicio: string
         }[]
       }
-      get_carregamentos_by_representante_backup: {
-        Args: { p_representante_id: string }
-        Returns: {
-          agendamento_id: string
-          armazem_cidade: string
-          armazem_estado: string
-          armazem_id: string
-          armazem_nome: string
-          cliente_id: string
-          cliente_nome: string
-          created_at: string
-          data_chegada: string
-          data_retirada: string
-          etapa_atual: number
-          id: string
-          motorista_documento: string
-          motorista_nome: string
-          numero_nf: string
-          pedido_interno: string
-          placa_caminhao: string
-          produto_nome: string
-          quantidade: number
-          url_foto_carregando: string
-          url_foto_chegada: string
-          url_foto_finalizacao: string
-          url_foto_inicio: string
-        }[]
-      }
       get_carregamentos_universal: {
         Args: {
           p_armazem_id?: string
@@ -1047,37 +948,6 @@ export type Database = {
           url_foto_chegada: string
           url_foto_finalizacao: string
           url_foto_inicio: string
-        }[]
-      }
-      get_colaboradores: {
-        Args: never
-        Returns: {
-          created_at: string
-          email: string
-          id: string
-          nome: string
-          role: Database["public"]["Enums"]["user_role"]
-        }[]
-      }
-      get_liberacoes_by_representante_backup: {
-        Args: { p_representante_id: string }
-        Returns: {
-          armazem_cidade: string
-          armazem_estado: string
-          armazem_id: string
-          armazem_nome: string
-          cliente_id: string
-          cliente_nome: string
-          created_at: string
-          data_liberacao: string
-          id: string
-          pedido_interno: string
-          produto_id: string
-          produto_nome: string
-          quantidade_disponivel: number
-          quantidade_liberada: number
-          quantidade_retirada: number
-          status: Database["public"]["Enums"]["liberacao_status"]
         }[]
       }
       get_liberacoes_disponiveis_universal: {
@@ -1344,3 +1214,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.109.1 (currently installed v2.78.1)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

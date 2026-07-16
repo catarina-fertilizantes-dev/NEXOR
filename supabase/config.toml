@@ -11,9 +11,3 @@ verify_jwt = false
 
 [functions.create-representante-user]
 verify_jwt = false
-
-[functions.safe-upload-documento]
-verify_jwt = true
-
-[functions.safe-upload-foto]
-verify_jwt = true

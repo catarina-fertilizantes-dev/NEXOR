@@ -599,8 +599,6 @@ const handleCreateUser = async () => {
                         {!user.role && <SelectItem value="">Selecione uma role</SelectItem>}
                         <SelectItem value="admin">Administrador</SelectItem>
                         <SelectItem value="logistica">Logística</SelectItem>
-                        <SelectItem value="armazem">Armazém</SelectItem>
-                        <SelectItem value="cliente">Cliente</SelectItem>
                       </SelectContent>
                     </Select>
                     {isUpdatingRole[user.id] && (

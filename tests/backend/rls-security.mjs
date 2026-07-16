@@ -17,29 +17,34 @@ const { createClient } = require('../../node_modules/@supabase/supabase-js/dist/
 const SUPABASE_URL  = 'https://vxidpkrsfqyjwwdbvtwc.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4aWRwa3JzZnF5and3ZGJ2dHdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjAxMTQsImV4cCI6MjA5MDYzNjExNH0.HHTmcLP0zcOAfFm7JIWA-lJMawC6DgeqXcONxM5g8NY';
 
+// Atualizado em 2026-07-15 a partir dos dados reais em Dev (base foi limpa para
+// testes de criação de usuário — ver memória project-nexor-test-credentials-churn).
+// "Representante Teste 2" e "Cliente Sem Representante" foram criados via UI real
+// especificamente para restaurar a cobertura deste suite (2 clientes por
+// representante + 1 cliente órfão para o caso "sem representante").
 const USERS = {
-  admin:          { email: 'administrador1@nexorops.com.br', password: 'DWJ_SHhsc3EN!F2' },
-  colaborador:    { email: 'colaborador1@nexorops.com.br',   password: 'DWJ_SHhsc3EN!F2' },
-  cliente1:       { email: 'cliente1@nexorops.com.br',       password: 'Senha@2026' }, // rep2
-  cliente2:       { email: 'cliente2@nexorops.com.br',       password: 'Senha@2026' }, // rep2
-  cliente3:       { email: 'cliente3@nexorops.com.br',       password: 'Senha@2026' }, // sem rep
-  cliente4:       { email: 'cliente4@nexorops.com.br',       password: 'Senha@2026' }, // rep1
-  representante1: { email: 'representante1@nexorops.com.br', password: 'Senha@2026' }, // → cli4
-  representante2: { email: 'representante2@logisys.com',     password: 'Senha@2026' }, // → cli1, cli2
-  armazem1:       { email: 'armazem1@nexorops.com.br',       password: 'Senha@2026' },
-  armazem2:       { email: 'armazem2@nexorops.com.br',       password: 'Senha@2026' },
+  admin:          { email: 'administrador1@nexorops.com.br',  password: 'DWJ_SHhsc3EN!F2' },
+  colaborador:    { email: 'maria.logistica@nexortest.com',   password: 'Teste@2026!' },
+  cliente1:       { email: 'cliente1@nexorops.com.br',        password: 'Senha@2026' },   // rep2
+  cliente2:       { email: 'fazenda.sj@nexortest.com',        password: 'Teste@2026!' },  // rep2
+  cliente3:       { email: 'cliente.semrep@nexortest.com',    password: 'Teste@2026!' },  // sem rep
+  cliente4:       { email: 'agro.co@nexortest.com',           password: 'Teste@2026!' },  // rep1
+  representante1: { email: 'joao.rep@nexortest.com',          password: 'Teste@2026!' },  // → cli4
+  representante2: { email: 'representante2@nexortest.com',    password: 'Teste@2026!' },  // → cli1, cli2
+  armazem1:       { email: 'armazem.joinville@nexortest.com', password: 'Teste@2026!' },
+  armazem2:       { email: 'armazem.poa@nexortest.com',       password: 'Teste@2026!' },
 };
 
-// IDs estáticos do banco Dev
+// IDs reais do banco Dev (ver rls-full.mjs para a mesma lista comentada)
 const IDS = {
-  cliente1:       '3c3d58a1-6cef-4827-a235-edd4a8d154b5',
-  cliente2:       '023531d0-fbc1-4441-8538-0f653c2390a0',
-  cliente3:       'd24c6168-1eef-4259-ad64-9277431f6501',
-  cliente4:       '97ad5fc4-c8be-4346-af77-08129fbe3404',
-  representante1: '51f3c086-1b44-4741-a67e-600479fd194a',
-  representante2: '133469f6-3c89-40e1-825b-94dfa07e2c8d',
-  armazem1:       '76eab122-8fbf-4d46-9ab8-27a71ca8940e',
-  armazem2:       'adf3c8b2-c025-4cbe-868c-d1ce940d8d40',
+  cliente1:       'cdf69e74-7ed8-48ae-b0ce-9de409728cdd', // Cliente 1
+  cliente2:       'a17ccf3d-e4bb-40e6-b9b4-1a97dff4514a', // Fazenda São João
+  cliente3:       '23a4c6e8-338b-4538-93c5-cbed6b572b4e', // Cliente Sem Representante
+  cliente4:       'f3768e10-0abe-4001-87f3-5533f3104d85', // Agro Centro-Oeste Ltda
+  representante1: '9a7b2594-7468-4817-966a-4a3304b6c480', // João Representações
+  representante2: '2455ae16-4b91-44a7-be44-cb457f78ae92', // Representante Teste 2
+  armazem1:       '1249e35e-7df5-4228-a319-93ae1fbff8f6', // Armazém Joinville
+  armazem2:       '18606706-f260-40e9-ad9f-118954728346', // Armazém Porto Alegre
 };
 
 // ─── Runner ──────────────────────────────────────────────────────────────────
