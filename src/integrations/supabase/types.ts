@@ -801,14 +801,6 @@ export type Database = {
         Args: { _object_name: string; _user_id: string }
         Returns: boolean
       }
-      can_upload_documento_for_carregamento: {
-        Args: { _carregamento_id: string; _user_id: string }
-        Returns: boolean
-      }
-      can_upload_foto_for_carregamento: {
-        Args: { _carregamento_id: string; _user_id: string }
-        Returns: boolean
-      }
       cancelar_liberacao: {
         Args: { p_liberacao_id: string; p_user_id: string }
         Returns: Json
@@ -1006,17 +998,11 @@ export type Database = {
           roles: Database["public"]["Enums"]["user_role"][]
         }[]
       }
-      has_role:
-        | {
-            Args: {
-              _role: Database["public"]["Enums"]["user_role"]
-              _user_id: string
-            }
-            Returns: boolean
-          }
-        | { Args: { p_role: string }; Returns: boolean }
-      is_representante_of_cliente: {
-        Args: { cliente_uuid: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
         Returns: boolean
       }
       update_user_role: {
