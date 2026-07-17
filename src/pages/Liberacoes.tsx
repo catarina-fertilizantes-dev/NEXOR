@@ -173,6 +173,8 @@ const Liberacoes = () => {
   const [isCancelando, setIsCancelando] = useState(false);
   const [isLoadingPreviewCancelamento, setIsLoadingPreviewCancelamento] = useState(false);
   const [previewCancelamento, setPreviewCancelamento] = useState<{
+    pode_cancelar: boolean;
+    motivo_bloqueio: string | null;
     quantidade_a_devolver: number;
     quantidade_em_andamento: number;
     quantidade_retirada: number;
@@ -185,6 +187,19 @@ const Liberacoes = () => {
   const [isAlterandoArmazem, setIsAlterandoArmazem] = useState(false);
   const [estoqueNovoArmazem, setEstoqueNovoArmazem] = useState<number>(0);
   const [validandoEstoqueNovoArmazem, setValidandoEstoqueNovoArmazem] = useState(false);
+
+  const [showAlterarQuantidade, setShowAlterarQuantidade] = useState(false);
+  const [novaQuantidade, setNovaQuantidade] = useState("");
+  const [isAlterandoQuantidade, setIsAlterandoQuantidade] = useState(false);
+  const [isLoadingPreviewAlteracao, setIsLoadingPreviewAlteracao] = useState(false);
+  const [previewAlteracao, setPreviewAlteracao] = useState<{
+    quantidade_liberada: number;
+    quantidade_retirada: number;
+    quantidade_em_andamento: number;
+    quantidade_comprometida: number;
+    estoque_disponivel: number;
+    quantidade_maxima: number;
+  } | null>(null);
 
   const { data: currentCliente } = useQuery({
     queryKey: ["current-cliente", user?.id],
@@ -761,7 +776,10 @@ const Liberacoes = () => {
         p_liberacao_id: detalhesLiberacao.id,
       });
       if (error) throw error;
-      const result = data as { success: boolean; error?: string; quantidade_a_devolver: number; quantidade_em_andamento: number; quantidade_retirada: number; quantidade_liberada: number };
+      const result = data as {
+        success: boolean; error?: string; pode_cancelar: boolean; motivo_bloqueio: string | null;
+        quantidade_a_devolver: number; quantidade_em_andamento: number; quantidade_retirada: number; quantidade_liberada: number
+      };
       if (!result.success) throw new Error(result.error);
       setPreviewCancelamento(result);
     } catch {
@@ -799,6 +817,97 @@ const Liberacoes = () => {
       });
     } finally {
       setIsCancelando(false);
+    }
+  };
+
+  const handleAbrirAlterarQuantidade = async () => {
+    if (!detalhesLiberacao) return;
+    setShowAlterarQuantidade(true);
+    setPreviewAlteracao(null);
+    setNovaQuantidade("");
+    setIsLoadingPreviewAlteracao(true);
+    try {
+      const { data, error } = await supabase.rpc('calcular_alteracao_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+      });
+      if (error) throw error;
+      const result = data as {
+        success: boolean; error?: string;
+        quantidade_liberada: number; quantidade_retirada: number;
+        quantidade_em_andamento: number; quantidade_comprometida: number;
+        estoque_disponivel: number; quantidade_maxima: number;
+      };
+      if (!result.success) throw new Error(result.error);
+      setPreviewAlteracao(result);
+      setNovaQuantidade(String(result.quantidade_liberada));
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar dados da liberação",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsLoadingPreviewAlteracao(false);
+    }
+  };
+
+  const handleCloseModalAlterarQuantidade = () => {
+    setShowAlterarQuantidade(false);
+    setPreviewAlteracao(null);
+    setNovaQuantidade("");
+  };
+
+  const handleAlterarQuantidade = async () => {
+    if (!detalhesLiberacao || !previewAlteracao) return;
+
+    const qtdNum = Number(novaQuantidade);
+    if (Number.isNaN(qtdNum) || qtdNum <= 0) {
+      toast({ variant: "destructive", title: "Quantidade inválida" });
+      return;
+    }
+    if (qtdNum < previewAlteracao.quantidade_comprometida) {
+      toast({
+        variant: "destructive",
+        title: "Quantidade abaixo do comprometido",
+        description: `A nova quantidade não pode ser menor que ${previewAlteracao.quantidade_comprometida.toLocaleString('pt-BR')}t, já comprometidos em carregamentos.`,
+      });
+      return;
+    }
+    if (qtdNum > previewAlteracao.quantidade_maxima) {
+      toast({
+        variant: "destructive",
+        title: "Estoque insuficiente",
+        description: `O aumento solicitado excede o estoque disponível. Máximo permitido: ${previewAlteracao.quantidade_maxima.toLocaleString('pt-BR')}t.`,
+      });
+      return;
+    }
+
+    setIsAlterandoQuantidade(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc('alterar_quantidade_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+        p_nova_quantidade: qtdNum,
+        p_user_id: userData.user?.id ?? '',
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string; quantidade_anterior: number; quantidade_nova: number };
+      if (!result.success) throw new Error(result.error);
+      toast({
+        title: "Quantidade da liberação alterada",
+        description: `De ${Number(result.quantidade_anterior).toLocaleString('pt-BR')}t para ${Number(result.quantidade_nova).toLocaleString('pt-BR')}t.`,
+      });
+      handleCloseModalAlterarQuantidade();
+      setDetalhesLiberacao(null);
+      queryClient.invalidateQueries({ queryKey: ["liberacoes"] });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao alterar quantidade",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsAlterandoQuantidade(false);
     }
   };
 
@@ -1452,7 +1561,7 @@ const Liberacoes = () => {
                           disabled={isAlterandoArmazem}
                         >
                           <Edit3 className="h-3 w-3 mr-1" />
-                          Alterar
+                          Alterar Armazém
                         </Button>
                       )}
                     </div>
@@ -1480,8 +1589,8 @@ const Liberacoes = () => {
                       <Package className="h-4 w-4 text-green-600" />
                       <h3 className="text-base font-semibold text-foreground">Quantidades</h3>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
                           <Label className="text-sm font-medium text-muted-foreground">Liberada</Label>
                           <Tooltip delayDuration={100}>
@@ -1491,6 +1600,21 @@ const Liberacoes = () => {
                         </div>
                         <p className="text-base md:text-lg font-semibold">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
                       </div>
+
+                      {(hasRole("admin") || hasRole("logistica")) &&
+                       detalhesLiberacao.status !== 'cancelada' &&
+                       !detalhesLiberacao.finalizada && (
+                        <Button
+                          size="sm"
+                          onClick={handleAbrirAlterarQuantidade}
+                          className="h-8 px-2 text-xs min-h-[32px] btn-secondary shrink-0 ml-3"
+                        >
+                          <Edit3 className="h-3 w-3 mr-1" />
+                          Alterar Quantidade
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
                       <div>
                         <div className="flex items-center gap-1">
                           <Label className="text-sm font-medium text-muted-foreground">Agendada</Label>
@@ -1586,61 +1710,74 @@ const Liberacoes = () => {
             </DialogHeader>
 
             <div className="py-4 px-1 space-y-4">
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-800">
-                <div className="flex items-start gap-2">
-                  <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                  <div className="text-sm space-y-1">
-                    <p className="font-medium text-red-800 dark:text-red-300">Esta ação é irreversível.</p>
-                    <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
-                      <li>Agendamentos não iniciados serão arquivados</li>
-                      <li>Carregamentos não iniciados serão removidos</li>
-                      <li>Carregamentos em andamento continuarão até sua conclusão natural</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
               {isLoadingPreviewCancelamento ? (
                 <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Calculando impacto...
                 </div>
-              ) : previewCancelamento ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="p-2 bg-muted rounded-lg">
-                      <p className="text-xs text-muted-foreground">Liberada</p>
-                      <p className="font-semibold text-sm">{previewCancelamento.quantidade_liberada.toLocaleString('pt-BR')}t</p>
+              ) : previewCancelamento && !previewCancelamento.pode_cancelar ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950/20 dark:border-amber-800">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-sm space-y-1">
+                      <p className="font-medium text-amber-800 dark:text-amber-300">Não é possível cancelar esta liberação.</p>
+                      <p className="text-amber-700 dark:text-amber-400 text-xs">{previewCancelamento.motivo_bloqueio}</p>
                     </div>
-                    <div className="p-2 bg-muted rounded-lg">
-                      <p className="text-xs text-muted-foreground">Já retirada</p>
-                      <p className="font-semibold text-sm text-orange-600">{previewCancelamento.quantidade_retirada.toLocaleString('pt-BR')}t</p>
-                    </div>
-                    <div className="p-2 bg-muted rounded-lg">
-                      <p className="text-xs text-muted-foreground">Em carregamento</p>
-                      <p className="font-semibold text-sm text-yellow-600">{previewCancelamento.quantidade_em_andamento.toLocaleString('pt-BR')}t</p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/20 dark:border-green-800 text-center">
-                    <p className="text-xs text-green-700 dark:text-green-400">Quantidade a devolver ao estoque</p>
-                    <p className="text-lg font-bold text-green-800 dark:text-green-300">{previewCancelamento.quantidade_a_devolver.toLocaleString('pt-BR')}t</p>
                   </div>
                 </div>
-              ) : detalhesLiberacao && (
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="p-2 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground">Liberada</p>
-                    <p className="font-semibold text-sm">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
+              ) : (
+                <>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-800">
+                    <div className="flex items-start gap-2">
+                      <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                      <div className="text-sm space-y-1">
+                        <p className="font-medium text-red-800 dark:text-red-300">Esta ação é irreversível.</p>
+                        <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
+                          <li>Agendamentos não iniciados serão arquivados</li>
+                          <li>Carregamentos não iniciados serão removidos</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-2 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground">Retirada</p>
-                    <p className="font-semibold text-sm text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
-                  </div>
-                  <div className="p-2 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground">Agendada</p>
-                    <p className="font-semibold text-sm text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
-                  </div>
-                </div>
+
+                  {previewCancelamento ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="p-2 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Liberada</p>
+                          <p className="font-semibold text-sm">{previewCancelamento.quantidade_liberada.toLocaleString('pt-BR')}t</p>
+                        </div>
+                        <div className="p-2 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Já retirada</p>
+                          <p className="font-semibold text-sm text-orange-600">{previewCancelamento.quantidade_retirada.toLocaleString('pt-BR')}t</p>
+                        </div>
+                        <div className="p-2 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Em carregamento</p>
+                          <p className="font-semibold text-sm text-yellow-600">{previewCancelamento.quantidade_em_andamento.toLocaleString('pt-BR')}t</p>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/20 dark:border-green-800 text-center">
+                        <p className="text-xs text-green-700 dark:text-green-400">Quantidade a devolver ao estoque</p>
+                        <p className="text-lg font-bold text-green-800 dark:text-green-300">{previewCancelamento.quantidade_a_devolver.toLocaleString('pt-BR')}t</p>
+                      </div>
+                    </div>
+                  ) : detalhesLiberacao && (
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="p-2 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground">Liberada</p>
+                        <p className="font-semibold text-sm">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
+                      </div>
+                      <div className="p-2 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground">Retirada</p>
+                        <p className="font-semibold text-sm text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
+                      </div>
+                      <div className="p-2 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground">Agendada</p>
+                        <p className="font-semibold text-sm text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1650,17 +1787,19 @@ const Liberacoes = () => {
                 className="min-h-[44px] w-full sm:w-auto btn-secondary"
                 disabled={isCancelando}
               >
-                Cancelar
+                {previewCancelamento && !previewCancelamento.pode_cancelar ? "Fechar" : "Cancelar"}
               </Button>
-              <Button
-                variant="destructive"
-                onClick={handleCancelarLiberacao}
-                disabled={isCancelando || isLoadingPreviewCancelamento}
-                className="min-h-[44px] w-full sm:w-auto"
-              >
-                {isCancelando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Confirmar Cancelamento
-              </Button>
+              {!(previewCancelamento && !previewCancelamento.pode_cancelar) && (
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelarLiberacao}
+                  disabled={isCancelando || isLoadingPreviewCancelamento}
+                  className="min-h-[44px] w-full sm:w-auto"
+                >
+                  {isCancelando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Confirmar Cancelamento
+                </Button>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -1808,6 +1947,111 @@ const Liberacoes = () => {
                 isAlterandoArmazem || 
                 validandoEstoqueNovoArmazem ||
                 (detalhesLiberacao && estoqueNovoArmazem < (detalhesLiberacao.quantidade - detalhesLiberacao.quantidadeAgendada - detalhesLiberacao.quantidadeRetirada))
+              }
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Alteração de Quantidade da Liberação */}
+        <Dialog open={showAlterarQuantidade} onOpenChange={(open) => {
+          if (!open) {
+            handleCloseModalAlterarQuantidade();
+          } else {
+            setShowAlterarQuantidade(open);
+          }
+        }}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Alterar Quantidade da Liberação</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesLiberacao?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-4">
+              {isLoadingPreviewAlteracao ? (
+                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando...
+                </div>
+              ) : previewAlteracao && (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="p-2 bg-muted rounded-lg">
+                      <div className="flex items-center justify-center gap-1">
+                        <p className="text-xs text-muted-foreground">Comprometida</p>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
+                          <TooltipContent><p className="text-sm max-w-[240px]">Quantidade já retirada, em carregamento ou agendada — a nova quantidade não pode ficar abaixo disso.</p></TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <p className="font-semibold text-sm text-orange-600">{previewAlteracao.quantidade_comprometida.toLocaleString('pt-BR')}t</p>
+                    </div>
+                    <div className="p-2 bg-muted rounded-lg">
+                      <div className="flex items-center justify-center gap-1">
+                        <p className="text-xs text-muted-foreground">Máximo possível</p>
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
+                          <TooltipContent><p className="text-sm max-w-[240px]">Quantidade atual + estoque disponível no armazém desta liberação.</p></TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <p className="font-semibold text-sm text-green-600">{previewAlteracao.quantidade_maxima.toLocaleString('pt-BR')}t</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="nova-quantidade" className="text-sm font-medium">
+                      Nova Quantidade Total (t) *
+                    </Label>
+                    <Input
+                      id="nova-quantidade"
+                      type="number"
+                      inputMode="decimal"
+                      min={previewAlteracao.quantidade_comprometida}
+                      max={previewAlteracao.quantidade_maxima}
+                      value={novaQuantidade}
+                      onChange={(e) => setNovaQuantidade(e.target.value)}
+                      disabled={isAlterandoQuantidade}
+                      className="min-h-[44px] mt-1"
+                    />
+                    {(() => {
+                      const qtdNum = Number(novaQuantidade);
+                      if (!novaQuantidade || Number.isNaN(qtdNum)) return null;
+                      if (qtdNum < previewAlteracao.quantidade_comprometida) {
+                        return <p className="text-xs text-red-600 mt-1">⚠️ Não pode ser menor que {previewAlteracao.quantidade_comprometida.toLocaleString('pt-BR')}t (já comprometido)</p>;
+                      }
+                      if (qtdNum > previewAlteracao.quantidade_maxima) {
+                        return <p className="text-xs text-red-600 mt-1">⚠️ Estoque insuficiente para esse aumento. Máximo: {previewAlteracao.quantidade_maxima.toLocaleString('pt-BR')}t</p>;
+                      }
+                      const delta = qtdNum - previewAlteracao.quantidade_liberada;
+                      if (delta === 0) return null;
+                      return (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {delta > 0
+                            ? `Aumento de ${delta.toLocaleString('pt-BR')}t — será debitado do estoque disponível do armazém.`
+                            : `Redução de ${Math.abs(delta).toLocaleString('pt-BR')}t — será devolvido ao estoque disponível do armazém.`}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <ModalFooter
+              variant="double"
+              onClose={handleCloseModalAlterarQuantidade}
+              onConfirm={handleAlterarQuantidade}
+              confirmText="Confirmar Alteração"
+              isLoading={isAlterandoQuantidade}
+              disabled={
+                !previewAlteracao ||
+                isAlterandoQuantidade ||
+                isLoadingPreviewAlteracao ||
+                !novaQuantidade ||
+                Number.isNaN(Number(novaQuantidade)) ||
+                Number(novaQuantidade) < previewAlteracao.quantidade_comprometida ||
+                Number(novaQuantidade) > previewAlteracao.quantidade_maxima
               }
             />
           </DialogContent>

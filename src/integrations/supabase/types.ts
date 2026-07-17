@@ -789,6 +789,26 @@ export type Database = {
         }
         Returns: Json
       }
+      alterar_quantidade_agendamento: {
+        Args: {
+          p_agendamento_id: string
+          p_nova_quantidade: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      alterar_quantidade_liberacao: {
+        Args: {
+          p_liberacao_id: string
+          p_nova_quantidade: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      calcular_alteracao_liberacao: {
+        Args: { p_liberacao_id: string }
+        Returns: Json
+      }
       calcular_cancelamento_liberacao: {
         Args: { p_liberacao_id: string }
         Returns: Json
@@ -1185,5 +1205,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.109.1 (currently installed v2.78.1)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

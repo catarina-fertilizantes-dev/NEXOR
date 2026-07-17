@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle } from "lucide-react";
+import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle, Edit3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -293,6 +293,12 @@ const Agendamentos = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [detalhesAgendamento, setDetalhesAgendamento] = useState<AgendamentoItem | null>(null);
   const [secaoFinalizadosExpandida, setSecaoFinalizadosExpandida] = useState(false);
+
+  const [showEditarQuantidade, setShowEditarQuantidade] = useState(false);
+  const [novaQuantidadeAgendamento, setNovaQuantidadeAgendamento] = useState("");
+  const [isEditandoQuantidade, setIsEditandoQuantidade] = useState(false);
+  const [isLoadingMaxQuantidadeAgendamento, setIsLoadingMaxQuantidadeAgendamento] = useState(false);
+  const [maxQuantidadeAgendamento, setMaxQuantidadeAgendamento] = useState<number | null>(null);
 
   const { data: agendamentosData, isLoading, error } = useQuery({
     queryKey: ["agendamentos", clienteId, armazemId, representanteId, userRole],
@@ -877,6 +883,82 @@ const Agendamentos = () => {
         return "Concluído";
       default:
         return status;
+    }
+  };
+
+  const handleAbrirEditarQuantidade = async () => {
+    if (!detalhesAgendamento || !detalhesAgendamento.liberacao_id) return;
+    setShowEditarQuantidade(true);
+    setMaxQuantidadeAgendamento(null);
+    setNovaQuantidadeAgendamento(String(detalhesAgendamento.quantidade));
+    setIsLoadingMaxQuantidadeAgendamento(true);
+    try {
+      const { data, error } = await supabase.rpc('get_quantidade_disponivel_liberacao', {
+        liberacao_uuid: detalhesAgendamento.liberacao_id,
+      });
+      if (error) throw error;
+      setMaxQuantidadeAgendamento(Number(data) + detalhesAgendamento.quantidade);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar saldo disponível",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsLoadingMaxQuantidadeAgendamento(false);
+    }
+  };
+
+  const handleCloseEditarQuantidade = () => {
+    setShowEditarQuantidade(false);
+    setNovaQuantidadeAgendamento("");
+    setMaxQuantidadeAgendamento(null);
+  };
+
+  const handleEditarQuantidadeAgendamento = async () => {
+    if (!detalhesAgendamento) return;
+
+    const qtdNum = Number(novaQuantidadeAgendamento);
+    if (Number.isNaN(qtdNum) || qtdNum <= 0) {
+      toast({ variant: "destructive", title: "Quantidade inválida" });
+      return;
+    }
+    if (maxQuantidadeAgendamento !== null && qtdNum > maxQuantidadeAgendamento) {
+      toast({
+        variant: "destructive",
+        title: "Saldo insuficiente na liberação",
+        description: `Máximo permitido: ${maxQuantidadeAgendamento.toLocaleString('pt-BR')}t.`,
+      });
+      return;
+    }
+
+    setIsEditandoQuantidade(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc('alterar_quantidade_agendamento', {
+        p_agendamento_id: detalhesAgendamento.id,
+        p_nova_quantidade: qtdNum,
+        p_user_id: userData.user?.id ?? '',
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string; quantidade_anterior: number; quantidade_nova: number };
+      if (!result.success) throw new Error(result.error);
+      toast({
+        title: "Quantidade do agendamento alterada",
+        description: `De ${Number(result.quantidade_anterior).toLocaleString('pt-BR')}t para ${Number(result.quantidade_nova).toLocaleString('pt-BR')}t.`,
+      });
+      handleCloseEditarQuantidade();
+      setDetalhesAgendamento(null);
+      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["agendamentos-totais"] });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao alterar quantidade",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsEditandoQuantidade(false);
     }
   };
 
@@ -1578,7 +1660,21 @@ const Agendamentos = () => {
                       <p className="text-sm font-medium">{detalhesAgendamento.produto}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Quantidade</Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-sm font-medium text-muted-foreground">Quantidade</Label>
+                        {(hasRole("admin") || hasRole("logistica")) &&
+                         detalhesAgendamento.etapa_carregamento === 1 &&
+                         detalhesAgendamento.status !== 'cancelado' && (
+                          <Button
+                            size="sm"
+                            onClick={handleAbrirEditarQuantidade}
+                            className="h-7 px-2 text-xs min-h-[28px] btn-secondary shrink-0"
+                          >
+                            <Edit3 className="h-3 w-3 mr-1" />
+                            Alterar
+                          </Button>
+                        )}
+                      </div>
                       <p className="text-sm font-medium">{detalhesAgendamento.quantidade.toLocaleString('pt-BR')}t</p>
                     </div>
                     <div className="md:col-span-2">
@@ -1706,6 +1802,87 @@ const Agendamentos = () => {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Modal de Alteração de Quantidade do Agendamento */}
+        <Dialog open={showEditarQuantidade} onOpenChange={(open) => {
+          if (!open) {
+            handleCloseEditarQuantidade();
+          } else {
+            setShowEditarQuantidade(open);
+          }
+        }}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Alterar Quantidade do Agendamento</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesAgendamento?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-4">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950/20 dark:border-amber-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Só é possível alterar a quantidade enquanto a chegada do caminhão ainda não foi registrada no carregamento.
+                  </p>
+                </div>
+              </div>
+
+              {isLoadingMaxQuantidadeAgendamento ? (
+                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando saldo disponível...
+                </div>
+              ) : maxQuantidadeAgendamento !== null && (
+                <div>
+                  <Label htmlFor="nova-quantidade-agendamento" className="text-sm font-medium">
+                    Nova Quantidade (t) *
+                  </Label>
+                  <Input
+                    id="nova-quantidade-agendamento"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={maxQuantidadeAgendamento}
+                    value={novaQuantidadeAgendamento}
+                    onChange={(e) => setNovaQuantidadeAgendamento(e.target.value)}
+                    disabled={isEditandoQuantidade}
+                    className="min-h-[44px] mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Saldo máximo disponível na liberação: <span className="font-semibold">{maxQuantidadeAgendamento.toLocaleString('pt-BR')}t</span>
+                  </p>
+                  {(() => {
+                    const qtdNum = Number(novaQuantidadeAgendamento);
+                    if (!novaQuantidadeAgendamento || Number.isNaN(qtdNum) || qtdNum <= 0) return null;
+                    if (qtdNum > maxQuantidadeAgendamento) {
+                      return <p className="text-xs text-red-600 mt-1">⚠️ Excede o saldo disponível na liberação</p>;
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
+            </div>
+
+            <ModalFooter
+              variant="double"
+              onClose={handleCloseEditarQuantidade}
+              onConfirm={handleEditarQuantidadeAgendamento}
+              confirmText="Confirmar Alteração"
+              isLoading={isEditandoQuantidade}
+              disabled={
+                maxQuantidadeAgendamento === null ||
+                isEditandoQuantidade ||
+                isLoadingMaxQuantidadeAgendamento ||
+                !novaQuantidadeAgendamento ||
+                Number.isNaN(Number(novaQuantidadeAgendamento)) ||
+                Number(novaQuantidadeAgendamento) <= 0 ||
+                Number(novaQuantidadeAgendamento) > maxQuantidadeAgendamento
+              }
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
