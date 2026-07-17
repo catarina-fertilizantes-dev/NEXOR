@@ -19,12 +19,13 @@ import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 
-type StatusLiberacao = "disponivel" | "parcialmente_agendada" | "totalmente_agendada" | "cancelada";
+type StatusLiberacao = "disponivel" | "parcialmente_agendada" | "totalmente_agendada" | "finalizada" | "cancelada";
 
 const STATUS_LIBERACAO = [
   { id: "disponivel", nome: "Disponível", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
   { id: "parcialmente_agendada", nome: "Parcialmente Agendada", cor: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
   { id: "totalmente_agendada", nome: "Totalmente Agendada", cor: "bg-blue-100 text-blue-800 hover:bg-blue-200" },
+  { id: "finalizada", nome: "Finalizada", cor: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" },
   { id: "cancelada", nome: "Cancelada", cor: "bg-red-100 text-red-800 hover:bg-red-200" },
 ];
 
@@ -63,6 +64,8 @@ const getLiberacaoStatusTooltip = (status: StatusLiberacao) => {
       return "Esta liberação possui agendamentos, mas ainda há quantidade disponível";
     case "totalmente_agendada":
       return "Toda a quantidade desta liberação já foi agendada para retirada";
+    case "finalizada":
+      return "Toda a quantidade desta liberação já foi retirada";
     case "cancelada":
       return "Esta liberação foi cancelada";
     default:
@@ -258,29 +261,6 @@ const Liberacoes = () => {
     })(),
   });
 
-  const { data: agendamentosData } = useQuery({
-    queryKey: ["agendamentos-totais"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agendamentos")
-        .select(`
-          liberacao_id,
-          quantidade,
-          status
-        `)
-        .in("status", ["pendente", "em_andamento"]);
-      if (error) throw error;
-      
-      const agrupados = (data || []).reduce((acc: Record<string, number>, item) => {
-        acc[item.liberacao_id] = (acc[item.liberacao_id] || 0) + Number(item.quantidade);
-        return acc;
-      }, {});
-      
-      return agrupados;
-    },
-    refetchInterval: 30000,
-  });
-
   const { data: armazensDisponiveis } = useQuery({
     queryKey: ["armazens-list"],
     queryFn: async () => {
@@ -329,63 +309,27 @@ const Liberacoes = () => {
 
   const liberacoes = useMemo(() => {
     if (!liberacoesData) return [];
-    
-  return liberacoesData.map((item: any) => {
-    const isFromFunction = !!item.produto_nome;
-    
-    if (isFromFunction) {
-      return {
-        id: item.id,
-        produto: item.produto_nome,
-        cliente: item.cliente_nome,
-        quantidade: item.quantidade_liberada,
-        quantidadeRetirada: item.quantidade_retirada,
-        quantidadeAgendada: item.quantidade_agendada,
-        saldo: item.quantidade_disponivel,
-        percentualRetirado: item.percentual_retirado,
-        percentualAgendado: item.percentual_agendado,
-        pedido: item.pedido_interno,
-        data: new Date(item.data_liberacao).toLocaleDateString("pt-BR"),
-        status: item.status,
-        armazem: `${item.armazem_nome} - ${item.armazem_cidade}/${item.armazem_estado}`,
-        produto_id: item.produto_id,
-        armazem_id: item.armazem_id,
-        created_at: item.created_at,
-        finalizada: item.finalizada || false,
-      };
-    } else {
-      const quantidadeRetirada = item.quantidade_retirada || 0;
-      const quantidadeAgendada = agendamentosData?.[item.id] || 0;
-      
-      const percentualRetirado = item.quantidade_liberada > 0 
-        ? Math.round((quantidadeRetirada / item.quantidade_liberada) * 100) 
-        : 0;
-      const percentualAgendado = item.quantidade_liberada > 0 
-        ? Math.round((quantidadeAgendada / item.quantidade_liberada) * 100) 
-        : 0;
-      const finalizada = quantidadeRetirada >= item.quantidade_liberada;
-      return {
-        id: item.id,
-        produto: item.produtos?.nome || "N/A",
-        cliente: item.clientes?.nome || "N/A",
-        quantidade: item.quantidade_liberada,
-        quantidadeRetirada,
-        quantidadeAgendada,
-        saldo: Math.max(0, item.quantidade_liberada - quantidadeAgendada - quantidadeRetirada),
-        percentualRetirado,
-        percentualAgendado,
-        pedido: item.pedido_interno,
-        data: new Date(item.data_liberacao || item.created_at).toLocaleDateString("pt-BR"),
-        status: item.status as StatusLiberacao,
-        armazem: item.armazens ? `${item.armazens.nome} - ${item.armazens.cidade}/${item.armazens.estado}` : "N/A",
-        produto_id: item.produto_id,
-        armazem_id: item.armazem_id,
-        created_at: item.created_at,
-        finalizada,
-      };
-    }
-  });
-  }, [liberacoesData, agendamentosData]);
+
+    return liberacoesData.map((item: any) => ({
+      id: item.id,
+      produto: item.produto_nome,
+      cliente: item.cliente_nome,
+      quantidade: item.quantidade_liberada,
+      quantidadeRetirada: item.quantidade_retirada,
+      quantidadeAgendada: item.quantidade_agendada,
+      saldo: item.quantidade_disponivel,
+      percentualRetirado: item.percentual_retirado,
+      percentualAgendado: item.percentual_agendado,
+      pedido: item.pedido_interno,
+      data: new Date(item.data_liberacao).toLocaleDateString("pt-BR"),
+      status: item.status,
+      armazem: `${item.armazem_nome} - ${item.armazem_cidade}/${item.armazem_estado}`,
+      produto_id: item.produto_id,
+      armazem_id: item.armazem_id,
+      created_at: item.created_at,
+      finalizada: item.status === 'finalizada',
+    }));
+  }, [liberacoesData]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [novaLiberacao, setNovaLiberacao] = useState({
@@ -499,7 +443,7 @@ const Liberacoes = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedArmazens, setSelectedArmazens] = useState<string[]>([]);
-  const allStatuses: StatusLiberacao[] = ["disponivel", "parcialmente_agendada", "totalmente_agendada", "cancelada"];
+  const allStatuses: StatusLiberacao[] = ["disponivel", "parcialmente_agendada", "totalmente_agendada", "finalizada", "cancelada"];
   const allArmazens = useMemo(
     () => Array.from(new Set(liberacoes.map((l) => l.armazem).filter(Boolean))) as string[],
     [liberacoes]
@@ -744,6 +688,8 @@ const Liberacoes = () => {
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
       case "totalmente_agendada":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
+      case "finalizada":
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400";
       case "cancelada":
         return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default:
@@ -759,6 +705,8 @@ const Liberacoes = () => {
         return "Parcialmente Agendada";
       case "totalmente_agendada":
         return "Totalmente Agendada";
+      case "finalizada":
+        return "Finalizada";
       case "cancelada":
         return "Cancelada";
       default:
