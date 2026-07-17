@@ -22,10 +22,9 @@
  */
 
 import { test, expect, Page, Locator } from '@playwright/test';
-import { NEW_PASSWORD, readState, updateState, captureTempPassword, goTo, login } from './helpers';
+import { NEW_PASSWORD, readState, updateState, captureTempPassword, goTo, login, ADMIN } from './helpers';
 
 const SS = (name: string) => `tests/ui/system/screenshots/seed-${name}.png`;
-const ADMIN = { email: 'administrador1@nexorops.com.br', password: 'DWJ_SHhsc3EN!F2' };
 
 const CLIENTE3 = {
   nome: 'Fazenda Serra Verde',

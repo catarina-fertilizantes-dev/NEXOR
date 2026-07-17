@@ -2,12 +2,17 @@ import { Page, expect } from '@playwright/test';
 
 export const BASE = 'https://nexor-dev.vercel.app';
 
+// Arquivo não usado por nenhum workflow de CI (só tests/ui/cancelar-liberacao.spec.ts,
+// que roda manualmente). Credenciais vêm de variáveis de ambiente — nunca hardcode
+// aqui. admin/colaborador reaproveitam as mesmas variáveis de tests/backend/.env.local;
+// os demais mapeamentos deste arquivo são legados e podem não corresponder mais às
+// contas atuais (ver memória project-nexor-test-credentials-churn).
 export const USERS = {
-  admin:          { email: 'administrador1@nexorops.com.br', password: 'DWJ_SHhsc3EN!F2', label: 'admin' },
-  colaborador:    { email: 'colaborador1@nexorops.com.br',   password: 'DWJ_SHhsc3EN!F2', label: 'colaborador (logistica)' },
-  cliente1:       { email: 'cliente1@nexorops.com.br',       password: 'Senha@2026',       label: 'cliente1' },
-  representante1: { email: 'representante1@nexorops.com.br', password: 'Senha@2026',       label: 'representante1' },
-  armazem1:       { email: 'armazem1@nexorops.com.br',       password: 'Senha@2026',       label: 'armazem1' },
+  admin:          { email: process.env.TEST_ADMIN_EMAIL ?? '',       password: process.env.TEST_ADMIN_PASSWORD ?? '',       label: 'admin' },
+  colaborador:    { email: process.env.TEST_COLABORADOR_EMAIL ?? '', password: process.env.TEST_COLABORADOR_PASSWORD ?? '', label: 'colaborador (logistica)' },
+  cliente1:       { email: process.env.TEST_CLIENTE1_EMAIL ?? '',    password: process.env.TEST_CLIENTE1_PASSWORD ?? '',    label: 'cliente1' },
+  representante1: { email: process.env.TEST_REPRESENTANTE1_EMAIL ?? '', password: process.env.TEST_REPRESENTANTE1_PASSWORD ?? '', label: 'representante1' },
+  armazem1:       { email: process.env.TEST_ARMAZEM1_EMAIL ?? '',    password: process.env.TEST_ARMAZEM1_PASSWORD ?? '',    label: 'armazem1' },
 };
 
 export async function login(page: Page, email: string, password: string) {

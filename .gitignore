@@ -6,3 +6,5 @@ dist
 .claude/worktrees/
 .claude/settings.local.json
 supabase/.temp/
+test-results/
+tests/ui/report/

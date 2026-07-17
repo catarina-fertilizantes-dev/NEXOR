@@ -5,7 +5,13 @@ import { fileURLToPath } from 'url';
 
 const STATE_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'state.json');
 
-export const ADMIN = { email: 'administrador1@nexorops.com.br', password: 'DWJ_SHhsc3EN!F2' };
+// Credenciais vêm de variáveis de ambiente (TEST_ADMIN_EMAIL/TEST_ADMIN_PASSWORD,
+// mesmas usadas por tests/backend/) — nunca hardcode aqui. Localmente, rode com
+// `node --env-file=tests/backend/.env.local` ou exporte as variáveis antes.
+if (!process.env.TEST_ADMIN_EMAIL || !process.env.TEST_ADMIN_PASSWORD) {
+  throw new Error('TEST_ADMIN_EMAIL/TEST_ADMIN_PASSWORD não definidas (ver tests/backend/.env.local)');
+}
+export const ADMIN = { email: process.env.TEST_ADMIN_EMAIL, password: process.env.TEST_ADMIN_PASSWORD };
 export const NEW_PASSWORD = 'Teste@2026!';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

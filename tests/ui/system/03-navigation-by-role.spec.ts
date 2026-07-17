@@ -12,7 +12,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { NEW_PASSWORD, readState } from './helpers';
+import { NEW_PASSWORD, readState, ADMIN } from './helpers';
 
 const SS = (name: string) => `tests/ui/system/screenshots/nav-${name}.png`;
 
@@ -205,7 +205,7 @@ test.describe('Navegação — role logistica', () => {
 test.describe('Navegação — role admin', () => {
 
   test('admin vê todos os itens de menu', async ({ page }) => {
-    await loginAs(page, 'administrador1@nexorops.com.br', 'DWJ_SHhsc3EN!F2');
+    await loginAs(page, ADMIN.email, ADMIN.password);
     await page.screenshot({ path: SS('admin-sidebar') });
 
     for (const label of ['Liberações', 'Agendamentos', 'Carregamentos', 'Colaboradores', 'Clientes', 'Representantes', 'Armazéns', 'Produtos', 'Estoque']) {
@@ -214,7 +214,7 @@ test.describe('Navegação — role admin', () => {
   });
 
   test('admin acessa todas as páginas', async ({ page }) => {
-    await loginAs(page, 'administrador1@nexorops.com.br', 'DWJ_SHhsc3EN!F2');
+    await loginAs(page, ADMIN.email, ADMIN.password);
 
     const paginas = ['/liberacoes', '/agendamentos', '/carregamentos', '/clientes', '/representantes', '/armazens', '/produtos', '/estoque', '/colaboradores'];
     for (const path of paginas) {

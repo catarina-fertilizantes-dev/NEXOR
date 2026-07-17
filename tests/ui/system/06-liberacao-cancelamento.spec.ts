@@ -14,11 +14,10 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { NEW_PASSWORD, readState } from './helpers';
+import { NEW_PASSWORD, readState, ADMIN } from './helpers';
 
 const SS = (name: string) => `tests/ui/system/screenshots/cancel-${name}.png`;
 
-const ADMIN = { email: 'administrador1@nexorops.com.br', password: 'DWJ_SHhsc3EN!F2' };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
