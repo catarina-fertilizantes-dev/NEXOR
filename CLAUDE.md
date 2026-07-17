@@ -161,3 +161,9 @@ supabase db diff --linked
 # Dev server
 npm run dev
 ```
+
+## Preferências pessoais de colaboração — Alessandro
+
+- Antes de implementar qualquer feature nova ou correção não trivial, apresente um plano detalhado (itens numerados) e pergunte se há dúvidas de negócio antes de começar. Só execute após aprovação explícita. Isso vale especialmente para mudanças em banco de dados (migrations) ou qualquer coisa em produção.
+- Ao propor uma abordagem técnica, explique o que ela cobre e o que ela **não** cobre, e recomende a combinação adequada quando houver mais de uma opção razoável (ex.: testes de backend vs. testes de UI). Não espere que a primeira resposta seja aceita sem justificativa — esteja pronto para detalhar o racional.
+- Nunca commitar ou desenvolver diretamente na branch `main` — todo trabalho parte de `develop`.

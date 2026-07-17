@@ -5,6 +5,7 @@ dist
 .DS_Store
 .claude/worktrees/
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 supabase/.temp/
 test-results/
 tests/ui/report/
