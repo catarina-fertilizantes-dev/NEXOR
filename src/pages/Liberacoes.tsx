@@ -864,15 +864,16 @@ const Liberacoes = () => {
   const temClientesDisponiveis = clientesData && clientesData.length > 0;
 
   const renderLiberacaoCard = (lib: LiberacaoItem) => (
-    <Card key={lib.id} className="border-l-4 border-l-blue-500 dark:border-l-blue-400 transition-all hover:shadow-md cursor-pointer">
+    <Card
+      key={lib.id}
+      className="border-l-4 border-l-blue-500 dark:border-l-blue-400 transition-all hover:shadow-md cursor-pointer"
+      onClick={() => setDetalhesLiberacao(lib)}
+    >
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
           {/* Cabeçalho: ícone + pedido + status */}
           <div className="flex items-start justify-between gap-3">
-            <div
-              className="flex items-center gap-3 min-w-0"
-              onClick={() => setDetalhesLiberacao(lib)}
-            >
+            <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
                 <ClipboardList className="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" />
               </div>
@@ -880,10 +881,7 @@ const Liberacoes = () => {
             </div>
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
-                <div
-                  className="flex items-center gap-1 cursor-help shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="flex items-center gap-1 cursor-help shrink-0">
                   <Badge className={`${getStatusColor(lib.status)} text-xs px-2 py-1 text-center`}>
                     {getStatusLabel(lib.status)}
                   </Badge>
@@ -897,10 +895,7 @@ const Liberacoes = () => {
           </div>
 
           {/* Informações em 2 colunas */}
-          <div
-            className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground"
-            onClick={() => setDetalhesLiberacao(lib)}
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <p className="truncate" title={lib.cliente}><span className="font-medium text-foreground">Cliente:</span> {lib.cliente}</p>
             <p className="truncate" title={lib.produto}><span className="font-medium text-foreground">Produto:</span> {lib.produto}</p>
             <p className="truncate" title={lib.armazem}><span className="font-medium text-foreground">Armazém:</span> {lib.armazem}</p>
@@ -908,10 +903,7 @@ const Liberacoes = () => {
           </div>
 
           {/* Métricas: Liberada / Agendada / Retirada / Saldo */}
-          <div
-            className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground"
-            onClick={() => setDetalhesLiberacao(lib)}
-          >
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground">
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
                 <span className="whitespace-nowrap cursor-help">
@@ -946,22 +938,16 @@ const Liberacoes = () => {
             </Tooltip>
           </div>
 
-          <div 
-            className="pt-2 border-t"
-            onClick={() => setDetalhesLiberacao(lib)}
-          >
+          <div className="pt-2 border-t">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
               <span className="text-xs text-blue-600 font-medium shrink-0">Agendamento:</span>
-              
+
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
-                  <div 
-                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div 
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${lib.percentualAgendado}%` }}
                     ></div>
                   </div>
@@ -970,13 +956,10 @@ const Liberacoes = () => {
                   <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
                 </TooltipContent>
               </Tooltip>
-              
+
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="flex items-center gap-1 cursor-help shrink-0">
                     <Info className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground font-medium w-8 text-right">
                       {lib.percentualAgendado}%

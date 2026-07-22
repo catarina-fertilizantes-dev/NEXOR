@@ -963,15 +963,16 @@ const Agendamentos = () => {
   };
 
   const renderAgendamentoCard = (ag: AgendamentoItem) => (
-    <Card key={ag.id} className="border-l-4 border-l-violet-500 dark:border-l-violet-400 transition-all hover:shadow-md cursor-pointer">
+    <Card
+      key={ag.id}
+      className="border-l-4 border-l-violet-500 dark:border-l-violet-400 transition-all hover:shadow-md cursor-pointer"
+      onClick={() => setDetalhesAgendamento(ag)}
+    >
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
           {/* Cabeçalho: ícone + pedido + status */}
           <div className="flex items-start justify-between gap-3">
-            <div
-              className="flex items-center gap-3 min-w-0"
-              onClick={() => setDetalhesAgendamento(ag)}
-            >
+            <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30 shrink-0">
                 <Calendar className="h-4 w-4 md:h-5 md:w-5 text-violet-600 dark:text-violet-400" />
               </div>
@@ -979,10 +980,7 @@ const Agendamentos = () => {
             </div>
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
-                <div
-                  className="flex items-center gap-1 cursor-help shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="flex items-center gap-1 cursor-help shrink-0">
                   <Badge className={`${getStatusColor(ag.status)} text-xs px-2 py-1 text-center`}>
                     {getStatusLabel(ag.status)}
                   </Badge>
@@ -996,10 +994,7 @@ const Agendamentos = () => {
           </div>
 
           {/* Informações em 2 colunas */}
-          <div
-            className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground"
-            onClick={() => setDetalhesAgendamento(ag)}
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <p className="truncate" title={ag.cliente}><span className="font-medium text-foreground">Cliente:</span> {ag.cliente}</p>
             <p className="truncate" title={ag.produto}><span className="font-medium text-foreground">Produto:</span> {ag.produto}</p>
             <p className="truncate" title={ag.armazem}><span className="font-medium text-foreground">Armazém:</span> {ag.armazem}</p>
@@ -1012,10 +1007,7 @@ const Agendamentos = () => {
           <div className="pt-3 border-t flex items-center justify-between gap-2">
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
-                <div
-                  className="flex items-center gap-2 min-w-0 cursor-help"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="flex items-center gap-2 min-w-0 cursor-help">
                   <Truck className="h-4 w-4 text-purple-600 shrink-0" />
                   <span className="text-xs text-purple-600 font-medium shrink-0 hidden sm:inline">Carregamento:</span>
                   <Badge variant="secondary" className={`${ag.cor_carregamento} text-xs font-normal whitespace-nowrap`}>

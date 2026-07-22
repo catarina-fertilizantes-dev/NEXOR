@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -112,7 +112,8 @@ const STATUS_CARREGAMENTO = [
 
 const Carregamentos = () => {
   useScrollToTop();
-  
+  const navigate = useNavigate();
+
   const { userRole, user } = useAuth();
   const { clienteId, armazemId, representanteId } = usePermissions();
   
@@ -316,28 +317,25 @@ const Carregamentos = () => {
   const hasActiveFilters = search.trim() || selectedStatus.length > 0 || dateFrom || dateTo;
 
   const renderCarregamentoCard = (carr: CarregamentoItem) => (
-    <Card key={carr.id} className="border-l-4 border-l-amber-500 dark:border-l-amber-400 transition-all hover:shadow-md cursor-pointer">
+    <Card
+      key={carr.id}
+      className="border-l-4 border-l-amber-500 dark:border-l-amber-400 transition-all hover:shadow-md cursor-pointer"
+      onClick={() => navigate(`/carregamentos/${carr.id}`)}
+    >
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
           {/* Cabeçalho: ícone + pedido + status + fotos */}
           <div className="flex items-start justify-between gap-3">
-            <Link
-              to={`/carregamentos/${carr.id}`}
-              className="flex items-center gap-3 min-w-0 text-inherit no-underline"
-              style={{ textDecoration: "none", color: "inherit" }}
-            >
+            <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 shrink-0">
                 <Truck className="h-4 w-4 md:h-5 md:w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {carr.pedido}</h3>
-            </Link>
+            </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
-                  <div
-                    className="flex items-center gap-1 cursor-help"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="flex items-center gap-1 cursor-help">
                     <Badge className={`${carr.cor_carregamento} border-0 font-medium text-xs px-2 py-1 text-center`}>
                       {carr.status_carregamento}
                     </Badge>
@@ -353,43 +351,31 @@ const Carregamentos = () => {
           </div>
 
           {/* Informações em 2 colunas */}
-          <Link
-            to={`/carregamentos/${carr.id}`}
-            className="block text-inherit no-underline"
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-              <p className="truncate" title={carr.cliente}><span className="font-medium text-foreground">Cliente:</span> {carr.cliente}</p>
-              <p className="truncate" title={carr.produto}><span className="font-medium text-foreground">Produto:</span> {carr.produto}</p>
-              <p className="truncate" title={carr.armazem}><span className="font-medium text-foreground">Armazém:</span> {carr.armazem}</p>
-              <p className="truncate"><span className="font-medium text-foreground">Quantidade:</span> {carr.quantidade.toLocaleString('pt-BR')}t</p>
-              <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {carr.data_retirada !== "N/A" ? new Date(carr.data_retirada).toLocaleDateString("pt-BR") : "N/A"}</p>
-              <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(carr.placa)}</p>
-              <p className="truncate" title={carr.motorista}><span className="font-medium text-foreground">Motorista:</span> {carr.motorista}</p>
-              <p className="truncate" title={carr.transportadora}><span className="font-medium text-foreground">Transportadora:</span> {carr.transportadora || "N/A"}</p>
-              {carr.numero_nf && (
-                <p className="truncate sm:col-span-2"><span className="font-medium text-foreground">Nº NF:</span> {carr.numero_nf}</p>
-              )}
-            </div>
-          </Link>
-  
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <p className="truncate" title={carr.cliente}><span className="font-medium text-foreground">Cliente:</span> {carr.cliente}</p>
+            <p className="truncate" title={carr.produto}><span className="font-medium text-foreground">Produto:</span> {carr.produto}</p>
+            <p className="truncate" title={carr.armazem}><span className="font-medium text-foreground">Armazém:</span> {carr.armazem}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Quantidade:</span> {carr.quantidade.toLocaleString('pt-BR')}t</p>
+            <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {carr.data_retirada !== "N/A" ? new Date(carr.data_retirada).toLocaleDateString("pt-BR") : "N/A"}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(carr.placa)}</p>
+            <p className="truncate" title={carr.motorista}><span className="font-medium text-foreground">Motorista:</span> {carr.motorista}</p>
+            <p className="truncate" title={carr.transportadora}><span className="font-medium text-foreground">Transportadora:</span> {carr.transportadora || "N/A"}</p>
+            {carr.numero_nf && (
+              <p className="truncate sm:col-span-2"><span className="font-medium text-foreground">Nº NF:</span> {carr.numero_nf}</p>
+            )}
+          </div>
+
           {/* Barra de progresso - Sempre na parte inferior */}
-          <div 
-            className="pt-2 border-t"
-            onClick={() => window.location.href = `/carregamentos/${carr.id}`}
-          >
+          <div className="pt-2 border-t">
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-purple-600 shrink-0" />
               <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
-              
+
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
-                  <div 
-                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div 
-                      className="bg-purple-500 h-2 rounded-full transition-all duration-300" 
+                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0">
+                    <div
+                      className="bg-purple-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${carr.percentual_carregamento}%` }}
                     ></div>
                   </div>
@@ -398,13 +384,10 @@ const Carregamentos = () => {
                   <p className="text-sm">{carr.tooltip_carregamento}</p>
                 </TooltipContent>
               </Tooltip>
-              
+
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="flex items-center gap-1 cursor-help shrink-0">
                     <Info className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground font-medium w-8 text-right">
                       {carr.percentual_carregamento}%
