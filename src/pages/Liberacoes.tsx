@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
@@ -879,19 +880,19 @@ const Liberacoes = () => {
               </div>
               <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {lib.pedido}</h3>
             </div>
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1 cursor-help shrink-0">
+            <Popover>
+              <PopoverTrigger asChild>
+                <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
                   <Badge className={`${getStatusColor(lib.status)} text-xs px-2 py-1 text-center`}>
                     {getStatusLabel(lib.status)}
                   </Badge>
                   <Info className="h-3 w-3 text-muted-foreground" />
                 </div>
-              </TooltipTrigger>
-              <TooltipContent>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                 <p className="text-sm">{getLiberacaoStatusTooltip(lib.status)}</p>
-              </TooltipContent>
-            </Tooltip>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Informações em 2 colunas */}
@@ -904,38 +905,38 @@ const Liberacoes = () => {
 
           {/* Métricas: Liberada / Agendada / Retirada / Saldo */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground">
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <span className="whitespace-nowrap cursor-help">
+            <Popover>
+              <PopoverTrigger asChild>
+                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
                   <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
                 </span>
-              </TooltipTrigger>
-              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.liberada}</p></TooltipContent>
-            </Tooltip>
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <span className="whitespace-nowrap cursor-help">
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
                   <span className="font-medium text-blue-600 underline decoration-dotted decoration-blue-600/40 underline-offset-2">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
                 </span>
-              </TooltipTrigger>
-              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.agendada}</p></TooltipContent>
-            </Tooltip>
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <span className="whitespace-nowrap cursor-help">
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
                   <span className="font-medium text-orange-600 underline decoration-dotted decoration-orange-600/40 underline-offset-2">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
                 </span>
-              </TooltipTrigger>
-              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.retirada}</p></TooltipContent>
-            </Tooltip>
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <span className="whitespace-nowrap cursor-help">
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
                   <span className="font-semibold text-green-600 underline decoration-dotted decoration-green-600/40 underline-offset-2">Saldo:</span> {lib.saldo.toLocaleString('pt-BR')}t
                 </span>
-              </TooltipTrigger>
-              <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.saldo}</p></TooltipContent>
-            </Tooltip>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
+            </Popover>
           </div>
 
           <div className="pt-2 border-t">
@@ -943,33 +944,33 @@ const Liberacoes = () => {
               <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
               <span className="text-xs text-blue-600 font-medium shrink-0">Agendamento:</span>
 
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-pointer min-w-0" onClick={(e) => e.stopPropagation()}>
                     <div
                       className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${lib.percentualAgendado}%` }}
                     ></div>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
 
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1 cursor-help shrink-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Info className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground font-medium w-8 text-right">
                       {lib.percentualAgendado}%
                     </span>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -1524,10 +1525,10 @@ const Liberacoes = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
                           <Label className="text-sm font-medium text-muted-foreground">Liberada</Label>
-                          <Tooltip delayDuration={100}>
-                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
-                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.liberada}</p></TooltipContent>
-                          </Tooltip>
+                          <Popover>
+                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
+                          </Popover>
                         </div>
                         <p className="text-base md:text-lg font-semibold">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
                       </div>
@@ -1549,30 +1550,30 @@ const Liberacoes = () => {
                       <div>
                         <div className="flex items-center gap-1">
                           <Label className="text-sm font-medium text-muted-foreground">Agendada</Label>
-                          <Tooltip delayDuration={100}>
-                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
-                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.agendada}</p></TooltipContent>
-                          </Tooltip>
+                          <Popover>
+                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
+                          </Popover>
                         </div>
                         <p className="text-base md:text-lg font-semibold text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
                       </div>
                       <div>
                         <div className="flex items-center gap-1">
                           <Label className="text-sm font-medium text-muted-foreground">Retirada</Label>
-                          <Tooltip delayDuration={100}>
-                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
-                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.retirada}</p></TooltipContent>
-                          </Tooltip>
+                          <Popover>
+                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
+                          </Popover>
                         </div>
                         <p className="text-base md:text-lg font-semibold text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
                       </div>
                       <div>
                         <div className="flex items-center gap-1">
                           <Label className="text-sm font-medium text-muted-foreground">Saldo</Label>
-                          <Tooltip delayDuration={100}>
-                            <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
-                            <TooltipContent><p className="text-sm max-w-[240px]">{QUANTIDADE_TOOLTIPS.saldo}</p></TooltipContent>
-                          </Tooltip>
+                          <Popover>
+                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
+                          </Popover>
                         </div>
                         <p className="text-base md:text-lg font-semibold text-green-600">{detalhesLiberacao.saldo.toLocaleString('pt-BR')}t</p>
                       </div>

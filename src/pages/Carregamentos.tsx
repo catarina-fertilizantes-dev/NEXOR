@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, ChevronRight, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -333,19 +334,19 @@ const Carregamentos = () => {
               <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {carr.pedido}</h3>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1 cursor-help">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                     <Badge className={`${carr.cor_carregamento} border-0 font-medium text-xs px-2 py-1 text-center`}>
                       {carr.status_carregamento}
                     </Badge>
                     <Info className="h-3 w-3 text-muted-foreground" />
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{carr.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
               <div className="text-xs text-muted-foreground">Fotos: <span className="font-semibold">{carr.fotosTotal}</span></div>
             </div>
           </div>
@@ -371,33 +372,33 @@ const Carregamentos = () => {
               <Truck className="h-4 w-4 text-purple-600 shrink-0" />
               <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
 
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-pointer min-w-0" onClick={(e) => e.stopPropagation()}>
                     <div
                       className="bg-purple-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${carr.percentual_carregamento}%` }}
                     ></div>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{carr.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
 
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1 cursor-help shrink-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Info className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground font-medium w-8 text-right">
                       {carr.percentual_carregamento}%
                     </span>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{carr.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>

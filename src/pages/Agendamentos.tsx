@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle, Edit3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -978,19 +979,19 @@ const Agendamentos = () => {
               </div>
               <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {ag.pedido}</h3>
             </div>
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1 cursor-help shrink-0">
+            <Popover>
+              <PopoverTrigger asChild>
+                <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
                   <Badge className={`${getStatusColor(ag.status)} text-xs px-2 py-1 text-center`}>
                     {getStatusLabel(ag.status)}
                   </Badge>
                   <Info className="h-3 w-3 text-muted-foreground" />
                 </div>
-              </TooltipTrigger>
-              <TooltipContent>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                 <p className="text-sm">{getAgendamentoStatusTooltip(ag.status)}</p>
-              </TooltipContent>
-            </Tooltip>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Informações em 2 colunas */}
@@ -1005,20 +1006,20 @@ const Agendamentos = () => {
 
           {/* Rodapé: etapa do carregamento + atalho */}
           <div className="pt-3 border-t flex items-center justify-between gap-2">
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 min-w-0 cursor-help">
+            <Popover>
+              <PopoverTrigger asChild>
+                <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                   <Truck className="h-4 w-4 text-purple-600 shrink-0" />
                   <span className="text-xs text-purple-600 font-medium shrink-0 hidden sm:inline">Carregamento:</span>
                   <Badge variant="secondary" className={`${ag.cor_carregamento} text-xs font-normal whitespace-nowrap`}>
                     Etapa {ag.etapa_carregamento}/6 · {ag.status_carregamento}
                   </Badge>
                 </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm max-w-[260px]">{ag.tooltip_carregamento}. As etapas do carregamento são acompanhadas na página Carregamentos.</p>
-              </TooltipContent>
-            </Tooltip>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[260px] p-2" onClick={(e) => e.stopPropagation()}>
+                <p className="text-sm">{ag.tooltip_carregamento}. As etapas do carregamento são acompanhadas na página Carregamentos.</p>
+              </PopoverContent>
+            </Popover>
 
             {ag.carregamento_id && (
               <Button
