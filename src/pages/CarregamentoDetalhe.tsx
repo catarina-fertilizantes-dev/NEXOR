@@ -38,7 +38,8 @@ import {
   Building2,
   Package
 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // ✅ Funções de formatação
 function formatPlaca(placa: string) {
@@ -1487,51 +1488,51 @@ const CarregamentoDetalhe = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {stats.tempoEspera !== null && (
                       <div>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 cursor-help">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-pointer">
                               <span className="text-xs text-muted-foreground">Tempo de Espera:</span>
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2">
                             <p className="text-sm">Tempo entre a chegada do caminhão no armazém e o início efetivo do carregamento</p>
-                          </TooltipContent>
-                        </Tooltip>
+                          </PopoverContent>
+                        </Popover>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoEspera)}</p>
                       </div>
                     )}
                     
                     {stats.tempoCarregamento !== null && (
                       <div>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 cursor-help">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-pointer">
                               <span className="text-xs text-muted-foreground">Tempo de Carregamento:</span>
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2">
                             <p className="text-sm">Tempo da operação física de carregamento, desde o início até a finalização</p>
-                          </TooltipContent>
-                        </Tooltip>
+                          </PopoverContent>
+                        </Popover>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoCarregamento)}</p>
                       </div>
                     )}
                     
                     {stats.tempoTotalProcesso !== null && (
                       <div>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 cursor-help">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-pointer">
                               <span className="text-xs text-muted-foreground">Tempo Total do Processo:</span>
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2">
                             <p className="text-sm">Tempo completo do processo, desde a chegada até a finalização da documentação</p>
-                          </TooltipContent>
-                        </Tooltip>
+                          </PopoverContent>
+                        </Popover>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
                       </div>
                     )}

@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tag, Plus, Filter as FilterIcon, Loader2, X, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -360,20 +360,18 @@ const Produtos = () => {
                     <div>
                       <div className="flex items-center gap-1.5">
                         <Label htmlFor="estoqueMinimo" className="text-sm font-medium">Estoque Mínimo</Label>
-                        <TooltipProvider>
-                          <Tooltip delayDuration={100}>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3.5 w-3.5 text-muted-foreground/70 cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="max-w-[220px]">
-                                Valor mínimo de estoque desse produto nos armazéns. Quando o estoque físico de algum
-                                armazém ficar abaixo desse valor, o produto aparece no alerta de Estoque Baixo do
-                                dashboard.
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Info className="h-3.5 w-3.5 text-muted-foreground/70 cursor-pointer" />
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[220px] p-2">
+                            <p className="text-sm">
+                              Valor mínimo de estoque desse produto nos armazéns. Quando o estoque físico de algum
+                              armazém ficar abaixo desse valor, o produto aparece no alerta de Estoque Baixo do
+                              dashboard.
+                            </p>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <Input
                         id="estoqueMinimo"

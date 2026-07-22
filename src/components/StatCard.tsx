@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { LucideIcon, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface StatCardProps {
   title: string;
@@ -17,6 +18,7 @@ interface StatCardProps {
 }
 
 export const StatCard = ({ title, value, icon: Icon, trend, variant = "default", tooltip, to }: StatCardProps) => {
+  const [tooltipOpen, setTooltipOpen] = useState(false);
   const gradientClass = {
     default: "",
     primary: "bg-gradient-primary",
@@ -41,22 +43,21 @@ export const StatCard = ({ title, value, icon: Icon, trend, variant = "default",
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-medium text-muted-foreground">{title}</p>
               {tooltip && (
-                <TooltipProvider>
-                  <Tooltip delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <Info
-                        className="h-3.5 w-3.5 text-muted-foreground/70 cursor-help"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-[220px]">{tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Popover open={tooltipOpen} onOpenChange={setTooltipOpen}>
+                  <PopoverTrigger asChild>
+                    <Info
+                      className="h-3.5 w-3.5 text-muted-foreground/70 cursor-pointer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTooltipOpen((o) => !o);
+                      }}
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[220px] p-2">
+                    <p className="text-sm">{tooltip}</p>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
             <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>

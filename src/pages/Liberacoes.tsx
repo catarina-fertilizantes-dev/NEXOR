@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
@@ -1912,20 +1912,20 @@ const Liberacoes = () => {
                     <div className="p-2 bg-muted rounded-lg">
                       <div className="flex items-center justify-center gap-1">
                         <p className="text-xs text-muted-foreground">Comprometida</p>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
-                          <TooltipContent><p className="text-sm max-w-[240px]">Quantidade já retirada, em carregamento ou agendada — a nova quantidade não pode ficar abaixo disso.</p></TooltipContent>
-                        </Tooltip>
+                        <Popover>
+                          <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">Quantidade já retirada, em carregamento ou agendada — a nova quantidade não pode ficar abaixo disso.</p></PopoverContent>
+                        </Popover>
                       </div>
                       <p className="font-semibold text-sm text-orange-600">{previewAlteracao.quantidade_comprometida.toLocaleString('pt-BR')}t</p>
                     </div>
                     <div className="p-2 bg-muted rounded-lg">
                       <div className="flex items-center justify-center gap-1">
                         <p className="text-xs text-muted-foreground">Máximo possível</p>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" /></TooltipTrigger>
-                          <TooltipContent><p className="text-sm max-w-[240px]">Quantidade atual + estoque disponível no armazém desta liberação.</p></TooltipContent>
-                        </Tooltip>
+                        <Popover>
+                          <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">Quantidade atual + estoque disponível no armazém desta liberação.</p></PopoverContent>
+                        </Popover>
                       </div>
                       <p className="font-semibold text-sm text-green-600">{previewAlteracao.quantidade_maxima.toLocaleString('pt-BR')}t</p>
                     </div>

@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 import { Info, LucideIcon, Users, Warehouse } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 // ---------- Helpers de data ----------
@@ -71,25 +71,25 @@ export const NOMES_VISIVEIS = 6;
 // ---------- Título com tooltip ----------
 
 export function TitleWithInfo({ title, tooltip, className }: { title: string; tooltip: string; className?: string }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className={`flex items-center gap-1.5 ${className ?? ""}`}>
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <TooltipProvider>
-        <Tooltip delayDuration={100}>
-          <TooltipTrigger asChild>
-            <Info
-              className="h-3.5 w-3.5 text-muted-foreground/70 cursor-help"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="max-w-[220px]">{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Info
+            className="h-3.5 w-3.5 text-muted-foreground/70 cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen((o) => !o);
+            }}
+          />
+        </PopoverTrigger>
+        <PopoverContent className="w-auto max-w-[220px] p-2">
+          <p className="text-sm">{tooltip}</p>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

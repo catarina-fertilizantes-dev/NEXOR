@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Loader2, 
   ArrowLeft, 
@@ -490,9 +491,9 @@ const EstoqueDetalhe = () => {
               <div className="pt-4 border-t mt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Estoque Físico */}
-                  <Tooltip delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200 cursor-help">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200 cursor-pointer">
                         <div className="flex items-center gap-2 mb-2">
                           <Package className="h-4 w-4 md:h-5 md:w-5 text-blue-600 flex-shrink-0" />
                           <span className="font-medium text-blue-800 text-sm md:text-base">Estoque Físico</span>
@@ -501,18 +502,18 @@ const EstoqueDetalhe = () => {
                           {estoqueDetalhes.quantidade_total.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
                         </p>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-sm max-w-xs">
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto max-w-xs p-2">
+                      <p className="text-sm">
                         Quantidade real presente no armazém neste momento. Reduz apenas quando o produto sai fisicamente (carregamento finalizado).
                       </p>
-                    </TooltipContent>
-                  </Tooltip>
-              
+                    </PopoverContent>
+                  </Popover>
+
                   {/* Estoque Disponível */}
-                  <Tooltip delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200 cursor-help">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200 cursor-pointer">
                         <div className="flex items-center gap-2 mb-2">
                           <Package className="h-4 w-4 md:h-5 md:w-5 text-green-600 flex-shrink-0" />
                           <span className="font-medium text-green-800 text-sm md:text-base">Estoque Disponível</span>
@@ -521,13 +522,13 @@ const EstoqueDetalhe = () => {
                           {estoqueDetalhes.quantidade_disponivel.toLocaleString('pt-BR')} {estoqueDetalhes.produto.unidade}
                         </p>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-sm max-w-xs">
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto max-w-xs p-2">
+                      <p className="text-sm">
                         Quantidade livre para novas liberações. Desconta valores já liberados, mesmo que ainda não retirados do armazém.
                       </p>
-                    </TooltipContent>
-                  </Tooltip>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </CardContent>
