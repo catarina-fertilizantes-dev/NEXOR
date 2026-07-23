@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "recharts";
 import { Info, LucideIcon, Users, Warehouse } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 // ---------- Helpers de data ----------
 
@@ -286,78 +284,66 @@ export function DocumentacaoPendenteCard({
 
 export const ETAPA_LABELS = ["Chegada", "Início", "Carregando", "Finalizado", "Documentação"];
 
-const funilChartConfig: ChartConfig = {
-  quantidade: { label: "Carregamentos" },
-};
-
 // Quantos carregamentos ativos (etapa < 6) estão em cada etapa agora —
 // mostra visualmente onde a operação está represada. `toneladas` é opcional
-// (soma da quantidade dos agendamentos ligados) e some assumindo que todo
+// (soma da quantidade dos agendamentos ligados) e soma assumindo que todo
 // produto está em toneladas — hoje é o caso real; se produtos em kg entrarem
-// em uso, essa soma bruta passa a precisar de conversão.
+// em uso, essa soma bruta passa a precisar de conversão. `icones` é uma lista
+// paralela a `data` (mesma ordem/tamanho), pra manter o mesmo ícone usado nos
+// outros cards de etapa (ex: Armazéns por Etapa).
 export function FunilEtapasCard({
   data,
   isLoading,
+  icones,
 }: {
   data: Array<{ etapa: string; quantidade: number; toneladas?: number }> | undefined;
   isLoading: boolean;
+  icones?: LucideIcon[];
 }) {
   const chartData = data ?? [];
   const semDados = chartData.every((d) => d.quantidade === 0);
-  const comToneladas = chartData.some((d) => d.toneladas != null);
+  const maxQuantidade = Math.max(1, ...chartData.map((d) => d.quantidade));
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
       <CardHeader className="pb-2">
         <TitleWithInfo
-          title={comToneladas ? "Funil de Carregamentos por Etapa (t)" : "Funil de Carregamentos por Etapa"}
-          tooltip="Quantidade de carregamentos ativos (ainda não finalizados) em cada etapa do processo, agora — e o volume em toneladas de cada etapa."
+          title="Funil de Carregamentos (ton/carga)"
+          tooltip="Quantidade de cargas ativas (ainda não finalizadas) em cada etapa do processo, agora — e o volume em toneladas de cada etapa."
         />
       </CardHeader>
       <CardContent>
         {!isLoading && semDados ? (
           <p className="text-xs text-muted-foreground">Nenhum carregamento em andamento no momento.</p>
         ) : (
-          <ChartContainer config={funilChartConfig} className="aspect-auto h-[220px] w-full">
-            <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: comToneladas ? 40 : 16 }}>
-              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-              <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="etapa" tickLine={false} axisLine={false} width={90} />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    hideLabel
-                    formatter={(value, _name, item) => (
-                      <span>
-                        {value} carga{value === 1 ? "" : "s"}
-                        {item?.payload?.toneladas != null
-                          ? ` • ${Number(item.payload.toneladas).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} t`
-                          : ""}
-                      </span>
-                    )}
-                  />
-                }
-              />
-              <Bar dataKey="quantidade" radius={4}>
-                {chartData.map((entry) => (
-                  <Cell
-                    key={entry.etapa}
-                    fill={entry.etapa === "Documentação" ? "hsl(var(--warning))" : "hsl(var(--primary))"}
-                  />
-                ))}
-                {comToneladas && (
-                  <LabelList
-                    dataKey="toneladas"
-                    position="right"
-                    className="fill-muted-foreground text-xs"
-                    formatter={(value: number) =>
-                      value ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} t` : ""
-                    }
-                  />
-                )}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
+          <div className="space-y-3">
+            {chartData.map((d, i) => {
+              const Icon = icones?.[i];
+              const pct = Math.round((d.quantidade / maxQuantidade) * 100);
+              return (
+                <div key={d.etapa} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs gap-2">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
+                      {d.etapa}
+                    </span>
+                    <span className="font-medium text-foreground shrink-0">
+                      {d.quantidade} carga{d.quantidade === 1 ? "" : "s"}
+                      {d.toneladas != null
+                        ? ` • ${d.toneladas.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} t`
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${d.etapa === "Documentação" ? "bg-warning" : "bg-primary"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </CardContent>
     </Card>
