@@ -218,8 +218,7 @@ const CarregamentoDetalhe = () => {
   });
 
   const { uploadPhoto, isUploading: isUploadingPhoto } = usePhotoUpload({
-    bucket: 'carregamento-fotos',
-    folder: id || 'unknown'
+    bucket: 'carregamento-fotos'
   });
 
   // ✅ Função para verificar se há mudanças pendentes
@@ -261,7 +260,7 @@ const CarregamentoDetalhe = () => {
     if (!currentPhotoEtapa || !id) return;
 
     try {
-      const result = await uploadPhoto(file, `etapa-${currentPhotoEtapa}-${Date.now()}.jpg`);
+      const result = await uploadPhoto(file, `${id}_etapa_${currentPhotoEtapa}_${Date.now()}.jpg`);
       
       if (result) {
         await updateCarregamentoFoto(currentPhotoEtapa, result.url);
