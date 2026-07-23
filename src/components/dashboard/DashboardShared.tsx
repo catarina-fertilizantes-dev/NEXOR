@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "recharts";
 import { Info, LucideIcon, Users, Warehouse } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -291,23 +291,27 @@ const funilChartConfig: ChartConfig = {
 };
 
 // Quantos carregamentos ativos (etapa < 6) estão em cada etapa agora —
-// mostra visualmente onde a operação está represada.
+// mostra visualmente onde a operação está represada. `toneladas` é opcional
+// (soma da quantidade dos agendamentos ligados) e some assumindo que todo
+// produto está em toneladas — hoje é o caso real; se produtos em kg entrarem
+// em uso, essa soma bruta passa a precisar de conversão.
 export function FunilEtapasCard({
   data,
   isLoading,
 }: {
-  data: Array<{ etapa: string; quantidade: number }> | undefined;
+  data: Array<{ etapa: string; quantidade: number; toneladas?: number }> | undefined;
   isLoading: boolean;
 }) {
   const chartData = data ?? [];
   const semDados = chartData.every((d) => d.quantidade === 0);
+  const comToneladas = chartData.some((d) => d.toneladas != null);
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
       <CardHeader className="pb-2">
         <TitleWithInfo
-          title="Funil de Carregamentos por Etapa"
-          tooltip="Quantidade de carregamentos ativos (ainda não finalizados) em cada etapa do processo, agora."
+          title={comToneladas ? "Funil de Carregamentos por Etapa (t)" : "Funil de Carregamentos por Etapa"}
+          tooltip="Quantidade de carregamentos ativos (ainda não finalizados) em cada etapa do processo, agora — e o volume em toneladas de cada etapa."
         />
       </CardHeader>
       <CardContent>
@@ -315,12 +319,24 @@ export function FunilEtapasCard({
           <p className="text-xs text-muted-foreground">Nenhum carregamento em andamento no momento.</p>
         ) : (
           <ChartContainer config={funilChartConfig} className="aspect-auto h-[220px] w-full">
-            <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 16 }}>
+            <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: comToneladas ? 40 : 16 }}>
               <CartesianGrid horizontal={false} strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
               <YAxis type="category" dataKey="etapa" tickLine={false} axisLine={false} width={90} />
               <ChartTooltip
-                content={<ChartTooltipContent hideLabel formatter={(value) => <span>{value}</span>} />}
+                content={
+                  <ChartTooltipContent
+                    hideLabel
+                    formatter={(value, _name, item) => (
+                      <span>
+                        {value} carga{value === 1 ? "" : "s"}
+                        {item?.payload?.toneladas != null
+                          ? ` • ${Number(item.payload.toneladas).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} t`
+                          : ""}
+                      </span>
+                    )}
+                  />
+                }
               />
               <Bar dataKey="quantidade" radius={4}>
                 {chartData.map((entry) => (
@@ -329,6 +345,16 @@ export function FunilEtapasCard({
                     fill={entry.etapa === "Documentação" ? "hsl(var(--warning))" : "hsl(var(--primary))"}
                   />
                 ))}
+                {comToneladas && (
+                  <LabelList
+                    dataKey="toneladas"
+                    position="right"
+                    className="fill-muted-foreground text-xs"
+                    formatter={(value: number) =>
+                      value ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} t` : ""
+                    }
+                  />
+                )}
               </Bar>
             </BarChart>
           </ChartContainer>

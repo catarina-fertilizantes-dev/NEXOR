@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 interface StatCardProps {
   title: string;
   value: string | number;
+  subtitle?: string;
   icon: LucideIcon;
   trend?: {
     value: string;
@@ -17,7 +18,7 @@ interface StatCardProps {
   to?: string;
 }
 
-export const StatCard = ({ title, value, icon: Icon, trend, variant = "default", tooltip, to }: StatCardProps) => {
+export const StatCard = ({ title, value, subtitle, icon: Icon, trend, variant = "default", tooltip, to }: StatCardProps) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const gradientClass = {
     default: "",
@@ -61,6 +62,7 @@ export const StatCard = ({ title, value, icon: Icon, trend, variant = "default",
               )}
             </div>
             <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
+            {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
             {trend && (
               <p className={`mt-1 text-sm ${trend.positive ? "text-success" : "text-destructive"}`}>
                 {trend.positive ? "↑" : "↓"} {trend.value}
