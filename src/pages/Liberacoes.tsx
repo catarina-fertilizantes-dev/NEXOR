@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -438,17 +439,38 @@ const Liberacoes = () => {
     }
   }, [novaLiberacao.produto, novaLiberacao.armazem]);
 
+  const [searchParams] = useSearchParams();
+  // Deep-link vindo do dashboard (ex: card "Sem Agendamento"): ?status=disponivel
+  // pré-seleciona o status, ?antesDe=YYYY-MM-DD pré-preenche o filtro de
+  // período (dateTo), já calculado pelo dashboard usando o prazo configurado
+  // — junto, os dois filtros reproduzem exatamente o critério "liberação sem
+  // agendamento há mais de N dias".
+  const statusParam = searchParams.get("status");
+  const filtroInicialStatus: StatusLiberacao[] =
+    statusParam === "disponivel" ? ["disponivel"] : [];
+  const filtroInicialAntesDe = searchParams.get("antesDe") ?? "";
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedStatuses, setSelectedStatuses] = useState<StatusLiberacao[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<StatusLiberacao[]>(filtroInicialStatus);
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateTo, setDateTo] = useState(filtroInicialAntesDe);
   const [selectedArmazens, setSelectedArmazens] = useState<string[]>([]);
   const allStatuses: StatusLiberacao[] = ["disponivel", "parcialmente_agendada", "totalmente_agendada", "finalizada", "cancelada"];
   const allArmazens = useMemo(
     () => Array.from(new Set(liberacoes.map((l) => l.armazem).filter(Boolean))) as string[],
     [liberacoes]
   );
+
+  // Deep-link vindo do dashboard (ex: linha do "Controle de Pedidos"):
+  // ?liberacaoId= abre automaticamente o modal de detalhe daquela liberação
+  // assim que a lista carrega.
+  const liberacaoIdParam = searchParams.get("liberacaoId");
+  useEffect(() => {
+    if (!liberacaoIdParam || detalhesLiberacao) return;
+    const match = liberacoes.find((l) => l.id === liberacaoIdParam);
+    if (match) setDetalhesLiberacao(match);
+  }, [liberacaoIdParam, liberacoes, detalhesLiberacao]);
 
   const toggleStatus = (st: StatusLiberacao) =>
     setSelectedStatuses((prev) => (prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]));

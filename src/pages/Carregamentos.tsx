@@ -103,6 +103,7 @@ interface CarregamentoItem {
   tooltip_carregamento: string;
   percentual_carregamento: number;
   finalizado: boolean;
+  data_documentacao: string | null;
 }
 
 const STATUS_CARREGAMENTO = [
@@ -218,6 +219,7 @@ const Carregamentos = () => {
           tooltip_carregamento: statusInfo.tooltip,
           percentual_carregamento: statusInfo.percentual,
           finalizado,
+          data_documentacao: item.data_documentacao ?? null,
         };
       } else {
         // ❌ Fallback para dados da query tradicional (não deveria acontecer)
@@ -256,18 +258,24 @@ const Carregamentos = () => {
           tooltip_carregamento: statusInfo.tooltip,
           percentual_carregamento: statusInfo.percentual,
           finalizado,
+          data_documentacao: item.data_documentacao ?? null,
         };
       }
     });
   }, [carregamentosData]);
 
   const [searchParams] = useSearchParams();
-  // Deep-link vindo do dashboard (ex: card "Finalizados Hoje"): ?status=finalizado
-  // pré-seleciona o filtro de status. Não filtra por data porque esta página
-  // filtra por data_retirada (agendada), não pela data real de finalização —
-  // então "hoje" aqui mostraria carregamentos agendados pra hoje, não
-  // finalizados hoje. Fica só o filtro de status por enquanto.
+  // Deep-links vindos do dashboard:
+  // - ?status=finalizado: pré-seleciona o filtro de status.
+  // - ?finalizadoHoje=1: filtra pela data REAL de finalização (data_documentacao)
+  //   sendo hoje — separado do filtro de período existente (dateFrom/dateTo),
+  //   que filtra por data_retirada (agendada), não pela finalização.
+  // - ?armazemId= / ?clienteId=: filtra pelo armazém/cliente específico (ex:
+  //   clique num item de "Armazéns/Clientes com Operação Hoje" no dashboard).
   const filtroInicialStatus = searchParams.get("status") === "finalizado" ? ["Finalizado"] : [];
+  const filtroFinalizadoHoje = searchParams.get("finalizadoHoje") === "1";
+  const filtroArmazemId = searchParams.get("armazemId");
+  const filtroClienteId = searchParams.get("clienteId");
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -277,7 +285,7 @@ const Carregamentos = () => {
 
   const toggleStatus = (status: string) =>
     setSelectedStatus((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
-  
+
   const clearFilters = () => {
     setSearch("");
     setSelectedStatus([]);
@@ -286,6 +294,7 @@ const Carregamentos = () => {
   };
 
   const { carregamentosAtivos, carregamentosFinalizados } = useMemo(() => {
+    const hojeISO = new Date().toISOString().slice(0, 10);
     const filtered = carregamentos.filter((c) => {
       const term = search.trim().toLowerCase();
       if (term) {
@@ -293,6 +302,9 @@ const Carregamentos = () => {
         if (!hay.includes(term)) return false;
       }
       if (selectedStatus.length > 0 && !selectedStatus.includes(c.status_carregamento)) return false;
+      if (filtroFinalizadoHoje && c.data_documentacao?.slice(0, 10) !== hojeISO) return false;
+      if (filtroArmazemId && c.armazem_id !== filtroArmazemId) return false;
+      if (filtroClienteId && c.cliente_id !== filtroClienteId) return false;
       if (dateFrom) {
         const from = new Date(dateFrom);
         if (new Date(c.data_retirada) < from) return false;
@@ -309,7 +321,7 @@ const Carregamentos = () => {
     const finalizados = filtered.filter(c => c.finalizado);
 
     return { carregamentosAtivos: ativos, carregamentosFinalizados: finalizados };
-  }, [carregamentos, search, selectedStatus, dateFrom, dateTo]);
+  }, [carregamentos, search, selectedStatus, dateFrom, dateTo, filtroFinalizadoHoje, filtroArmazemId, filtroClienteId]);
 
   useEffect(() => {
     if (

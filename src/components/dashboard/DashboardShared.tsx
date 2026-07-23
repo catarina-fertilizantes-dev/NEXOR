@@ -102,6 +102,7 @@ export function EntityListCard({
   isLoading,
   emptyLabel,
   to,
+  hrefFor,
 }: {
   title: string;
   tooltip: string;
@@ -110,6 +111,8 @@ export function EntityListCard({
   isLoading: boolean;
   emptyLabel: string;
   to?: string;
+  /** Opcional: se passado, cada badge vira um link individual (ex: pro carregamento daquele armazém/cliente) em vez de badge estático. */
+  hrefFor?: (nome: string) => string | undefined;
 }) {
   const [expandido, setExpandido] = useState(false);
   const lista = names ?? [];
@@ -137,11 +140,21 @@ export function EntityListCard({
 
         {!isLoading && lista.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {visiveis.map((nome) => (
-              <Badge key={nome} variant="secondary" className="font-normal">
-                {nome}
-              </Badge>
-            ))}
+            {visiveis.map((nome) => {
+              const href = hrefFor?.(nome);
+              const badge = (
+                <Badge variant="secondary" className={`font-normal ${href ? "hover:bg-secondary/70" : ""}`}>
+                  {nome}
+                </Badge>
+              );
+              return href ? (
+                <Link key={nome} to={href} onClick={(e) => e.stopPropagation()}>
+                  {badge}
+                </Link>
+              ) : (
+                <span key={nome}>{badge}</span>
+              );
+            })}
             {restantes > 0 && (
               <button
                 type="button"
@@ -286,13 +299,14 @@ export function DocumentacaoPendenteCard({
 
 // ---------- Funil de Carregamentos por Etapa ----------
 
-// Etapa 1 é só o estado inicial de criação do carregamento (nada aconteceu
-// ainda) — todo carregamento nasce nela, já que é criada automaticamente ao
-// cadastrar um agendamento. "Chegada" só é de fato registrada quando o
-// operador tira a foto da chegada e avança pra etapa 2 — por isso o rótulo
-// da etapa 1 é "Agendado", não "Chegada" (nome interno do banco pra essa
-// etapa, mas que descreve a ação PENDENTE nela, não o que já aconteceu).
-export const ETAPA_LABELS = ["Agendado", "Chegada", "Carregando", "Carregamento Finalizado", "Documentação"];
+// Mesmos 6 nomes de etapa usados em CarregamentoDetalhe.tsx (ETAPAS[].nome),
+// na mesma ordem (etapa_atual 1-6) — só a etapa 4 usa a forma por extenso
+// "Carregamento Finalizado" em vez de "Carreg. Finalizado", pra não ficar
+// ambíguo com a etapa 6 "Finalizado". Nenhuma reinterpretação: etapa_atual=1
+// mostra "Chegada" mesmo, igual ao resto do sistema — tentativas anteriores
+// de renomear isso pra "Agendado" (achando que ficaria mais "preciso") só
+// geraram confusão, porque todo o resto do app já usa esses 6 nomes.
+export const ETAPA_LABELS = ["Chegada", "Início Carregamento", "Carregando", "Carregamento Finalizado", "Documentação"];
 
 export interface EstiloEtapa {
   icon: LucideIcon;
@@ -406,7 +420,7 @@ export function ProximosAgendamentosCard({
           {lista.map((item) => (
             <Link
               key={item.id}
-              to="/agendamentos"
+              to={`/agendamentos?agendamentoId=${item.id}`}
               className="flex items-center justify-between gap-3 rounded border p-2.5 hover:bg-muted/50 transition-colors"
             >
               <div className="min-w-0">
@@ -434,6 +448,8 @@ export function ProximosAgendamentosCard({
 
 export interface EstoqueBaixoItem {
   id: string;
+  produtoId: string;
+  armazemId: string;
   produto: string;
   armazem: string;
   quantidade: number;
@@ -470,7 +486,7 @@ export function EstoqueBaixoCard({
           {lista.map((item) => (
             <Link
               key={item.id}
-              to="/estoque"
+              to={`/estoque/${item.produtoId}/${item.armazemId}`}
               className="flex items-center justify-between gap-3 rounded border p-2.5 hover:bg-muted/50 transition-colors"
             >
               <div className="min-w-0">

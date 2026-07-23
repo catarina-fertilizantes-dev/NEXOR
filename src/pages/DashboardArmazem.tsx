@@ -323,7 +323,7 @@ const DashboardArmazem = () => {
     queryFn: async (): Promise<EstoqueBaixoItem[]> => {
       const { data, error } = await supabase
         .from("estoque")
-        .select("id, quantidade, produtos(nome, unidade, estoque_minimo), armazens(nome)")
+        .select("id, produto_id, armazem_id, quantidade, produtos(nome, unidade, estoque_minimo), armazens(nome)")
         .eq("armazem_id", armazemId!);
       if (error) throw error;
 
@@ -331,6 +331,8 @@ const DashboardArmazem = () => {
         .filter((e: any) => e.produtos?.estoque_minimo != null && Number(e.quantidade) < Number(e.produtos.estoque_minimo))
         .map((e: any) => ({
           id: e.id as string,
+          produtoId: e.produto_id as string,
+          armazemId: e.armazem_id as string,
           produto: e.produtos?.nome ?? "Produto",
           armazem: e.armazens?.nome ?? "Armazém",
           quantidade: Number(e.quantidade),

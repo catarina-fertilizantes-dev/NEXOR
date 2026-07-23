@@ -948,6 +948,7 @@ export type Database = {
           cor_carregamento: string
           created_at: string
           data_chegada: string
+          data_documentacao: string
           data_retirada: string
           etapa_atual: number
           finalizado: boolean

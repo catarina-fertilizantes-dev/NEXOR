@@ -803,6 +803,16 @@ const Agendamentos = () => {
   const toggleStatus = (st: AgendamentoStatus) => setSelectedStatuses((prev) => (prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]));
   const clearFilters = () => { setSearch(""); setSelectedStatuses([]); setDateFrom(""); setDateTo(""); };
 
+  // Deep-link vindo do dashboard (ex: item de "Próximos Agendamentos"):
+  // ?agendamentoId= abre automaticamente o modal de detalhe daquele
+  // agendamento assim que a lista carrega.
+  const agendamentoIdParam = searchParams.get("agendamentoId");
+  useEffect(() => {
+    if (!agendamentoIdParam || detalhesAgendamento) return;
+    const match = agendamentos.find((a) => a.id === agendamentoIdParam);
+    if (match) setDetalhesAgendamento(match);
+  }, [agendamentoIdParam, agendamentos, detalhesAgendamento]);
+
   const { agendamentosAtivos, agendamentosFinalizados } = useMemo(() => {
     const filtered = agendamentos.filter((a) => {
       if (a.status === 'cancelado') return false;

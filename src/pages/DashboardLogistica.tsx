@@ -7,6 +7,7 @@ import {
   ClipboardX,
   Calendar,
   MapPin,
+  PlayCircle,
   Truck,
   PackageCheck,
   FileText,
@@ -61,17 +62,24 @@ const paraMeiaNoite = (iso: string) => {
   return d;
 };
 
+// Data de corte (hoje - N dias) em "YYYY-MM-DD", pro deep-link de "Sem
+// Agendamento" pré-preencher o filtro de período de Liberações.
+const formatarCutoffISO = (diasAtras: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - diasAtras);
+  return d.toISOString().slice(0, 10);
+};
+
 const formatT = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
-// Etapas do carregamento (etapa_atual 1-6). Etapa 1 é só o estado de criação
-// (nada aconteceu ainda — todo carregamento nasce nela, criada automaticamente
-// junto do agendamento). "Chegada" só é registrada de fato quando o operador
-// tira a foto da chegada e avança pra etapa 2. Cores/ícones reaproveitados de
-// CarregamentoDetalhe.tsx (ETAPAS[].cor) pra manter a mesma identidade visual
-// por etapa em todo o sistema.
+// Mesmos 6 nomes/etapas de CarregamentoDetalhe.tsx (ETAPAS[].nome), etapa_atual
+// 1-6, sem reinterpretação — só a etapa 4 usa a forma por extenso
+// "Carregamento Finalizado" em vez de "Carreg. Finalizado", pra não ficar
+// ambíguo com a etapa 6 "Finalizado". Cores reaproveitadas de ETAPAS[].cor
+// da mesma página, pra manter a mesma identidade visual por etapa no sistema.
 const ETAPAS_BREAKDOWN: Array<{ id: number; label: string; icon: LucideIcon; corIcone: string; corBarra: string }> = [
-  { id: 1, label: "Agendado", icon: Calendar, corIcone: "text-orange-600", corBarra: "bg-orange-500" },
-  { id: 2, label: "Chegada", icon: MapPin, corIcone: "text-blue-600", corBarra: "bg-blue-500" },
+  { id: 1, label: "Chegada", icon: MapPin, corIcone: "text-orange-600", corBarra: "bg-orange-500" },
+  { id: 2, label: "Início Carregamento", icon: PlayCircle, corIcone: "text-blue-600", corBarra: "bg-blue-500" },
   { id: 3, label: "Carregando", icon: Truck, corIcone: "text-purple-600", corBarra: "bg-purple-500" },
   { id: 4, label: "Carregamento Finalizado", icon: PackageCheck, corIcone: "text-indigo-600", corBarra: "bg-indigo-500" },
   { id: 5, label: "Documentação", icon: FileText, corIcone: "text-amber-600", corBarra: "bg-amber-500" },
@@ -174,7 +182,7 @@ function ControlePedidosCard({ itens, isLoading }: { itens: ControlePedidoItem[]
                   lista.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
-                        <Link to="/liberacoes" className="hover:underline underline-offset-2">
+                        <Link to={`/liberacoes?liberacaoId=${item.id}`} className="hover:underline underline-offset-2">
                           {item.cliente}
                         </Link>
                       </TableCell>
@@ -204,7 +212,7 @@ function ControlePedidosCard({ itens, isLoading }: { itens: ControlePedidoItem[]
 
 // ---------- Armazéns por Etapa (sempre tabela; clique mostra toneladas) ----------
 
-function CelulaComToneladas({ count, toneladas }: { count: number; toneladas: number }) {
+function CelulaComToneladas({ count, toneladas, corBarra }: { count: number; toneladas: number; corBarra: string }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -216,9 +224,17 @@ function CelulaComToneladas({ count, toneladas }: { count: number; toneladas: nu
             e.stopPropagation();
             setOpen((o) => !o);
           }}
-          className={`w-full text-center ${count > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+          className="flex w-full items-center justify-center py-1.5"
         >
-          {count}
+          {count > 0 ? (
+            <span
+              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold text-white ${corBarra}`}
+            >
+              {count}
+            </span>
+          ) : (
+            <span className="text-sm text-muted-foreground">0</span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="center">
@@ -286,7 +302,7 @@ function ArmazensPorEtapaCard({
                       const dado = a.porEtapa[e.id];
                       return (
                         <TableCell key={e.id} className="text-center text-sm p-0">
-                          <CelulaComToneladas count={dado?.count ?? 0} toneladas={dado?.toneladas ?? 0} />
+                          <CelulaComToneladas count={dado?.count ?? 0} toneladas={dado?.toneladas ?? 0} corBarra={e.corBarra} />
                         </TableCell>
                       );
                     })}
@@ -649,10 +665,11 @@ const DashboardLogistica = () => {
     refetchInterval: 60_000,
   });
 
-  // Etapa 1 (Agendado) não entra nessa métrica: data_retirada do agendamento
-  // é um DATE (sem horário), então não dá para medir atraso em minutos com
-  // precisão — e a chegada em si não é uma ação já registrada nessa etapa.
-  // Só etapas 2-5, com timestamp exato (ver ENTRADA_ETAPA_FIELD), contam.
+  // Etapa 1 (Chegada, ainda não confirmada) não entra nessa métrica:
+  // data_retirada do agendamento é um DATE (sem horário), então não dá pra
+  // medir atraso em minutos com precisão — e a chegada em si não é uma ação
+  // já registrada nessa etapa. Só etapas 2-5, com timestamp exato (ver
+  // ENTRADA_ETAPA_FIELD), contam.
   const { data: atrasadosInfo, isLoading: loadingCarregamentosAtrasados } = useQuery({
     queryKey: ["dash-carregamentos-atrasados"],
     queryFn: async () => {
@@ -734,9 +751,14 @@ const DashboardLogistica = () => {
         if (row.cliente_id && row.clientes?.nome) clientesMap.set(row.cliente_id, row.clientes.nome);
       });
 
+      const porNome = (m: Map<string, string>) =>
+        Array.from(m.entries())
+          .map(([id, nome]) => ({ id, nome }))
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
       return {
-        armazens: Array.from(armazensMap.values()).sort((a, b) => a.localeCompare(b)),
-        clientes: Array.from(clientesMap.values()).sort((a, b) => a.localeCompare(b)),
+        armazens: porNome(armazensMap),
+        clientes: porNome(clientesMap),
       };
     },
     refetchInterval: 60_000,
@@ -867,7 +889,7 @@ const DashboardLogistica = () => {
     queryFn: async (): Promise<EstoqueBaixoItem[]> => {
       let query = supabase
         .from("estoque")
-        .select("id, quantidade, produtos(nome, unidade, estoque_minimo), armazens(nome)");
+        .select("id, produto_id, armazem_id, quantidade, produtos(nome, unidade, estoque_minimo), armazens(nome)");
       if (filtroArmazens.length) query = query.in("armazem_id", filtroArmazens);
       if (filtroProdutos.length) query = query.in("produto_id", filtroProdutos);
       const { data, error } = await query;
@@ -877,6 +899,8 @@ const DashboardLogistica = () => {
         .filter((e: any) => e.produtos?.estoque_minimo != null && Number(e.quantidade) < Number(e.produtos.estoque_minimo))
         .map((e: any) => ({
           id: e.id as string,
+          produtoId: e.produto_id as string,
+          armazemId: e.armazem_id as string,
           produto: e.produtos?.nome ?? "Produto",
           armazem: e.armazens?.nome ?? "Armazém",
           quantidade: Number(e.quantidade),
@@ -978,7 +1002,7 @@ const DashboardLogistica = () => {
                 icon={Calendar}
                 variant="primary"
                 tooltip="Contagem e volume total das retiradas agendadas para hoje, em todos os armazéns."
-                to="/agendamentos?data=hoje"
+                to={agendadosHoje?.contagem ? "/agendamentos?data=hoje" : undefined}
               />
               <StatCard
                 title="Finalizados Hoje"
@@ -987,7 +1011,7 @@ const DashboardLogistica = () => {
                 variant="success"
                 highlightBg
                 tooltip="Processos de carregamento finalizados hoje (não é a quantidade de caminhões — cada carregamento é um processo completo, do agendamento à documentação)."
-                to="/carregamentos?status=finalizado"
+                to={carregamentosFinalizadosHoje ? "/carregamentos?status=finalizado&finalizadoHoje=1" : undefined}
               />
               <StatCard
                 title="Carregamentos Atrasados"
@@ -996,7 +1020,7 @@ const DashboardLogistica = () => {
                 variant="warning"
                 highlightBg
                 tooltip={dicaAtrasados}
-                onClick={() => setModalAtrasadosOpen(true)}
+                onClick={atrasadosInfo?.itens.length ? () => setModalAtrasadosOpen(true) : undefined}
               />
             </div>
 
@@ -1020,21 +1044,27 @@ const DashboardLogistica = () => {
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <EntityListCard
                 title="Armazéns com Operação Hoje"
-                tooltip="Armazéns que têm agendamento para hoje ou carregamento em andamento."
+                tooltip="Armazéns que têm agendamento para hoje ou carregamento em andamento. Clique num armazém pra ver os carregamentos dele."
                 icon={Warehouse}
-                names={operacoesHoje?.armazens}
+                names={operacoesHoje?.armazens.map((a) => a.nome)}
                 isLoading={loadingOperacoesHoje}
                 emptyLabel="Nenhum armazém com operação hoje."
-                to="/armazens"
+                hrefFor={(nome) => {
+                  const id = operacoesHoje?.armazens.find((a) => a.nome === nome)?.id;
+                  return id ? `/carregamentos?armazemId=${id}` : undefined;
+                }}
               />
               <EntityListCard
                 title="Clientes com Operação Hoje"
-                tooltip="Clientes que têm agendamento para hoje ou carregamento em andamento."
+                tooltip="Clientes que têm agendamento para hoje ou carregamento em andamento. Clique num cliente pra ver os carregamentos dele."
                 icon={Building2}
-                names={operacoesHoje?.clientes}
+                names={operacoesHoje?.clientes.map((c) => c.nome)}
                 isLoading={loadingOperacoesHoje}
                 emptyLabel="Nenhum cliente com operação hoje."
-                to="/clientes"
+                hrefFor={(nome) => {
+                  const id = operacoesHoje?.clientes.find((c) => c.nome === nome)?.id;
+                  return id ? `/carregamentos?clienteId=${id}` : undefined;
+                }}
               />
             </div>
           </section>
@@ -1051,7 +1081,7 @@ const DashboardLogistica = () => {
                 icon={ClipboardList}
                 variant="primary"
                 tooltip="Saldo (liberado − retirado) das liberações que ainda não estão 100% agendadas ou retiradas."
-                to="/liberacoes"
+                to={emAberto.pedidos ? "/liberacoes" : undefined}
               />
               <StatCard
                 title="Sem Agendamento"
@@ -1068,7 +1098,11 @@ const DashboardLogistica = () => {
                     ? "Liberações sem nenhum agendamento, além do prazo configurado."
                     : `Liberações sem nenhum agendamento, criadas há mais de ${semAgendamento?.prazoMaximoDias ?? 10} dias.`
                 }
-                to="/liberacoes"
+                to={
+                  semAgendamento?.count
+                    ? `/liberacoes?status=disponivel&antesDe=${formatarCutoffISO(semAgendamento.prazoMaximoDias)}`
+                    : undefined
+                }
               />
             </div>
 
