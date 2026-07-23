@@ -6,9 +6,8 @@ import {
   ClipboardList,
   ClipboardX,
   Calendar,
-  Truck,
   MapPin,
-  PlayCircle,
+  Truck,
   PackageCheck,
   FileText,
   CheckCircle2,
@@ -19,6 +18,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Info,
   LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +29,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   startOfDayISO,
   endOfDayISO,
@@ -41,6 +42,7 @@ import {
   SUB_ETAPAS_DOCUMENTACAO,
   FunilEtapasCard,
   ETAPA_LABELS,
+  EstiloEtapa,
   ProximosAgendamentosCard,
   ProximoAgendamentoItem,
   EstoqueBaixoCard,
@@ -61,19 +63,25 @@ const paraMeiaNoite = (iso: string) => {
 
 const formatT = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
-const LIMITE_CARDS_ARMAZEM = 4;
-
-// Ícones por etapa, reaproveitados no Funil e no card Armazéns por Etapa
-// (mesmo ícone = mesma etapa em todo o dashboard).
-const ETAPAS_BREAKDOWN: Array<{ id: number; label: string; icon: LucideIcon }> = [
-  { id: 1, label: "Chegada", icon: MapPin },
-  { id: 2, label: "Início Carreg.", icon: PlayCircle },
-  { id: 3, label: "Carregando", icon: Truck },
-  { id: 4, label: "Carreg. Finalizado", icon: PackageCheck },
-  { id: 5, label: "Documentação", icon: FileText },
-  { id: 6, label: "Finalizado", icon: CheckCircle2 },
+// Etapas do carregamento (etapa_atual 1-6). Etapa 1 é só o estado de criação
+// (nada aconteceu ainda — todo carregamento nasce nela, criada automaticamente
+// junto do agendamento). "Chegada" só é registrada de fato quando o operador
+// tira a foto da chegada e avança pra etapa 2. Cores/ícones reaproveitados de
+// CarregamentoDetalhe.tsx (ETAPAS[].cor) pra manter a mesma identidade visual
+// por etapa em todo o sistema.
+const ETAPAS_BREAKDOWN: Array<{ id: number; label: string; icon: LucideIcon; corIcone: string; corBarra: string }> = [
+  { id: 1, label: "Agendado", icon: Calendar, corIcone: "text-orange-600", corBarra: "bg-orange-500" },
+  { id: 2, label: "Chegada", icon: MapPin, corIcone: "text-blue-600", corBarra: "bg-blue-500" },
+  { id: 3, label: "Carregando", icon: Truck, corIcone: "text-purple-600", corBarra: "bg-purple-500" },
+  { id: 4, label: "Carregamento Finalizado", icon: PackageCheck, corIcone: "text-indigo-600", corBarra: "bg-indigo-500" },
+  { id: 5, label: "Documentação", icon: FileText, corIcone: "text-amber-600", corBarra: "bg-amber-500" },
+  { id: 6, label: "Finalizado", icon: CheckCircle2, corIcone: "text-green-600", corBarra: "bg-green-500" },
 ];
-const FUNIL_ICONES = ETAPAS_BREAKDOWN.slice(0, 5).map((e) => e.icon);
+const FUNIL_ESTILOS: EstiloEtapa[] = ETAPAS_BREAKDOWN.slice(0, 5).map((e) => ({
+  icon: e.icon,
+  corIcone: e.corIcone,
+  corBarra: e.corBarra,
+}));
 
 interface ControlePedidoItem {
   id: string;
@@ -114,6 +122,15 @@ interface TemposArmazemRow {
   finalizadoAte1Doc: number | null;
   doc1AteDoc2: number | null;
   doc2AteFinalizacao: number | null;
+}
+
+interface CarregamentoAtrasadoItem {
+  id: string;
+  cliente: string;
+  armazem: string;
+  etapaLabel: string;
+  minutosDecorridos: number;
+  limiteMinutos: number;
 }
 
 // ---------- Controle de Pedidos ----------
@@ -185,7 +202,31 @@ function ControlePedidosCard({ itens, isLoading }: { itens: ControlePedidoItem[]
   );
 }
 
-// ---------- Armazéns por Etapa (card completo ou tabela compacta) ----------
+// ---------- Armazéns por Etapa (sempre tabela; clique mostra toneladas) ----------
+
+function CelulaComToneladas({ count, toneladas }: { count: number; toneladas: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen((o) => !o);
+          }}
+          className={`w-full text-center ${count > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+        >
+          {count}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="center">
+        <p className="text-sm">{formatT(toneladas)} t</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function ArmazensPorEtapaCard({
   armazensExibidos,
@@ -197,7 +238,6 @@ function ArmazensPorEtapaCard({
   isLoading: boolean;
 }) {
   const mapaBreakdown = useMemo(() => new Map((breakdown ?? []).map((r) => [r.armazemId, r])), [breakdown]);
-  const modoCard = armazensExibidos.length > 0 && armazensExibidos.length <= LIMITE_CARDS_ARMAZEM;
 
   const dados = armazensExibidos.map((a) => ({
     armazemId: a.id,
@@ -210,7 +250,7 @@ function ArmazensPorEtapaCard({
       <CardHeader className="pb-3">
         <TitleWithInfo
           title="Armazéns por Etapa"
-          tooltip="Quantidade de carregamentos em cada etapa, por armazém. Números diferentes de zero aparecem em destaque."
+          tooltip="Quantidade de carregamentos em cada etapa, por armazém. Clique num número pra ver o total em toneladas."
         />
       </CardHeader>
       <CardContent className="pt-0">
@@ -218,94 +258,72 @@ function ArmazensPorEtapaCard({
           <p className="text-xs text-muted-foreground">Carregando…</p>
         ) : dados.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum armazém encontrado.</p>
-        ) : modoCard ? (
-          <div
-            className={`grid grid-cols-1 gap-4 ${dados.length > 1 ? "md:grid-cols-2" : ""} ${
-              dados.length > 2 ? "xl:grid-cols-3" : ""
-            }`}
-          >
-            {dados.map((a) => (
-              <div key={a.armazemId} className="rounded-lg border p-3">
-                <Link to="/armazens" className="text-sm font-semibold hover:underline underline-offset-2">
-                  {a.nome}
-                </Link>
-                <div className="mt-2 space-y-1.5">
-                  {ETAPAS_BREAKDOWN.map((e) => {
-                    const dado = a.porEtapa[e.id];
-                    const count = dado?.count ?? 0;
-                    const Icon = e.icon;
-                    return (
-                      <div
-                        key={e.id}
-                        className={`flex items-center gap-1.5 text-xs ${
-                          count > 0 ? "font-semibold text-foreground" : "text-muted-foreground"
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5 shrink-0" />
-                        <span>
-                          {e.label} - {count} - {formatT(dado?.toneladas ?? 0)} t
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
         ) : (
-          <TooltipProvider>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Armazém</TableHead>
-                    {ETAPAS_BREAKDOWN.map((e) => (
-                      <TableHead key={e.id} className="text-center text-xs">
-                        <span className="inline-flex items-center gap-1">
-                          <e.icon className="h-3.5 w-3.5" />
-                          {e.label}
-                        </span>
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dados.map((a) => (
-                    <TableRow key={a.armazemId}>
-                      <TableCell className="font-medium">
-                        <Link to="/armazens" className="hover:underline underline-offset-2">
-                          {a.nome}
-                        </Link>
-                      </TableCell>
-                      {ETAPAS_BREAKDOWN.map((e) => {
-                        const dado = a.porEtapa[e.id];
-                        const count = dado?.count ?? 0;
-                        return (
-                          <TableCell key={e.id} className="text-center text-sm">
-                            <Tooltip delayDuration={100}>
-                              <TooltipTrigger asChild>
-                                <span
-                                  className={`cursor-default ${count > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}
-                                >
-                                  {count}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{formatT(dado?.toneladas ?? 0)} t</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Armazém</TableHead>
+                  {ETAPAS_BREAKDOWN.map((e) => (
+                    <TableHead key={e.id} className="text-center text-xs">
+                      <span className="inline-flex items-center gap-1">
+                        <e.icon className={`h-3.5 w-3.5 ${e.corIcone}`} />
+                        {e.label}
+                      </span>
+                    </TableHead>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          </TooltipProvider>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dados.map((a) => (
+                  <TableRow key={a.armazemId}>
+                    <TableCell className="font-medium">
+                      <Link to="/armazens" className="hover:underline underline-offset-2">
+                        {a.nome}
+                      </Link>
+                    </TableCell>
+                    {ETAPAS_BREAKDOWN.map((e) => {
+                      const dado = a.porEtapa[e.id];
+                      return (
+                        <TableCell key={e.id} className="text-center text-sm p-0">
+                          <CelulaComToneladas count={dado?.count ?? 0} toneladas={dado?.toneladas ?? 0} />
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ---------- Título de coluna com dica clicável (sem hover, funciona em touch) ----------
+
+function ColunaComDica({ label, dica }: { label: string; dica: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="inline-flex items-center gap-1">
+      {label}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Info
+            className="h-3 w-3 text-muted-foreground/70 cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen((o) => !o);
+            }}
+          />
+        </PopoverTrigger>
+        <PopoverContent className="w-auto max-w-[220px] p-2">
+          <p className="text-xs">{dica}</p>
+        </PopoverContent>
+      </Popover>
+    </span>
   );
 }
 
@@ -344,20 +362,20 @@ function PerformancePorArmazemCard({ dados, isLoading }: { dados: TemposArmazemR
                   </TableHead>
                 </TableRow>
                 <TableRow>
-                  <TableHead className="border-l text-xs" title="Chegada até início do carregamento">
-                    Espera
+                  <TableHead className="border-l text-xs">
+                    <ColunaComDica label="Espera" dica="Chegada até início do carregamento" />
                   </TableHead>
-                  <TableHead className="text-xs" title="Início até finalização do carregamento">
-                    Carregamento
+                  <TableHead className="text-xs">
+                    <ColunaComDica label="Carregamento" dica="Início até finalização do carregamento" />
                   </TableHead>
-                  <TableHead className="border-l text-xs" title="Carregamento finalizado até o 1º documento (armazém)">
-                    Finalizado → 1º Doc
+                  <TableHead className="border-l text-xs">
+                    <ColunaComDica label="Finalizado → 1º Doc" dica="Carregamento finalizado até o 1º documento (armazém)" />
                   </TableHead>
-                  <TableHead className="text-xs" title="1º documento (armazém) até 2º documento (logística)">
-                    1º → 2º Doc
+                  <TableHead className="text-xs">
+                    <ColunaComDica label="1º → 2º Doc" dica="1º documento (armazém) até 2º documento (logística)" />
                   </TableHead>
-                  <TableHead className="text-xs" title="2º documento (logística) até a finalização (armazém)">
-                    2º Doc → Fim
+                  <TableHead className="text-xs">
+                    <ColunaComDica label="2º Doc → Fim" dica="2º documento (logística) até a finalização (armazém)" />
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -407,6 +425,7 @@ const DashboardLogistica = () => {
   const [filtroArmazens, setFiltroArmazens] = useState<string[]>([]);
   const [filtroProdutos, setFiltroProdutos] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [modalAtrasadosOpen, setModalAtrasadosOpen] = useState(false);
 
   const toggleArmazem = (id: string) =>
     setFiltroArmazens((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
@@ -553,13 +572,13 @@ const DashboardLogistica = () => {
     refetchInterval: 60_000,
   });
 
-  // Base única pra Funil / Armazéns por Etapa / Chegada / Carregando: todos os
-  // carregamentos (todas as etapas, inclusive finalizados — necessário pro
-  // card Armazéns por Etapa mostrar o total histórico por etapa). Sem limite
-  // de data: se o volume de carregamentos finalizados crescer muito ao longo
-  // do tempo, essa query vai buscando cada vez mais linhas — não é um
-  // problema agora (poucos meses de operação), mas é candidato a otimização
-  // futura (ex: paginar ou limitar por período) se a base crescer bastante.
+  // Base única pra Funil / Armazéns por Etapa: todos os carregamentos (todas
+  // as etapas, inclusive finalizados — necessário pro card Armazéns por
+  // Etapa mostrar o total histórico por etapa). Sem limite de data: se o
+  // volume de carregamentos finalizados crescer muito ao longo do tempo, essa
+  // query vai buscando cada vez mais linhas — não é um problema agora (poucos
+  // meses de operação), mas é candidato a otimização futura (ex: paginar ou
+  // limitar por período) se a base crescer bastante.
   const { data: carregamentosAtivos, isLoading: loadingCarregamentosAtivos } = useQuery({
     queryKey: ["dash-carregamentos-ativos", filtroArmazens, filtroProdutos],
     queryFn: async (): Promise<CarregamentoAtivoRow[]> => {
@@ -615,33 +634,6 @@ const DashboardLogistica = () => {
     }));
   }, [carregamentosAtivos]);
 
-  // "Chegada": agendamentos cujo caminhão já chegou no armazém (etapas 2 a 5
-  // — chegou mas ainda não finalizou, definição confirmada com o time).
-  const chegadaAtual = useMemo(() => {
-    let count = 0;
-    let volume = 0;
-    (carregamentosAtivos ?? []).forEach((c) => {
-      if (c.etapa >= 2 && c.etapa <= 5) {
-        count += 1;
-        volume += c.toneladas;
-      }
-    });
-    return { count, volume };
-  }, [carregamentosAtivos]);
-
-  // "Carregando": carregamentos em Início Carregamento (2) ou Carregando (3).
-  const carregandoAtual = useMemo(() => {
-    let count = 0;
-    let volume = 0;
-    (carregamentosAtivos ?? []).forEach((c) => {
-      if (c.etapa === 2 || c.etapa === 3) {
-        count += 1;
-        volume += c.toneladas;
-      }
-    });
-    return { count, volume };
-  }, [carregamentosAtivos]);
-
   const { data: carregamentosFinalizadosHoje, isLoading: loadingCarregamentosFinalizadosHoje } = useQuery({
     queryKey: ["dash-carregamentos-finalizados-hoje"],
     queryFn: async () => {
@@ -657,11 +649,11 @@ const DashboardLogistica = () => {
     refetchInterval: 60_000,
   });
 
-  // Etapa 1 (aguardando chegada) não entra nessa métrica: data_retirada do
-  // agendamento é um DATE (sem horário), então não dá para medir atraso em
-  // minutos com precisão — e a chegada em si não é uma ação já registrada.
+  // Etapa 1 (Agendado) não entra nessa métrica: data_retirada do agendamento
+  // é um DATE (sem horário), então não dá para medir atraso em minutos com
+  // precisão — e a chegada em si não é uma ação já registrada nessa etapa.
   // Só etapas 2-5, com timestamp exato (ver ENTRADA_ETAPA_FIELD), contam.
-  const { data: carregamentosAtrasados, isLoading: loadingCarregamentosAtrasados } = useQuery({
+  const { data: atrasadosInfo, isLoading: loadingCarregamentosAtrasados } = useQuery({
     queryKey: ["dash-carregamentos-atrasados"],
     queryFn: async () => {
       const [{ data: config, error: configError }, { data: emAndamento, error: carregamentosError }] =
@@ -669,7 +661,7 @@ const DashboardLogistica = () => {
           supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos"),
           supabase
             .from("carregamentos")
-            .select("id,etapa_atual,data_chegada,data_inicio,data_carregando,data_finalizacao")
+            .select("id,etapa_atual,data_chegada,data_inicio,data_carregando,data_finalizacao,clientes(nome),armazens(nome)")
             .gte("etapa_atual", 2)
             .lt("etapa_atual", 6),
         ]);
@@ -679,14 +671,31 @@ const DashboardLogistica = () => {
       const limites = new Map((config ?? []).map((c) => [c.etapa, c.tempo_maximo_minutos]));
       const agora = Date.now();
 
-      return (emAndamento ?? []).filter((c: any) => {
-        const limiteMinutos = limites.get(c.etapa_atual);
-        if (!limiteMinutos) return false;
-        const entradaISO = c[ENTRADA_ETAPA_FIELD[c.etapa_atual] as string];
-        if (!entradaISO) return false;
-        const minutosDecorridos = (agora - new Date(entradaISO).getTime()) / 60_000;
-        return minutosDecorridos > limiteMinutos;
-      }).length;
+      const itens: CarregamentoAtrasadoItem[] = (emAndamento ?? [])
+        .map((c: any) => {
+          const limiteMinutos = limites.get(c.etapa_atual);
+          if (!limiteMinutos) return null;
+          const entradaISO = c[ENTRADA_ETAPA_FIELD[c.etapa_atual] as string];
+          if (!entradaISO) return null;
+          const minutosDecorridos = (agora - new Date(entradaISO).getTime()) / 60_000;
+          if (minutosDecorridos <= limiteMinutos) return null;
+          return {
+            id: c.id as string,
+            cliente: c.clientes?.nome ?? "Cliente",
+            armazem: c.armazens?.nome ?? "Armazém",
+            etapaLabel: ETAPA_LABELS[c.etapa_atual - 1] ?? `Etapa ${c.etapa_atual}`,
+            minutosDecorridos: Math.round(minutosDecorridos),
+            limiteMinutos,
+          };
+        })
+        .filter((x: CarregamentoAtrasadoItem | null): x is CarregamentoAtrasadoItem => x !== null);
+
+      const limitesPorEtapa = ETAPA_LABELS.map((label, index) => ({
+        label,
+        minutos: limites.get(index + 1) ?? null,
+      })).filter((l): l is { label: string; minutos: number } => l.minutos != null);
+
+      return { itens, limitesPorEtapa };
     },
     refetchInterval: 60_000,
   });
@@ -738,7 +747,9 @@ const DashboardLogistica = () => {
     queryFn: async (): Promise<DocumentacaoPendenteItem[]> => {
       const { data, error } = await supabase
         .from("carregamentos")
-        .select("id, etapa_5a_status, etapa_5b_status, etapa_5c_status, clientes(nome), armazens(nome)")
+        .select(
+          "id, etapa_5a_status, etapa_5b_status, etapa_5c_status, clientes(nome), armazens(nome), agendamentos(liberacoes(pedido_interno))"
+        )
         .eq("etapa_atual", 5);
       if (error) throw error;
 
@@ -747,6 +758,7 @@ const DashboardLogistica = () => {
           id: c.id as string,
           cliente: c.clientes?.nome ?? "Cliente",
           armazem: c.armazens?.nome ?? "Armazém",
+          pedido: c.agendamentos?.liberacoes?.pedido_interno ?? "-",
           pendencias: SUB_ETAPAS_DOCUMENTACAO.filter((sub) => c[sub.campo] !== "concluida").map((sub) => ({
             label: sub.label,
             responsavel: sub.responsavel,
@@ -875,6 +887,11 @@ const DashboardLogistica = () => {
     refetchInterval: 120_000,
   });
 
+  const dicaAtrasados =
+    !loadingCarregamentosAtrasados && atrasadosInfo?.limitesPorEtapa.length
+      ? `Prazo por etapa: ${atrasadosInfo.limitesPorEtapa.map((l) => `${l.label} ${l.minutos}min`).join(" • ")}`
+      : "Carregamentos parados na etapa atual além do limite configurado para essa etapa.";
+
   return (
     <div className="container mx-auto px-4 md:px-6 py-6">
       <PageHeader title="Dashboard" subtitle="Visão geral das operações de logística" icon={LayoutDashboard} />
@@ -953,7 +970,7 @@ const DashboardLogistica = () => {
             <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Gestão de Armazéns
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <StatCard
                 title="Agendados Hoje"
                 value={loadingAgendadosHoje ? "…" : `${formatT(agendadosHoje?.volume ?? 0)} t`}
@@ -961,46 +978,30 @@ const DashboardLogistica = () => {
                 icon={Calendar}
                 variant="primary"
                 tooltip="Contagem e volume total das retiradas agendadas para hoje, em todos os armazéns."
-                to="/agendamentos"
-              />
-              <StatCard
-                title="Chegada"
-                value={loadingCarregamentosAtivos ? "…" : `${formatT(chegadaAtual.volume)} t`}
-                subtitle={loadingCarregamentosAtivos ? undefined : `${chegadaAtual.count} caminhão(ões)`}
-                icon={MapPin}
-                variant="primary"
-                tooltip="Agendamentos cujo caminhão já chegou no armazém e ainda não finalizou."
-                to="/carregamentos"
-              />
-              <StatCard
-                title="Carregando"
-                value={loadingCarregamentosAtivos ? "…" : `${formatT(carregandoAtual.volume)} t`}
-                subtitle={loadingCarregamentosAtivos ? undefined : `${carregandoAtual.count} carregamento(s)`}
-                icon={Truck}
-                variant="primary"
-                tooltip="Carregamentos em Início de Carregamento ou Carregando agora."
-                to="/carregamentos"
+                to="/agendamentos?data=hoje"
               />
               <StatCard
                 title="Finalizados Hoje"
                 value={loadingCarregamentosFinalizadosHoje ? "…" : carregamentosFinalizadosHoje ?? 0}
                 icon={CheckCircle2}
                 variant="success"
-                tooltip="Carregamentos que foram finalizados hoje."
-                to="/carregamentos"
+                highlightBg
+                tooltip="Processos de carregamento finalizados hoje (não é a quantidade de caminhões — cada carregamento é um processo completo, do agendamento à documentação)."
+                to="/carregamentos?status=finalizado"
               />
               <StatCard
                 title="Carregamentos Atrasados"
-                value={loadingCarregamentosAtrasados ? "…" : carregamentosAtrasados ?? 0}
+                value={loadingCarregamentosAtrasados ? "…" : atrasadosInfo?.itens.length ?? 0}
                 icon={AlertTriangle}
                 variant="warning"
-                tooltip="Carregamentos parados na etapa atual há mais tempo do que o limite configurado para essa etapa."
-                to="/carregamentos"
+                highlightBg
+                tooltip={dicaAtrasados}
+                onClick={() => setModalAtrasadosOpen(true)}
               />
             </div>
 
             <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <FunilEtapasCard data={funilEtapas} isLoading={loadingCarregamentosAtivos} icones={FUNIL_ICONES} />
+              <FunilEtapasCard data={funilEtapas} isLoading={loadingCarregamentosAtivos} estilos={FUNIL_ESTILOS} />
               <DocumentacaoPendenteCard itens={documentacaoPendente} isLoading={loadingDocumentacaoPendente} />
             </div>
 
@@ -1062,7 +1063,11 @@ const DashboardLogistica = () => {
                 }
                 icon={ClipboardX}
                 variant="warning"
-                tooltip="Liberações sem nenhum agendamento, criadas há mais dias do que o prazo configurado."
+                tooltip={
+                  loadingSemAgendamento
+                    ? "Liberações sem nenhum agendamento, além do prazo configurado."
+                    : `Liberações sem nenhum agendamento, criadas há mais de ${semAgendamento?.prazoMaximoDias ?? 10} dias.`
+                }
                 to="/liberacoes"
               />
             </div>
@@ -1084,6 +1089,41 @@ const DashboardLogistica = () => {
           </section>
         </div>
       </div>
+
+      <Dialog open={modalAtrasadosOpen} onOpenChange={setModalAtrasadosOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-lg max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Carregamentos Atrasados</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {(atrasadosInfo?.itens.length ?? 0) === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum carregamento atrasado no momento.</p>
+            ) : (
+              atrasadosInfo!.itens.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/carregamentos/${item.id}`}
+                  onClick={() => setModalAtrasadosOpen(false)}
+                  className="flex items-center justify-between gap-3 rounded border p-2.5 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="text-sm min-w-0">
+                    <span className="font-medium">{item.cliente}</span>
+                    <span className="text-muted-foreground"> • {item.armazem}</span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 font-normal">
+                      {item.etapaLabel}
+                    </Badge>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {item.minutosDecorridos}min (limite {item.limiteMinutos}min)
+                    </p>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

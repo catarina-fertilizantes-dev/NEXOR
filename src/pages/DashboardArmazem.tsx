@@ -264,7 +264,9 @@ const DashboardArmazem = () => {
     queryFn: async (): Promise<DocumentacaoPendenteItem[]> => {
       const { data, error } = await supabase
         .from("carregamentos")
-        .select("id, etapa_5a_status, etapa_5b_status, etapa_5c_status, clientes(nome), armazens(nome)")
+        .select(
+          "id, etapa_5a_status, etapa_5b_status, etapa_5c_status, clientes(nome), armazens(nome), agendamentos(liberacoes(pedido_interno))"
+        )
         .eq("armazem_id", armazemId!)
         .eq("etapa_atual", 5);
       if (error) throw error;
@@ -274,6 +276,7 @@ const DashboardArmazem = () => {
           id: c.id as string,
           cliente: c.clientes?.nome ?? "Cliente",
           armazem: c.armazens?.nome ?? "Armazém",
+          pedido: c.agendamentos?.liberacoes?.pedido_interno ?? "-",
           pendencias: SUB_ETAPAS_DOCUMENTACAO.filter((sub) => c[sub.campo] !== "concluida").map((sub) => ({
             label: sub.label,
             responsavel: sub.responsavel,

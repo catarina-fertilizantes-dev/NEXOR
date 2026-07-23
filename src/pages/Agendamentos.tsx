@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -789,9 +789,15 @@ const Agendamentos = () => {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  // Deep-link vindo do dashboard (ex: card "Agendados Hoje"): ?data=hoje
+  // pré-seleciona o filtro de período pro dia de hoje.
+  const filtroInicialData = searchParams.get("data") === "hoje" ? hojeISO : "";
+
   const [selectedStatuses, setSelectedStatuses] = useState<AgendamentoStatus[]>([]);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(filtroInicialData);
+  const [dateTo, setDateTo] = useState(filtroInicialData);
 
   const allStatuses: AgendamentoStatus[] = ["pendente", "em_andamento", "concluido"];
   const toggleStatus = (st: AgendamentoStatus) => setSelectedStatuses((prev) => (prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]));

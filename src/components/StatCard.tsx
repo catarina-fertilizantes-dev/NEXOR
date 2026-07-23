@@ -16,9 +16,24 @@ interface StatCardProps {
   variant?: "default" | "primary" | "success" | "warning";
   tooltip?: string;
   to?: string;
+  /** Fundo levemente colorido no card inteiro (não só no ícone), pra destacar cards de status/alerta. Só some visualmente pra variant success/warning. */
+  highlightBg?: boolean;
+  /** Alternativa a `to`: abre algo local (ex: modal) em vez de navegar. Ignorado se `to` também for passado. */
+  onClick?: () => void;
 }
 
-export const StatCard = ({ title, value, subtitle, icon: Icon, trend, variant = "default", tooltip, to }: StatCardProps) => {
+export const StatCard = ({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  variant = "default",
+  tooltip,
+  to,
+  highlightBg,
+  onClick,
+}: StatCardProps) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const gradientClass = {
     default: "",
@@ -34,9 +49,14 @@ export const StatCard = ({ title, value, subtitle, icon: Icon, trend, variant = 
     warning: gradientClass,
   }[variant];
 
+  const highlightBgClass = highlightBg
+    ? { default: "", primary: "", success: "bg-green-50", warning: "bg-amber-50" }[variant]
+    : "";
+
   const card = (
     <Card
-      className={`h-full flex flex-col overflow-hidden transition-all hover:shadow-md ${to ? "cursor-pointer hover:border-primary/40" : ""}`}
+      className={`h-full flex flex-col overflow-hidden transition-all hover:shadow-md ${highlightBgClass} ${to || onClick ? "cursor-pointer hover:border-primary/40" : ""}`}
+      onClick={!to ? onClick : undefined}
     >
       <CardContent className="flex-1 flex items-center p-6">
         <div className="flex w-full items-center justify-between">

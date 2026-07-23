@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -261,9 +261,17 @@ const Carregamentos = () => {
     });
   }, [carregamentosData]);
 
+  const [searchParams] = useSearchParams();
+  // Deep-link vindo do dashboard (ex: card "Finalizados Hoje"): ?status=finalizado
+  // pré-seleciona o filtro de status. Não filtra por data porque esta página
+  // filtra por data_retirada (agendada), não pela data real de finalização —
+  // então "hoje" aqui mostraria carregamentos agendados pra hoje, não
+  // finalizados hoje. Fica só o filtro de status por enquanto.
+  const filtroInicialStatus = searchParams.get("status") === "finalizado" ? ["Finalizado"] : [];
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(filtroInicialStatus);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -304,10 +312,14 @@ const Carregamentos = () => {
   }, [carregamentos, search, selectedStatus, dateFrom, dateTo]);
 
   useEffect(() => {
-    if (search.trim() && carregamentosFinalizados.length > 0 && !secaoFinalizadosExpandida) {
+    if (
+      (search.trim() || selectedStatus.includes("Finalizado")) &&
+      carregamentosFinalizados.length > 0 &&
+      !secaoFinalizadosExpandida
+    ) {
       setSecaoFinalizadosExpandida(true);
     }
-  }, [search, carregamentosFinalizados.length, secaoFinalizadosExpandida]);
+  }, [search, selectedStatus, carregamentosFinalizados.length, secaoFinalizadosExpandida]);
 
   const showingCount = carregamentosAtivos.length + carregamentosFinalizados.length;
   const totalCount = carregamentos.length;
@@ -331,7 +343,10 @@ const Carregamentos = () => {
               <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 shrink-0">
                 <Truck className="h-4 w-4 md:h-5 md:w-5 text-amber-600 dark:text-amber-400" />
               </div>
-              <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {carr.pedido}</h3>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {carr.pedido}</h3>
+                <p className="text-xs text-muted-foreground font-mono">{formatPlaca(carr.placa)}</p>
+              </div>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
               <Popover>

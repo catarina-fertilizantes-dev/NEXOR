@@ -192,6 +192,7 @@ export interface DocumentacaoPendenteItem {
   id: string;
   cliente: string;
   armazem: string;
+  pedido: string;
   pendencias: Array<{ label: string; responsavel: Responsavel }>;
 }
 
@@ -254,11 +255,14 @@ export function DocumentacaoPendenteCard({
             <Link
               key={item.id}
               to={`/carregamentos/${item.id}`}
-              className="flex flex-wrap items-center justify-between gap-2 rounded border p-2.5 hover:bg-muted/50 transition-colors"
+              className="flex flex-col gap-1.5 rounded border p-2.5 hover:bg-muted/50 transition-colors"
             >
-              <div className="text-sm min-w-0">
-                <span className="font-medium">{item.cliente}</span>
-                <span className="text-muted-foreground"> • {item.armazem}</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm min-w-0">
+                <span className="min-w-0">
+                  <span className="font-medium">{item.cliente}</span>
+                  <span className="text-muted-foreground"> • {item.armazem}</span>
+                </span>
+                <span className="text-xs text-muted-foreground shrink-0">Pedido {item.pedido}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {item.pendencias.map((p) => {
@@ -282,23 +286,35 @@ export function DocumentacaoPendenteCard({
 
 // ---------- Funil de Carregamentos por Etapa ----------
 
-export const ETAPA_LABELS = ["Chegada", "Início", "Carregando", "Finalizado", "Documentação"];
+// Etapa 1 é só o estado inicial de criação do carregamento (nada aconteceu
+// ainda) — todo carregamento nasce nela, já que é criada automaticamente ao
+// cadastrar um agendamento. "Chegada" só é de fato registrada quando o
+// operador tira a foto da chegada e avança pra etapa 2 — por isso o rótulo
+// da etapa 1 é "Agendado", não "Chegada" (nome interno do banco pra essa
+// etapa, mas que descreve a ação PENDENTE nela, não o que já aconteceu).
+export const ETAPA_LABELS = ["Agendado", "Chegada", "Carregando", "Carregamento Finalizado", "Documentação"];
+
+export interface EstiloEtapa {
+  icon: LucideIcon;
+  corIcone: string;
+  corBarra: string;
+}
 
 // Quantos carregamentos ativos (etapa < 6) estão em cada etapa agora —
 // mostra visualmente onde a operação está represada. `toneladas` é opcional
 // (soma da quantidade dos agendamentos ligados) e soma assumindo que todo
 // produto está em toneladas — hoje é o caso real; se produtos em kg entrarem
-// em uso, essa soma bruta passa a precisar de conversão. `icones` é uma lista
-// paralela a `data` (mesma ordem/tamanho), pra manter o mesmo ícone usado nos
-// outros cards de etapa (ex: Armazéns por Etapa).
+// em uso, essa soma bruta passa a precisar de conversão. `estilos` é uma
+// lista paralela a `data` (mesma ordem/tamanho), pra manter o mesmo
+// ícone/cor usado nos outros cards de etapa (ex: Armazéns por Etapa).
 export function FunilEtapasCard({
   data,
   isLoading,
-  icones,
+  estilos,
 }: {
   data: Array<{ etapa: string; quantidade: number; toneladas?: number }> | undefined;
   isLoading: boolean;
-  icones?: LucideIcon[];
+  estilos?: EstiloEtapa[];
 }) {
   const chartData = data ?? [];
   const semDados = chartData.every((d) => d.quantidade === 0);
@@ -318,13 +334,14 @@ export function FunilEtapasCard({
         ) : (
           <div className="space-y-3">
             {chartData.map((d, i) => {
-              const Icon = icones?.[i];
+              const estilo = estilos?.[i];
+              const Icon = estilo?.icon;
               const pct = Math.round((d.quantidade / maxQuantidade) * 100);
               return (
                 <div key={d.etapa} className="space-y-1">
                   <div className="flex items-center justify-between text-xs gap-2">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
+                      {Icon && <Icon className={`h-3.5 w-3.5 shrink-0 ${estilo?.corIcone ?? ""}`} />}
                       {d.etapa}
                     </span>
                     <span className="font-medium text-foreground shrink-0">
@@ -336,7 +353,7 @@ export function FunilEtapasCard({
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${d.etapa === "Documentação" ? "bg-warning" : "bg-primary"}`}
+                      className={`h-full rounded-full ${estilo?.corBarra ?? "bg-primary"}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
