@@ -50,7 +50,7 @@ export const StatCard = ({
   }[variant];
 
   const highlightBgClass = highlightBg
-    ? { default: "", primary: "", success: "bg-green-50", warning: "bg-amber-50" }[variant]
+    ? { default: "", primary: "", success: "bg-green-100", warning: "bg-amber-100" }[variant]
     : "";
 
   const card = (
