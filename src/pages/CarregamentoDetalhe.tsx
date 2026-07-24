@@ -156,6 +156,12 @@ const ETAPAS = [
   },
 ];
 
+// Etapa 6 não é um passo do stepper visual (não tem ação própria) — existe só
+// como status agregado (badge "Etapa Atual", cor/nome). O stepper mostra só 1-5;
+// quando etapa_atual chega a 6, os 5 círculos ficam verdes e o painel de
+// processo finalizado é exibido separadamente.
+const ETAPAS_TIMELINE = ETAPAS.filter((e) => e.id !== 6);
+
 const formatarDataHora = (v?: string | null) => {
   if (!v) return "-";
   const d = new Date(v);
@@ -717,7 +723,7 @@ const CarregamentoDetalhe = () => {
         {/* Container com scroll horizontal - com padding para as setas */}
         <div className="overflow-x-auto pb-2" style={{ paddingTop: `${ARROW_HEIGHT}px` }}>
           <div className="flex items-end justify-between w-full min-w-[600px] lg:min-w-0 max-w-4xl mx-auto relative">
-            {ETAPAS.map((etapa, idx) => {
+            {ETAPAS_TIMELINE.map((etapa, idx) => {
               const etapaIndex = etapa.id;
               const etapaAtual = carregamento?.etapa_atual ?? 1;
               const isFinalizada = etapaIndex < etapaAtual;
@@ -761,7 +767,7 @@ const CarregamentoDetalhe = () => {
                   key={etapa.id}
                   className="flex flex-col items-center flex-1 min-w-[90px] relative"
                 >
-                  {idx < ETAPAS.length - 1 && (
+                  {idx < ETAPAS_TIMELINE.length - 1 && (
                     <div
                       style={{
                         position: "absolute",
@@ -1118,35 +1124,37 @@ const CarregamentoDetalhe = () => {
     return (
       <Card className="shadow-sm">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-3 gap-3">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base sm:text-lg font-semibold text-foreground break-words">{etapaTitulo}</h2>
-              {etapaData.data && (
-                <p className="text-xs text-muted-foreground mt-1 break-words">
-                  Concluída em: {formatarDataHora(etapaData.data)}
-                </p>
+          {!isEtapaFinalizada && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-3 gap-3">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground break-words">{etapaTitulo}</h2>
+                {etapaData.data && (
+                  <p className="text-xs text-muted-foreground mt-1 break-words">
+                    Concluída em: {formatarDataHora(etapaData.data)}
+                  </p>
+                )}
+              </div>
+              {podeEditar && (
+                <Button
+                  disabled={!stageFile || proximaEtapaMutation.isPending || isUploadingPhoto}
+                  size="sm"
+                  className="px-6 btn-primary min-h-[44px] max-md:min-h-[44px] shrink-0"
+                  onClick={() => {
+                    proximaEtapaMutation.mutate();
+                  }}
+                >
+                  {proximaEtapaMutation.isPending || isUploadingPhoto ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Processando...
+                    </>
+                  ) : (
+                    "Próxima"
+                  )}
+                </Button>
               )}
             </div>
-            {podeEditar && (
-              <Button
-                disabled={!stageFile || proximaEtapaMutation.isPending || isUploadingPhoto}
-                size="sm"
-                className="px-6 btn-primary min-h-[44px] max-md:min-h-[44px] shrink-0"
-                onClick={() => {
-                  proximaEtapaMutation.mutate();
-                }}
-              >
-                {proximaEtapaMutation.isPending || isUploadingPhoto ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Processando...
-                  </>
-                ) : (
-                  "Próxima"
-                )}
-              </Button>
-            )}
-          </div>
+          )}
 
           {isEtapaFinalizada ? (
             <div className="text-center py-6">
