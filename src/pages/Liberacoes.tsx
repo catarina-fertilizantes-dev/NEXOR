@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -439,12 +439,15 @@ const Liberacoes = () => {
     }
   }, [novaLiberacao.produto, novaLiberacao.armazem]);
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   // Deep-link vindo do dashboard (ex: card "Sem Agendamento"): ?status=disponivel
   // pré-seleciona o status, ?antesDe=YYYY-MM-DD pré-preenche o filtro de
   // período (dateTo), já calculado pelo dashboard usando o prazo configurado
   // — junto, os dois filtros reproduzem exatamente o critério "liberação sem
-  // agendamento há mais de N dias".
+  // agendamento há mais de N dias". Lidos só uma vez (useState inicial); os
+  // params somem da URL logo em seguida (ver useEffect abaixo), senão
+  // "Limpar Filtros" nunca conseguiria de fato limpar — o valor voltaria a
+  // ser lido da URL a cada render.
   const statusParam = searchParams.get("status");
   const filtroInicialStatus: StatusLiberacao[] =
     statusParam === "disponivel" ? ["disponivel"] : [];
@@ -464,13 +467,33 @@ const Liberacoes = () => {
 
   // Deep-link vindo do dashboard (ex: linha do "Controle de Pedidos"):
   // ?liberacaoId= abre automaticamente o modal de detalhe daquela liberação
-  // assim que a lista carrega.
-  const liberacaoIdParam = searchParams.get("liberacaoId");
+  // assim que a lista carrega. Tira o param da URL logo no mount (não espera
+  // a lista carregar) — só guarda o valor original numa ref, pra não
+  // depender do param continuar na URL. Sem isso, fechar o modal zera
+  // detalhesLiberacao, o efeito reexecutava (liberacaoIdParam ainda na URL)
+  // e reabria o modal na hora, travando o fechamento em loop.
+  const liberacaoIdParaAbrir = useRef(searchParams.get("liberacaoId"));
   useEffect(() => {
-    if (!liberacaoIdParam || detalhesLiberacao) return;
-    const match = liberacoes.find((l) => l.id === liberacaoIdParam);
-    if (match) setDetalhesLiberacao(match);
-  }, [liberacaoIdParam, liberacoes, detalhesLiberacao]);
+    if (searchParams.has("liberacaoId")) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("liberacaoId");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!liberacaoIdParaAbrir.current) return;
+    const match = liberacoes.find((l) => l.id === liberacaoIdParaAbrir.current);
+    if (match) {
+      setDetalhesLiberacao(match);
+      liberacaoIdParaAbrir.current = null;
+    }
+  }, [liberacoes]);
 
   const toggleStatus = (st: StatusLiberacao) =>
     setSelectedStatuses((prev) => (prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]));

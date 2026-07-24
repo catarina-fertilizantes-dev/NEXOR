@@ -264,7 +264,7 @@ const Carregamentos = () => {
     });
   }, [carregamentosData]);
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   // Deep-links vindos do dashboard:
   // - ?status=finalizado: pré-seleciona o filtro de status.
   // - ?finalizadoHoje=1: filtra pela data REAL de finalização (data_documentacao)
@@ -272,16 +272,45 @@ const Carregamentos = () => {
   //   que filtra por data_retirada (agendada), não pela finalização.
   // - ?armazemId= / ?clienteId=: filtra pelo armazém/cliente específico (ex:
   //   clique num item de "Armazéns/Clientes com Operação Hoje" no dashboard).
+  // Todos lidos só uma vez (useState inicial) — os params somem da URL logo
+  // a seguir. Sem isso, "Limpar Filtros" não tinha o que limpar (o valor
+  // seria relido da URL a cada render) e o filtro ficava travado mesmo após
+  // limpar ou dar refresh.
   const filtroInicialStatus = searchParams.get("status") === "finalizado" ? ["Finalizado"] : [];
-  const filtroFinalizadoHoje = searchParams.get("finalizadoHoje") === "1";
-  const filtroArmazemId = searchParams.get("armazemId");
-  const filtroClienteId = searchParams.get("clienteId");
+  const filtroInicialFinalizadoHoje = searchParams.get("finalizadoHoje") === "1";
+  const filtroInicialArmazemId = searchParams.get("armazemId");
+  const filtroInicialClienteId = searchParams.get("clienteId");
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string[]>(filtroInicialStatus);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [finalizadoHoje, setFinalizadoHoje] = useState(filtroInicialFinalizadoHoje);
+  const [filtroArmazemId, setFiltroArmazemId] = useState(filtroInicialArmazemId);
+  const [filtroClienteId, setFiltroClienteId] = useState(filtroInicialClienteId);
+
+  useEffect(() => {
+    if (
+      searchParams.has("status") ||
+      searchParams.has("finalizadoHoje") ||
+      searchParams.has("armazemId") ||
+      searchParams.has("clienteId")
+    ) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("status");
+          next.delete("finalizadoHoje");
+          next.delete("armazemId");
+          next.delete("clienteId");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleStatus = (status: string) =>
     setSelectedStatus((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
@@ -291,10 +320,21 @@ const Carregamentos = () => {
     setSelectedStatus([]);
     setDateFrom("");
     setDateTo("");
+    setFinalizadoHoje(false);
+    setFiltroArmazemId(null);
+    setFiltroClienteId(null);
   };
 
   const { carregamentosAtivos, carregamentosFinalizados } = useMemo(() => {
-    const hojeISO = new Date().toISOString().slice(0, 10);
+    const agora = new Date();
+    const mesmoDiaLocal = (isoString: string) => {
+      const d = new Date(isoString);
+      return (
+        d.getFullYear() === agora.getFullYear() &&
+        d.getMonth() === agora.getMonth() &&
+        d.getDate() === agora.getDate()
+      );
+    };
     const filtered = carregamentos.filter((c) => {
       const term = search.trim().toLowerCase();
       if (term) {
@@ -302,7 +342,7 @@ const Carregamentos = () => {
         if (!hay.includes(term)) return false;
       }
       if (selectedStatus.length > 0 && !selectedStatus.includes(c.status_carregamento)) return false;
-      if (filtroFinalizadoHoje && c.data_documentacao?.slice(0, 10) !== hojeISO) return false;
+      if (finalizadoHoje && (!c.data_documentacao || !mesmoDiaLocal(c.data_documentacao))) return false;
       if (filtroArmazemId && c.armazem_id !== filtroArmazemId) return false;
       if (filtroClienteId && c.cliente_id !== filtroClienteId) return false;
       if (dateFrom) {
@@ -321,7 +361,7 @@ const Carregamentos = () => {
     const finalizados = filtered.filter(c => c.finalizado);
 
     return { carregamentosAtivos: ativos, carregamentosFinalizados: finalizados };
-  }, [carregamentos, search, selectedStatus, dateFrom, dateTo, filtroFinalizadoHoje, filtroArmazemId, filtroClienteId]);
+  }, [carregamentos, search, selectedStatus, dateFrom, dateTo, finalizadoHoje, filtroArmazemId, filtroClienteId]);
 
   useEffect(() => {
     if (
@@ -336,10 +376,20 @@ const Carregamentos = () => {
   const showingCount = carregamentosAtivos.length + carregamentosFinalizados.length;
   const totalCount = carregamentos.length;
   const activeAdvancedCount =
-    (selectedStatus.length ? 1 : 0) + 
-    ((dateFrom || dateTo) ? 1 : 0);
-  
-  const hasActiveFilters = search.trim() || selectedStatus.length > 0 || dateFrom || dateTo;
+    (selectedStatus.length ? 1 : 0) +
+    ((dateFrom || dateTo) ? 1 : 0) +
+    (finalizadoHoje ? 1 : 0) +
+    (filtroArmazemId ? 1 : 0) +
+    (filtroClienteId ? 1 : 0);
+
+  const hasActiveFilters =
+    search.trim() ||
+    selectedStatus.length > 0 ||
+    dateFrom ||
+    dateTo ||
+    finalizadoHoje ||
+    filtroArmazemId ||
+    filtroClienteId;
 
   const renderCarregamentoCard = (carr: CarregamentoItem) => (
     <Card

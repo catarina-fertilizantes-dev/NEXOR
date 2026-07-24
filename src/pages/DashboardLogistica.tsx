@@ -85,7 +85,7 @@ const ETAPAS_BREAKDOWN: Array<{ id: number; label: string; icon: LucideIcon; cor
   { id: 5, label: "Documentação", icon: FileText, corIcone: "text-amber-600", corBarra: "bg-amber-500" },
   { id: 6, label: "Finalizado", icon: CheckCircle2, corIcone: "text-green-600", corBarra: "bg-green-500" },
 ];
-const FUNIL_ESTILOS: EstiloEtapa[] = ETAPAS_BREAKDOWN.slice(0, 5).map((e) => ({
+const FUNIL_ESTILOS: EstiloEtapa[] = ETAPAS_BREAKDOWN.map((e) => ({
   icon: e.icon,
   corIcone: e.corIcone,
   corBarra: e.corBarra,
@@ -139,6 +139,7 @@ interface CarregamentoAtrasadoItem {
   etapaLabel: string;
   minutosDecorridos: number;
   limiteMinutos: number;
+  toneladas: number;
 }
 
 // ---------- Controle de Pedidos ----------
@@ -374,7 +375,10 @@ function PerformancePorArmazemCard({ dados, isLoading }: { dados: TemposArmazemR
                     Documentação (min)
                   </TableHead>
                   <TableHead rowSpan={2} className="text-center border-l align-bottom">
-                    Total (min)
+                    <ColunaComDica
+                      label="Total (min)"
+                      dica="Tempo total do processo: da chegada do caminhão até a finalização (último documento anexado, quando o carregamento passa da etapa 5 - Documentação para a etapa 6 - Finalizado)."
+                    />
                   </TableHead>
                 </TableRow>
                 <TableRow>
@@ -588,19 +592,21 @@ const DashboardLogistica = () => {
     refetchInterval: 60_000,
   });
 
-  // Base única pra Funil / Armazéns por Etapa: todos os carregamentos (todas
-  // as etapas, inclusive finalizados — necessário pro card Armazéns por
-  // Etapa mostrar o total histórico por etapa). Sem limite de data: se o
-  // volume de carregamentos finalizados crescer muito ao longo do tempo, essa
-  // query vai buscando cada vez mais linhas — não é um problema agora (poucos
-  // meses de operação), mas é candidato a otimização futura (ex: paginar ou
-  // limitar por período) se a base crescer bastante.
+  // Base única pra Funil / Armazéns por Etapa / Finalizados Hoje: etapas 1-5
+  // são estado ATUAL (não filtradas por data — um carregamento "Carregando"
+  // não tem uma "data" própria, é um estado momentâneo). Etapa 6 (Finalizado)
+  // é a única com um evento datado (data_documentacao), e enquanto o
+  // dashboard não tem filtro de período próprio, ela fica sempre restrita a
+  // HOJE — senão o card/coluna "Finalizado" cresceria pra sempre e deixaria
+  // de refletir "o que está acontecendo agora/hoje" (única exceção combinada
+  // é Performance por Armazém, que é uma média de 30 dias por definição).
   const { data: carregamentosAtivos, isLoading: loadingCarregamentosAtivos } = useQuery({
-    queryKey: ["dash-carregamentos-ativos", filtroArmazens, filtroProdutos],
+    queryKey: ["dash-carregamentos-ativos", filtroArmazens, filtroProdutos, inicioHoje, fimHoje],
     queryFn: async (): Promise<CarregamentoAtivoRow[]> => {
       let query = supabase
         .from("carregamentos")
-        .select("armazem_id, armazens(nome), etapa_atual, agendamentos(quantidade, liberacoes(produto_id))");
+        .select("armazem_id, armazens(nome), etapa_atual, agendamentos(quantidade, liberacoes(produto_id))")
+        .or(`etapa_atual.lt.6,and(etapa_atual.eq.6,data_documentacao.gte.${inicioHoje},data_documentacao.lte.${fimHoje})`);
       if (filtroArmazens.length) query = query.in("armazem_id", filtroArmazens);
       const { data, error } = await query;
       if (error) throw error;
@@ -635,35 +641,35 @@ const DashboardLogistica = () => {
     return Array.from(porArmazem.values());
   }, [carregamentosAtivos]);
 
+  // Inclui a etapa 6 (Finalizado, só os de hoje — ver query acima) como
+  // última linha do funil.
   const funilEtapas = useMemo(() => {
-    const contagem: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    const toneladas: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const contagem: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    const toneladas: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     (carregamentosAtivos ?? []).forEach((c) => {
-      if (c.etapa >= 6) return;
       contagem[c.etapa] = (contagem[c.etapa] ?? 0) + 1;
       toneladas[c.etapa] = (toneladas[c.etapa] ?? 0) + c.toneladas;
     });
-    return ETAPA_LABELS.map((label, index) => ({
+    const labels = [...ETAPA_LABELS, "Finalizado"];
+    return labels.map((label, index) => ({
       etapa: label,
       quantidade: contagem[index + 1] ?? 0,
       toneladas: toneladas[index + 1] ?? 0,
     }));
   }, [carregamentosAtivos]);
 
-  const { data: carregamentosFinalizadosHoje, isLoading: loadingCarregamentosFinalizadosHoje } = useQuery({
-    queryKey: ["dash-carregamentos-finalizados-hoje"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("carregamentos")
-        .select("id", { count: "exact", head: true })
-        .eq("etapa_atual", 6)
-        .gte("data_documentacao", inicioHoje)
-        .lte("data_documentacao", fimHoje);
-      if (error) throw error;
-      return count ?? 0;
-    },
-    refetchInterval: 60_000,
-  });
+  // Derivado da mesma base (etapa 6 já vem restrita a hoje).
+  const finalizadosHoje = useMemo(() => {
+    let count = 0;
+    let volume = 0;
+    (carregamentosAtivos ?? []).forEach((c) => {
+      if (c.etapa === 6) {
+        count += 1;
+        volume += c.toneladas;
+      }
+    });
+    return { count, volume };
+  }, [carregamentosAtivos]);
 
   // Etapa 1 (Chegada, ainda não confirmada) não entra nessa métrica:
   // data_retirada do agendamento é um DATE (sem horário), então não dá pra
@@ -678,7 +684,9 @@ const DashboardLogistica = () => {
           supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos"),
           supabase
             .from("carregamentos")
-            .select("id,etapa_atual,data_chegada,data_inicio,data_carregando,data_finalizacao,clientes(nome),armazens(nome)")
+            .select(
+              "id,etapa_atual,data_chegada,data_inicio,data_carregando,data_finalizacao,clientes(nome),armazens(nome),agendamentos(quantidade)"
+            )
             .gte("etapa_atual", 2)
             .lt("etapa_atual", 6),
         ]);
@@ -703,6 +711,7 @@ const DashboardLogistica = () => {
             etapaLabel: ETAPA_LABELS[c.etapa_atual - 1] ?? `Etapa ${c.etapa_atual}`,
             minutosDecorridos: Math.round(minutosDecorridos),
             limiteMinutos,
+            toneladas: Number(c.agendamentos?.quantidade ?? 0),
           };
         })
         .filter((x: CarregamentoAtrasadoItem | null): x is CarregamentoAtrasadoItem => x !== null);
@@ -1006,16 +1015,22 @@ const DashboardLogistica = () => {
               />
               <StatCard
                 title="Finalizados Hoje"
-                value={loadingCarregamentosFinalizadosHoje ? "…" : carregamentosFinalizadosHoje ?? 0}
+                value={loadingCarregamentosAtivos ? "…" : `${formatT(finalizadosHoje.volume)} t`}
+                subtitle={loadingCarregamentosAtivos ? undefined : `${finalizadosHoje.count} carregamento(s)`}
                 icon={CheckCircle2}
                 variant="success"
                 highlightBg
                 tooltip="Processos de carregamento finalizados hoje (não é a quantidade de caminhões — cada carregamento é um processo completo, do agendamento à documentação)."
-                to={carregamentosFinalizadosHoje ? "/carregamentos?status=finalizado&finalizadoHoje=1" : undefined}
+                to={finalizadosHoje.count ? "/carregamentos?status=finalizado&finalizadoHoje=1" : undefined}
               />
               <StatCard
                 title="Carregamentos Atrasados"
-                value={loadingCarregamentosAtrasados ? "…" : atrasadosInfo?.itens.length ?? 0}
+                value={
+                  loadingCarregamentosAtrasados
+                    ? "…"
+                    : `${formatT((atrasadosInfo?.itens ?? []).reduce((acc, i) => acc + i.toneladas, 0))} t`
+                }
+                subtitle={loadingCarregamentosAtrasados ? undefined : `${atrasadosInfo?.itens.length ?? 0} carregamento(s)`}
                 icon={AlertTriangle}
                 variant="warning"
                 highlightBg

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -789,10 +789,11 @@ const Agendamentos = () => {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const hojeISO = new Date().toISOString().slice(0, 10);
   // Deep-link vindo do dashboard (ex: card "Agendados Hoje"): ?data=hoje
-  // pré-seleciona o filtro de período pro dia de hoje.
+  // pré-seleciona o filtro de período pro dia de hoje. Lido só uma vez
+  // (useState inicial) — o param some da URL logo a seguir.
   const filtroInicialData = searchParams.get("data") === "hoje" ? hojeISO : "";
 
   const [selectedStatuses, setSelectedStatuses] = useState<AgendamentoStatus[]>([]);
@@ -805,13 +806,34 @@ const Agendamentos = () => {
 
   // Deep-link vindo do dashboard (ex: item de "Próximos Agendamentos"):
   // ?agendamentoId= abre automaticamente o modal de detalhe daquele
-  // agendamento assim que a lista carrega.
-  const agendamentoIdParam = searchParams.get("agendamentoId");
+  // agendamento assim que a lista carrega. Tira os params (?data e
+  // ?agendamentoId) da URL logo no mount, guardando o id numa ref — senão,
+  // fechar o modal zera detalhesAgendamento, o que reexecutava o efeito
+  // (com o param ainda na URL) e reabria o modal na hora, travando o
+  // fechamento em loop.
+  const agendamentoIdParaAbrir = useRef(searchParams.get("agendamentoId"));
   useEffect(() => {
-    if (!agendamentoIdParam || detalhesAgendamento) return;
-    const match = agendamentos.find((a) => a.id === agendamentoIdParam);
-    if (match) setDetalhesAgendamento(match);
-  }, [agendamentoIdParam, agendamentos, detalhesAgendamento]);
+    if (searchParams.has("data") || searchParams.has("agendamentoId")) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("data");
+          next.delete("agendamentoId");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!agendamentoIdParaAbrir.current) return;
+    const match = agendamentos.find((a) => a.id === agendamentoIdParaAbrir.current);
+    if (match) {
+      setDetalhesAgendamento(match);
+      agendamentoIdParaAbrir.current = null;
+    }
+  }, [agendamentos]);
 
   const { agendamentosAtivos, agendamentosFinalizados } = useMemo(() => {
     const filtered = agendamentos.filter((a) => {

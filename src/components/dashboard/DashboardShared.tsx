@@ -339,7 +339,7 @@ export function FunilEtapasCard({
       <CardHeader className="pb-2">
         <TitleWithInfo
           title="Funil de Carregamentos (ton/carga)"
-          tooltip="Quantidade de cargas ativas (ainda não finalizadas) em cada etapa do processo, agora — e o volume em toneladas de cada etapa."
+          tooltip="Quantidade de cargas em cada etapa e o volume em toneladas — etapas ativas mostram o estado atual; 'Finalizado' mostra só os de hoje."
         />
       </CardHeader>
       <CardContent>
