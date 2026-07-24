@@ -58,7 +58,7 @@ const getStatusCarregamento = (etapaAtual: number) => {
     };
   } else {
     return {
-      status: "Finalizado",
+      status: "Processo Finalizado",
       percentual: 100,
       cor: "bg-green-100 text-green-800",
       tooltip: "Documentação anexada e processo concluído"

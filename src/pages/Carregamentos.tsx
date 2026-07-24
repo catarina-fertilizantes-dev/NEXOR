@@ -52,7 +52,7 @@ const getStatusCarregamento = (etapaAtual: number) => {
     };
   } else {
     return {
-      status: "Finalizado",
+      status: "Processo Finalizado",
       percentual: 100,
       cor: "bg-green-100 text-green-800",
       tooltip: "Documentação anexada e processo concluído"
@@ -109,7 +109,7 @@ interface CarregamentoItem {
 const STATUS_CARREGAMENTO = [
   { id: "Aguardando", nome: "Aguardando", cor: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
   { id: "Em Andamento", nome: "Em Andamento", cor: "bg-blue-100 text-blue-800 hover:bg-blue-200" },
-  { id: "Finalizado", nome: "Finalizado", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
+  { id: "Processo Finalizado", nome: "Processo Finalizado", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
 ];
 
 const Carregamentos = () => {
@@ -276,7 +276,7 @@ const Carregamentos = () => {
   // a seguir. Sem isso, "Limpar Filtros" não tinha o que limpar (o valor
   // seria relido da URL a cada render) e o filtro ficava travado mesmo após
   // limpar ou dar refresh.
-  const filtroInicialStatus = searchParams.get("status") === "finalizado" ? ["Finalizado"] : [];
+  const filtroInicialStatus = searchParams.get("status") === "finalizado" ? ["Processo Finalizado"] : [];
   const filtroInicialFinalizadoHoje = searchParams.get("finalizadoHoje") === "1";
   const filtroInicialArmazemId = searchParams.get("armazemId");
   const filtroInicialClienteId = searchParams.get("clienteId");
@@ -365,7 +365,7 @@ const Carregamentos = () => {
 
   useEffect(() => {
     if (
-      (search.trim() || selectedStatus.includes("Finalizado")) &&
+      (search.trim() || selectedStatus.includes("Processo Finalizado")) &&
       carregamentosFinalizados.length > 0 &&
       !secaoFinalizadosExpandida
     ) {

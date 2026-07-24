@@ -84,7 +84,7 @@ export const CarregamentosSection = () => {
                 { status: "Aguardando", color: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400", desc: "Aguardando chegada do veículo" },
                 { status: "Em andamento", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400", desc: "Processo em execução" },
                 { status: "Documentação", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400", desc: "Aguardando anexo de documentos" },
-                { status: "Finalizado", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400", desc: "Carregamento concluído com sucesso" },
+                { status: "Processo Finalizado", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400", desc: "Carregamento concluído com sucesso" },
                 { status: "Cancelado", color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400", desc: "Carregamento foi cancelado" },
               ].map((item, i) => (
                 <Card key={i}>
@@ -425,7 +425,7 @@ export const CarregamentosSection = () => {
                     <div className="space-y-1 text-sm">
                       <p className="font-medium text-foreground">O que acontece agora:</p>
                       {[
-                        'Status muda para "Finalizado" (badge verde)',
+                        'Status muda para "Processo Finalizado" (badge verde)',
                         "Barra de progresso mostra 100%",
                         'Card move para a seção "Carregamentos Finalizados"',
                         "Todas as informações ficam disponíveis para consulta",
