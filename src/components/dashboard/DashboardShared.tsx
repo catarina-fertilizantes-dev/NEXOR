@@ -299,14 +299,30 @@ export function DocumentacaoPendenteCard({
 
 // ---------- Funil de Carregamentos por Etapa ----------
 
-// Mesmos 6 nomes de etapa usados em CarregamentoDetalhe.tsx (ETAPAS[].nome),
-// na mesma ordem (etapa_atual 1-6) — só a etapa 4 usa a forma por extenso
-// "Carregamento Finalizado" em vez de "Carreg. Finalizado", pra não ficar
-// ambíguo com a etapa 6 "Finalizado". Nenhuma reinterpretação: etapa_atual=1
-// mostra "Chegada" mesmo, igual ao resto do sistema — tentativas anteriores
-// de renomear isso pra "Agendado" (achando que ficaria mais "preciso") só
-// geraram confusão, porque todo o resto do app já usa esses 6 nomes.
-export const ETAPA_LABELS = ["Chegada", "Início Carregamento", "Carregando", "Carregamento Finalizado", "Documentação"];
+// Rótulos por etapa_atual (1-6). Ver [[project_nexor_etapa_atual_semantics]]
+// (memória) pro raciocínio completo: um rótulo de UMA palavra reaproveitado
+// do nome "corrente" da etapa (ex.: "Chegada" pra etapa_atual=1, quando o
+// caminhão na verdade ainda NÃO chegou) é ambíguo fora do contexto visual do
+// stepper — por isso aqui usamos frase completa (Funil, tem espaço) e rótulo
+// curto + dica clicável com a frase completa (tabelas/badges compactos).
+// Index 0-5 = etapa_atual 1-6, sempre nessa ordem.
+export const ETAPA_LABELS_COMPLETO = [
+  "Aguardando chegada do caminhão",
+  "Caminhão chegou ao pátio",
+  "Início do carregamento confirmado",
+  "Carregamento do caminhão em andamento",
+  "Carregamento do caminhão finalizado",
+  "Documentação concluída — processo finalizado",
+];
+
+export const ETAPA_LABELS_CURTO = [
+  "Aguard. Chegada",
+  "No Pátio",
+  "Início Confirmado",
+  "Em Carregamento",
+  "Carreg. Finalizado",
+  "Processo Finalizado",
+];
 
 export interface EstiloEtapa {
   icon: LucideIcon;
@@ -339,7 +355,7 @@ export function FunilEtapasCard({
       <CardHeader className="pb-2">
         <TitleWithInfo
           title="Funil de Carregamentos (ton/carga)"
-          tooltip="Quantidade de cargas em cada etapa e o volume em toneladas — etapas ativas mostram o estado atual; 'Finalizado' mostra só os de hoje."
+          tooltip="Quantidade de cargas em cada etapa e o volume em toneladas — etapas ativas mostram o estado atual; 'Processo Finalizado' mostra só os de hoje."
         />
       </CardHeader>
       <CardContent>

@@ -147,8 +147,8 @@ const ETAPAS = [
   },
   {
     id: 6,
-    nome: "Finalizado",
-    titulo: "Finalizado",
+    nome: "Processo Finalizado",
+    titulo: "Processo Finalizado",
     campo_data: null,
     campo_obs: null,
     campo_url: null,
@@ -1162,6 +1162,9 @@ const CarregamentoDetalhe = () => {
               <h3 className="text-base font-medium text-foreground mb-1">Processo Finalizado</h3>
               <p className="text-sm text-muted-foreground">
                 O carregamento foi concluído com sucesso.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Clique em qualquer etapa acima para ver as informações registradas e baixar as fotos ou documentos.
               </p>
             </div>
           ) : isEtapaDoc ? (

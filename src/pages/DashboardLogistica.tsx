@@ -42,7 +42,8 @@ import {
   DocumentacaoPendenteItem,
   SUB_ETAPAS_DOCUMENTACAO,
   FunilEtapasCard,
-  ETAPA_LABELS,
+  ETAPA_LABELS_COMPLETO,
+  ETAPA_LABELS_CURTO,
   EstiloEtapa,
   ProximosAgendamentosCard,
   ProximoAgendamentoItem,
@@ -72,18 +73,24 @@ const formatarCutoffISO = (diasAtras: number) => {
 
 const formatT = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
-// Mesmos 6 nomes/etapas de CarregamentoDetalhe.tsx (ETAPAS[].nome), etapa_atual
-// 1-6, sem reinterpretação — só a etapa 4 usa a forma por extenso
-// "Carregamento Finalizado" em vez de "Carreg. Finalizado", pra não ficar
-// ambíguo com a etapa 6 "Finalizado". Cores reaproveitadas de ETAPAS[].cor
-// da mesma página, pra manter a mesma identidade visual por etapa no sistema.
-const ETAPAS_BREAKDOWN: Array<{ id: number; label: string; icon: LucideIcon; corIcone: string; corBarra: string }> = [
-  { id: 1, label: "Chegada", icon: MapPin, corIcone: "text-orange-600", corBarra: "bg-orange-500" },
-  { id: 2, label: "Início Carregamento", icon: PlayCircle, corIcone: "text-blue-600", corBarra: "bg-blue-500" },
-  { id: 3, label: "Carregando", icon: Truck, corIcone: "text-purple-600", corBarra: "bg-purple-500" },
-  { id: 4, label: "Carregamento Finalizado", icon: PackageCheck, corIcone: "text-indigo-600", corBarra: "bg-indigo-500" },
-  { id: 5, label: "Documentação", icon: FileText, corIcone: "text-amber-600", corBarra: "bg-amber-500" },
-  { id: 6, label: "Finalizado", icon: CheckCircle2, corIcone: "text-green-600", corBarra: "bg-green-500" },
+// Rótulo curto (cabeçalho de coluna) + completo (dica ao clicar) por etapa_atual
+// 1-6 — ver ETAPA_LABELS_CURTO/COMPLETO em DashboardShared.tsx. Cores
+// reaproveitadas de ETAPAS[].cor de CarregamentoDetalhe.tsx, pra manter a
+// mesma identidade visual por etapa no sistema.
+const ETAPAS_BREAKDOWN: Array<{
+  id: number;
+  label: string;
+  labelCompleto: string;
+  icon: LucideIcon;
+  corIcone: string;
+  corBarra: string;
+}> = [
+  { id: 1, label: ETAPA_LABELS_CURTO[0], labelCompleto: ETAPA_LABELS_COMPLETO[0], icon: MapPin, corIcone: "text-orange-600", corBarra: "bg-orange-500" },
+  { id: 2, label: ETAPA_LABELS_CURTO[1], labelCompleto: ETAPA_LABELS_COMPLETO[1], icon: PlayCircle, corIcone: "text-blue-600", corBarra: "bg-blue-500" },
+  { id: 3, label: ETAPA_LABELS_CURTO[2], labelCompleto: ETAPA_LABELS_COMPLETO[2], icon: Truck, corIcone: "text-purple-600", corBarra: "bg-purple-500" },
+  { id: 4, label: ETAPA_LABELS_CURTO[3], labelCompleto: ETAPA_LABELS_COMPLETO[3], icon: PackageCheck, corIcone: "text-indigo-600", corBarra: "bg-indigo-500" },
+  { id: 5, label: ETAPA_LABELS_CURTO[4], labelCompleto: ETAPA_LABELS_COMPLETO[4], icon: FileText, corIcone: "text-amber-600", corBarra: "bg-amber-500" },
+  { id: 6, label: ETAPA_LABELS_CURTO[5], labelCompleto: ETAPA_LABELS_COMPLETO[5], icon: CheckCircle2, corIcone: "text-green-600", corBarra: "bg-green-500" },
 ];
 const FUNIL_ESTILOS: EstiloEtapa[] = ETAPAS_BREAKDOWN.map((e) => ({
   icon: e.icon,
@@ -285,7 +292,7 @@ function ArmazensPorEtapaCard({
                     <TableHead key={e.id} className="text-center text-xs">
                       <span className="inline-flex items-center gap-1">
                         <e.icon className={`h-3.5 w-3.5 ${e.corIcone}`} />
-                        {e.label}
+                        <ColunaComDica label={e.label} dica={e.labelCompleto} />
                       </span>
                     </TableHead>
                   ))}
@@ -641,8 +648,8 @@ const DashboardLogistica = () => {
     return Array.from(porArmazem.values());
   }, [carregamentosAtivos]);
 
-  // Inclui a etapa 6 (Finalizado, só os de hoje — ver query acima) como
-  // última linha do funil.
+  // ETAPA_LABELS_COMPLETO já tem as 6 posições (etapa_atual 1-6) — a etapa 6
+  // (Processo Finalizado) só considera os de hoje, ver query base acima.
   const funilEtapas = useMemo(() => {
     const contagem: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     const toneladas: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
@@ -650,8 +657,7 @@ const DashboardLogistica = () => {
       contagem[c.etapa] = (contagem[c.etapa] ?? 0) + 1;
       toneladas[c.etapa] = (toneladas[c.etapa] ?? 0) + c.toneladas;
     });
-    const labels = [...ETAPA_LABELS, "Finalizado"];
-    return labels.map((label, index) => ({
+    return ETAPA_LABELS_COMPLETO.map((label, index) => ({
       etapa: label,
       quantidade: contagem[index + 1] ?? 0,
       toneladas: toneladas[index + 1] ?? 0,
@@ -708,7 +714,7 @@ const DashboardLogistica = () => {
             id: c.id as string,
             cliente: c.clientes?.nome ?? "Cliente",
             armazem: c.armazens?.nome ?? "Armazém",
-            etapaLabel: ETAPA_LABELS[c.etapa_atual - 1] ?? `Etapa ${c.etapa_atual}`,
+            etapaLabel: ETAPA_LABELS_CURTO[c.etapa_atual - 1] ?? `Etapa ${c.etapa_atual}`,
             minutosDecorridos: Math.round(minutosDecorridos),
             limiteMinutos,
             toneladas: Number(c.agendamentos?.quantidade ?? 0),
@@ -716,7 +722,7 @@ const DashboardLogistica = () => {
         })
         .filter((x: CarregamentoAtrasadoItem | null): x is CarregamentoAtrasadoItem => x !== null);
 
-      const limitesPorEtapa = ETAPA_LABELS.map((label, index) => ({
+      const limitesPorEtapa = ETAPA_LABELS_CURTO.map((label, index) => ({
         label,
         minutos: limites.get(index + 1) ?? null,
       })).filter((l): l is { label: string; minutos: number } => l.minutos != null);

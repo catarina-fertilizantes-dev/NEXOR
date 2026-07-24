@@ -282,18 +282,21 @@ toast({
 - Em campos com label e placeholder descritivos
 - Em textos que já são auto-explicativos
 
-### 8.3 Padrão de implementação
+### 8.3 Regra crítica: sempre por clique, nunca por hover
+Hover não existe em touch/celular — uma dica que só aparece no hover fica inacessível numa parte real dos usuários do sistema (armazém, cliente, representante costumam acessar por celular). **Toda dica precisa abrir por clique/toque**, nunca depender só de `onMouseEnter`.
+
+### 8.4 Padrão de implementação
+Usar `Popover` (ou um `Tooltip` com `open` controlado por `useState`, alternado em `onClick`) — nunca o `Tooltip`/`TooltipTrigger` padrão do shadcn "as is", que é hover-only:
+
 ```tsx
-<TooltipProvider>
-  <Tooltip delayDuration={100}>
-    <TooltipTrigger asChild>
-      <span>[Conteúdo que recebe tooltip]</span>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>[Explicação curta e clara]</p>
-    </TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+<Popover>
+  <PopoverTrigger asChild>
+    <button type="button">[Conteúdo que recebe a dica]</button>
+  </PopoverTrigger>
+  <PopoverContent>
+    <p>[Explicação curta e clara]</p>
+  </PopoverContent>
+</Popover>
 ```
 
 ---
