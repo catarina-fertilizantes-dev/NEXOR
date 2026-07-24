@@ -1,16 +1,25 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut, ChevronDown, BookOpen } from "lucide-react";
+import { LogOut, ChevronDown, BookOpen, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { CHANGELOG } from "@/data/changelog";
 
 export const UserAvatar = () => {
   const { user, userRole, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -148,6 +157,11 @@ export const UserAvatar = () => {
     navigate("/manual/representante");
   };
 
+  const handleChangelogClick = () => {
+    setIsOpen(false);
+    setIsChangelogOpen(true);
+  };
+
   // 🚧 TEMPORARIAMENTE DESABILITADO
   // TODO: Reativar quando a página de configurações for implementada
   /*
@@ -280,8 +294,55 @@ export const UserAvatar = () => {
               </div>
             </Button>
           </div>
+
+          <Separator />
+
+          {/* 🏷️ VERSÃO DO SISTEMA (todos os perfis) */}
+          <button
+            type="button"
+            onClick={handleChangelogClick}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-200"
+          >
+            <span>NEXOR v{__APP_VERSION__}</span>
+            <span aria-hidden="true">·</span>
+            <span className="inline-flex items-center gap-1 underline underline-offset-2">
+              <Sparkles className="h-3 w-3" />
+              Ver novidades
+            </span>
+          </button>
         </div>
       )}
+
+      {/* 📜 MODAL DE NOVIDADES / CHANGELOG */}
+      <Dialog open={isChangelogOpen} onOpenChange={setIsChangelogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Novidades do NEXOR</DialogTitle>
+            <DialogDescription>
+              Versão atual: v{__APP_VERSION__}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            {CHANGELOG.map((entry, index) => (
+              <div key={entry.version}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={index === 0 ? "default" : "secondary"}>
+                    v{entry.version}
+                  </Badge>
+                  <span className="text-sm font-semibold text-foreground">{entry.title}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{entry.date}</span>
+                </div>
+                <ul className="mt-2 ml-1 space-y-1 list-disc list-inside text-sm text-muted-foreground">
+                  {entry.highlights.map((highlight, i) => (
+                    <li key={i}>{highlight}</li>
+                  ))}
+                </ul>
+                {index < CHANGELOG.length - 1 && <Separator className="mt-4" />}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
