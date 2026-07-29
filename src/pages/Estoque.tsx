@@ -252,6 +252,30 @@ const Estoque = () => {
     enabled: canCreate && !!user?.id,
   });
 
+  const { data: produtosComEstoque } = useQuery({
+    queryKey: ["produtos-com-estoque-transferencia"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("estoque")
+        .select("produto_id, quantidade_disponivel, produtos!inner(id, nome, unidade, ativo)")
+        .gt("quantidade_disponivel", 0)
+        .eq("produtos.ativo", true);
+      if (error) {
+        toast({ variant: "destructive", title: "Erro ao buscar produtos com estoque", description: error.message });
+        return [];
+      }
+      const porId = new Map<string, { id: string; nome: string; unidade: string }>();
+      for (const row of data || []) {
+        const p = row.produtos as unknown as { id: string; nome: string; unidade: string } | null;
+        if (p && !porId.has(p.id)) porId.set(p.id, p);
+      }
+      return Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+    },
+    refetchInterval: 30000,
+    staleTime: 60 * 1000,
+    enabled: canCreate && !!user?.id,
+  });
+
   const { data: armazensParaFiltro } = useQuery({
     queryKey: ["armazens-filtro", currentArmazem?.id],
     queryFn: async () => {
@@ -432,6 +456,74 @@ const Estoque = () => {
   const [notaTransferenciaFile, setNotaTransferenciaFile] = useState<File | null>(null);
   const [xmlTransferenciaFile, setXmlTransferenciaFile] = useState<File | null>(null);
 
+  const [quantidadeEstoqueTransferencia, setQuantidadeEstoqueTransferencia] = useState(0);
+  const [validandoEstoqueTransferencia, setValidandoEstoqueTransferencia] = useState(false);
+  const [temEstoqueCadastradoTransferencia, setTemEstoqueCadastradoTransferencia] = useState<boolean | null>(null);
+
+  const { data: armazensComEstoqueDoProduto } = useQuery({
+    queryKey: ["armazens-com-estoque-transferencia", transferencia.produtoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("estoque")
+        .select("armazem_id, quantidade_disponivel, armazens!inner(id, nome, cidade, estado, ativo)")
+        .eq("produto_id", transferencia.produtoId)
+        .gt("quantidade_disponivel", 0)
+        .eq("armazens.ativo", true);
+      if (error) {
+        toast({ variant: "destructive", title: "Erro ao buscar armazéns com estoque", description: error.message });
+        return [];
+      }
+      return (data || [])
+        .map((row) => row.armazens as unknown as { id: string; nome: string; cidade: string; estado: string })
+        .sort((a, b) => a.cidade.localeCompare(b.cidade));
+    },
+    enabled: !!transferencia.produtoId,
+    staleTime: 60 * 1000,
+  });
+
+  const validarEstoqueTransferencia = async (produtoId: string, armazemId: string) => {
+    if (!produtoId || !armazemId) {
+      setQuantidadeEstoqueTransferencia(0);
+      setTemEstoqueCadastradoTransferencia(null);
+      return;
+    }
+    setValidandoEstoqueTransferencia(true);
+    try {
+      const { data, error } = await supabase
+        .from("estoque")
+        .select("quantidade_disponivel")
+        .eq("produto_id", produtoId)
+        .eq("armazem_id", armazemId)
+        .maybeSingle();
+      if (error || !data) {
+        setQuantidadeEstoqueTransferencia(0);
+        setTemEstoqueCadastradoTransferencia(false);
+        return;
+      }
+      setQuantidadeEstoqueTransferencia(data.quantidade_disponivel || 0);
+      setTemEstoqueCadastradoTransferencia(true);
+    } catch {
+      setQuantidadeEstoqueTransferencia(0);
+      setTemEstoqueCadastradoTransferencia(false);
+    } finally {
+      setValidandoEstoqueTransferencia(false);
+    }
+  };
+
+  useEffect(() => {
+    if (transferencia.produtoId && transferencia.armazemId) {
+      validarEstoqueTransferencia(transferencia.produtoId, transferencia.armazemId);
+    } else {
+      setQuantidadeEstoqueTransferencia(0);
+      setTemEstoqueCadastradoTransferencia(null);
+    }
+  }, [transferencia.produtoId, transferencia.armazemId]);
+
+  const quantidadeTransferenciaValida = useMemo(() => {
+    const qtd = Number(transferencia.quantidade);
+    return !isNaN(qtd) && qtd > 0 && qtd <= quantidadeEstoqueTransferencia;
+  }, [transferencia.quantidade, quantidadeEstoqueTransferencia]);
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const modal = urlParams.get('modal');
@@ -488,6 +580,8 @@ const Estoque = () => {
     setTransferenciaCliente({ clienteId: null, cnpjTexto: null, razaoSocialTexto: null });
     setNotaTransferenciaFile(null);
     setXmlTransferenciaFile(null);
+    setQuantidadeEstoqueTransferencia(0);
+    setTemEstoqueCadastradoTransferencia(null);
     resetUnsavedChanges();
   };
 
@@ -840,6 +934,10 @@ const Estoque = () => {
       toast({ variant: "destructive", title: "Valor inválido", description: "Digite uma quantidade numérica maior que zero." });
       return;
     }
+    if (qtdNum > quantidadeEstoqueTransferencia) {
+      toast({ variant: "destructive", title: "Estoque insuficiente", description: `Quantidade solicitada (${qtdNum.toLocaleString('pt-BR')}t) excede o estoque disponível (${quantidadeEstoqueTransferencia.toLocaleString('pt-BR')}t).` });
+      return;
+    }
     if (!notaTransferenciaFile || !xmlTransferenciaFile) {
       toast({ variant: "destructive", title: "Documentos obrigatórios", description: "Anexe a Nota (PDF) e o arquivo XML." });
       return;
@@ -912,6 +1010,12 @@ const Estoque = () => {
   
   const temProdutosDisponiveis = produtosAtivos.length > 0;
   const temArmazensDisponiveis = armazensDisponiveis.length > 0;
+
+  // Transferência de Propriedade só remove estoque — diferente de Entrada de Estoque,
+  // o Produto e o Armazém precisam ter estoque disponível de verdade (ver feedback do
+  // Alessandro comparando com o form de Nova Liberação em Liberacoes.tsx).
+  const temProdutosComEstoque = (produtosComEstoque?.length ?? 0) > 0;
+  const temArmazensComEstoqueDoProduto = (armazensComEstoqueDoProduto?.length ?? 0) > 0;
 
   const renderInterfaceSimplificada = () => {
     if (!currentArmazem) {
@@ -1309,11 +1413,11 @@ const Estoque = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="transferencia-produto" className="text-sm font-medium">Produto *</Label>
-                      {temProdutosDisponiveis ? (
+                      {temProdutosComEstoque ? (
                         <Select
                           value={transferencia.produtoId}
                           onValueChange={(id) => {
-                            setTransferencia((s) => ({ ...s, produtoId: id }));
+                            setTransferencia((s) => ({ ...s, produtoId: id, armazemId: "", quantidade: "" }));
                             markAsChanged();
                           }}
                           disabled={isRegistrandoTransferencia}
@@ -1322,7 +1426,7 @@ const Estoque = () => {
                             <SelectValue placeholder="Selecione o produto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {produtosAtivos.map((p) => (
+                            {produtosComEstoque!.map((p) => (
                               <SelectItem key={p.id} value={p.id}>
                                 {p.nome} ({p.unidade})
                               </SelectItem>
@@ -1331,21 +1435,27 @@ const Estoque = () => {
                         </Select>
                       ) : (
                         <EmptyStateCard
-                          title="Nenhum produto cadastrado"
-                          description="Para registrar uma transferência, você precisa cadastrar produtos primeiro."
-                          actionText="Cadastrar Produto"
-                          actionUrl="/produtos?modal=novo"
+                          title="Nenhum produto com estoque disponível"
+                          description="Não há estoque disponível de nenhum produto em nenhum armazém no momento."
+                          actionText="Ver Estoque"
+                          actionUrl="/estoque"
                         />
                       )}
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="transferencia-armazem" className="text-sm font-medium">Armazém *</Label>
-                      {temArmazensDisponiveis ? (
+                      {!transferencia.produtoId ? (
+                        <Select disabled>
+                          <SelectTrigger id="transferencia-armazem" className="min-h-[44px] max-md:min-h-[44px]">
+                            <SelectValue placeholder="Selecione o produto primeiro" />
+                          </SelectTrigger>
+                        </Select>
+                      ) : temArmazensComEstoqueDoProduto ? (
                         <Select
                           value={transferencia.armazemId}
                           onValueChange={(v) => {
-                            setTransferencia((s) => ({ ...s, armazemId: v }));
+                            setTransferencia((s) => ({ ...s, armazemId: v, quantidade: "" }));
                             markAsChanged();
                           }}
                           disabled={isRegistrandoTransferencia}
@@ -1354,7 +1464,7 @@ const Estoque = () => {
                             <SelectValue placeholder="Selecione o armazém" />
                           </SelectTrigger>
                           <SelectContent>
-                            {armazensDisponiveis.map((a) => (
+                            {armazensComEstoqueDoProduto!.map((a) => (
                               <SelectItem key={a.id} value={a.id}>
                                 <span className="break-words">{a.nome} — {a.cidade}{a.estado ? `/${a.estado}` : ""}</span>
                               </SelectItem>
@@ -1362,25 +1472,35 @@ const Estoque = () => {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <EmptyStateCard
-                          title="Nenhum armazém cadastrado"
-                          description="Para registrar uma transferência, você precisa cadastrar armazéns primeiro."
-                          actionText="Cadastrar Armazém"
-                          actionUrl="/armazens?modal=novo"
-                        />
+                        <p className="text-sm text-destructive">
+                          Nenhum armazém tem estoque disponível deste produto no momento.
+                        </p>
                       )}
                     </div>
 
-                    {temProdutosDisponiveis && temArmazensDisponiveis && (
+                    {temEstoqueCadastradoTransferencia && (
                       <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div className="space-y-2">
                             <Label htmlFor="transferencia-quantidade" className="text-sm font-medium">Quantidade *</Label>
+                            <div className="text-sm text-muted-foreground mb-1">
+                              {validandoEstoqueTransferencia ? (
+                                <span className="flex items-center gap-1">
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                                  Verificando estoque...
+                                </span>
+                              ) : (
+                                <span className={quantidadeEstoqueTransferencia > 0 ? "text-green-600" : "text-red-600"}>
+                                  Estoque disponível: {quantidadeEstoqueTransferencia.toLocaleString('pt-BR')}t
+                                </span>
+                              )}
+                            </div>
                             <Input
                               id="transferencia-quantidade"
                               type="number"
                               step="0.01"
                               min="0"
+                              max={quantidadeEstoqueTransferencia || undefined}
                               placeholder="Ex: 1000"
                               value={transferencia.quantidade}
                               onChange={(e) => {
@@ -1388,8 +1508,21 @@ const Estoque = () => {
                                 markAsChanged();
                               }}
                               disabled={isRegistrandoTransferencia}
-                              className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                              className={`min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base ${
+                                transferencia.quantidade && !quantidadeTransferenciaValida
+                                  ? "border-red-500 focus:border-red-500"
+                                  : transferencia.quantidade && quantidadeTransferenciaValida
+                                  ? "border-green-500 focus:border-green-500"
+                                  : ""
+                              }`}
                             />
+                            {transferencia.quantidade && !quantidadeTransferenciaValida && (
+                              <p className="text-xs text-red-600">
+                                {Number(transferencia.quantidade) > quantidadeEstoqueTransferencia
+                                  ? `Quantidade excede o estoque disponível (${quantidadeEstoqueTransferencia.toLocaleString('pt-BR')}t)`
+                                  : "Quantidade deve ser maior que zero"}
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="transferencia-data" className="text-sm font-medium">Data da Transferência *</Label>
@@ -1518,8 +1651,10 @@ const Estoque = () => {
                     confirmText="Salvar"
                     isLoading={isRegistrandoTransferencia}
                     disabled={
-                      !temProdutosDisponiveis ||
-                      !temArmazensDisponiveis ||
+                      !temProdutosComEstoque ||
+                      !temArmazensComEstoqueDoProduto ||
+                      !temEstoqueCadastradoTransferencia ||
+                      !quantidadeTransferenciaValida ||
                       !transferencia.numeroPedido.trim() ||
                       !notaTransferenciaFile ||
                       !xmlTransferenciaFile ||
