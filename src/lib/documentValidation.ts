@@ -52,3 +52,23 @@ export function formatarCpfCnpj(value: string): string {
   }
   return value;
 }
+
+// Máscara progressiva (aplicada a cada tecla digitada), mesmo padrão usado em
+// Clientes.tsx/Armazens.tsx/Representantes.tsx (maskCpfCnpjInput duplicada em
+// cada página) — ver feedback_input_masking_pattern na memória.
+export function maskCpfCnpj(value: string): string {
+  const digitos = normalizeDocumento(value);
+  if (digitos.length <= 11) {
+    const cpf = digitos.slice(0, 11);
+    if (cpf.length > 9) return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, "$1.$2.$3-$4");
+    if (cpf.length > 6) return cpf.replace(/^(\d{3})(\d{3})(\d{0,3})$/, "$1.$2.$3");
+    if (cpf.length > 3) return cpf.replace(/^(\d{3})(\d{0,3})$/, "$1.$2");
+    return cpf;
+  }
+  const cnpj = digitos.slice(0, 14);
+  if (cnpj.length > 12) return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
+  if (cnpj.length > 8) return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})$/, "$1.$2.$3/$4");
+  if (cnpj.length > 5) return cnpj.replace(/^(\d{2})(\d{3})(\d{0,3})$/, "$1.$2.$3");
+  if (cnpj.length > 2) return cnpj.replace(/^(\d{2})(\d{0,3})$/, "$1.$2");
+  return cnpj;
+}

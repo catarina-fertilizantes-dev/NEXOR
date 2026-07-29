@@ -1174,7 +1174,7 @@ const DashboardLogistica = () => {
                 subtitle={loadingTransferencias ? undefined : `${formatT(transferenciasStats?.totalQuantidade ?? 0)}t este mês`}
                 icon={ArrowRightLeft}
                 variant="primary"
-                tooltip="Saídas de estoque por Transferência de Propriedade (sem Liberação/Agendamento/Carregamento) registradas este mês."
+                tooltip="Saídas de estoque registradas por Transferência de Propriedade neste mês."
                 to="/estoque"
               />
             </div>

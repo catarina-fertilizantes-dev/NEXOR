@@ -779,18 +779,18 @@ const EstoqueDetalhe = () => {
   
           {/* Seção colapsável: Histórico de Remessas */}
           <div className="space-y-3">
-            <button
+            <Button
               onClick={() => setRemessasExpandida(!remessasExpandida)}
-              className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-muted rounded-lg hover:bg-gray-100 dark:hover:bg-muted/70 transition-colors"
+              className="w-full justify-between bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 min-h-[44px] max-md:min-h-[44px] dark:bg-blue-950/20 dark:hover:bg-blue-950/30 dark:border-blue-800 dark:text-blue-400"
             >
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-foreground">
+                <Package className="h-5 w-5" />
+                <span className="text-sm font-medium">
                   Histórico de Remessas ({estoqueDetalhes.remessas.length})
                 </span>
               </div>
-              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${remessasExpandida ? 'rotate-180' : ''}`} />
-            </button>
+              {remessasExpandida ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
 
             {remessasExpandida && (
               <div className="space-y-4">
@@ -928,18 +928,18 @@ const EstoqueDetalhe = () => {
 
           {/* Seção colapsável: Transferências de Propriedade */}
           <div className="space-y-3">
-            <button
+            <Button
               onClick={() => setTransferenciasExpandida(!transferenciasExpandida)}
-              className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-muted rounded-lg hover:bg-gray-100 dark:hover:bg-muted/70 transition-colors"
+              className="w-full justify-between bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 min-h-[44px] max-md:min-h-[44px] dark:bg-violet-950/20 dark:hover:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400"
             >
               <div className="flex items-center gap-2">
-                <ArrowRightLeft className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-foreground">
+                <ArrowRightLeft className="h-5 w-5" />
+                <span className="text-sm font-medium">
                   Transferências de Propriedade ({estoqueDetalhes.transferencias.length})
                 </span>
               </div>
-              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${transferenciasExpandida ? 'rotate-180' : ''}`} />
-            </button>
+              {transferenciasExpandida ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
 
             {transferenciasExpandida && (
               <div className="space-y-4">

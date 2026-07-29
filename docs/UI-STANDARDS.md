@@ -157,43 +157,48 @@ Usar texto simples sem botão:
 
 ---
 
-## 5. Listas Colapsáveis (Finalizados / Cancelados)
+## 5. Listas Colapsáveis (Finalizados / Cancelados / outras agrupações)
 
 ### 5.1 Regra
 - **Itens finalizados**: exibidos em seção colapsável no final da listagem, colapsada por padrão.
 - **Itens cancelados**: exibidos em seção colapsável no final, colapsada por padrão. Apenas em páginas onde o cancelamento é uma ação do usuário (atualmente: Liberações). Agendamentos e Carregamentos cancelados via cancelamento de liberação não precisam ser exibidos.
+- **Outras agrupações** (ex.: histórico/auditoria dentro de uma página de detalhe, como em Estoque): mesmo padrão visual, mas com cor própria — nunca cinza/sem cor (fica "apagado", sem destaque) e nunca vermelho (reservado para semântica de cancelamento). Escolher uma cor leve que faça sentido pro conteúdo e que não repita uma cor já usada por outro elemento da mesma tela.
 
 ### 5.2 Estrutura padrão do header colapsável
 
+Usar sempre o componente `Button` (não um `<button>` cru) — largura total, `justify-between`, fundo/borda/texto na mesma cor, com variante dark, e troca de ícone Chevron (não rotação de um único ícone):
+
 ```tsx
 // Header de "Finalizados"
-<button
+<Button
   onClick={() => setExpandido(!expandido)}
-  className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+  className="w-full justify-between bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 min-h-[44px] max-md:min-h-[44px] dark:bg-green-950/20 dark:hover:bg-green-950/30 dark:border-green-800 dark:text-green-400"
 >
   <div className="flex items-center gap-2">
-    <CheckCircle className="h-4 w-4 text-gray-500" />
-    <span className="text-sm font-medium text-gray-700">
+    <CheckCircle className="h-5 w-5" />
+    <span className="text-sm font-medium">
       Finalizados ({count})
     </span>
   </div>
-  <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${expandido ? 'rotate-180' : ''}`} />
-</button>
+  {expandido ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+</Button>
 
 // Header de "Cancelados"
-<button
+<Button
   onClick={() => setExpandido(!expandido)}
-  className="w-full flex items-center justify-between p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+  className="w-full justify-between bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 min-h-[44px] max-md:min-h-[44px] dark:bg-red-950/20 dark:hover:bg-red-950/30 dark:border-red-800 dark:text-red-400"
 >
   <div className="flex items-center gap-2">
-    <XCircle className="h-4 w-4 text-red-500" />
-    <span className="text-sm font-medium text-red-700">
+    <XCircle className="h-5 w-5" />
+    <span className="text-sm font-medium">
       Cancelados ({count})
     </span>
   </div>
-  <ChevronDown className={`h-4 w-4 text-red-500 transition-transform ${expandido ? 'rotate-180' : ''}`} />
-</button>
+  {expandido ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+</Button>
 ```
+
+Exemplo de outra agrupação (Estoque → Histórico de Remessas / Transferências de Propriedade, commit 2026-07-29): mesma estrutura, cores `blue`/`violet` no lugar de `green`/`red`.
 
 ---
 
@@ -325,6 +330,11 @@ Todo campo deve ter `<Label>` associado com `htmlFor` correspondente ao `id` do 
   )}
   ```
 - Botão de upload deve mudar texto após seleção: "Anexar PDF" → "Alterar PDF"
+
+### 9.5 Máscaras de campo (CPF, CNPJ, telefone, CEP, placa)
+- Todo campo com formato "do mundo real" deve aplicar **máscara progressiva enquanto o usuário digita** (a cada tecla, não só ao sair do campo) — nunca deixar o usuário digitar números crus sem pontuação. Ver `maskCpfCnpjInput`/`maskPhoneInput`/`maskCEPInput` em `Clientes.tsx`/`Armazens.tsx`/`Representantes.tsx` e `maskPlaca`/`maskCPF`/`maskCNPJ` em `Agendamentos.tsx` (funções hoje duplicadas por página; `src/lib/documentValidation.ts` tem `maskCpfCnpj`/`formatarCpfCnpj`/`normalizeDocumento` equivalentes para CPF/CNPJ, mas as páginas antigas ainda não foram migradas pra reaproveitar dali).
+- **Salvar sempre só os dígitos** (ou só alfanumérico, no caso de placa) no banco — nunca a string mascarada. Todo formulário existente já faz esse strip (`.replace(/\D/g, "")` ou equivalente) no momento do submit, mesmo mostrando a máscara na tela.
+- Ao exibir esse dado depois de salvo (listagem, detalhe), formatar de volta pra leitura (`formatCpfCnpj`/`formatPhone`/`formatCEP`/`formatPlaca` — cada página tem sua cópia; CPF/CNPJ pode usar `formatarCpfCnpj` de `src/lib/documentValidation.ts`).
 
 ---
 

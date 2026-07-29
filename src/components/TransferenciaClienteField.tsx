@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
-import { normalizeDocumento, validarCpfOuCnpj, formatarCpfCnpj } from "@/lib/documentValidation";
+import { normalizeDocumento, validarCpfOuCnpj, formatarCpfCnpj, maskCpfCnpj } from "@/lib/documentValidation";
 
 export interface ClienteAtivo {
   id: string;
@@ -140,7 +140,7 @@ export function TransferenciaClienteField({ clientesAtivos, value, onChange, dis
             <Input
               placeholder="CNPJ ou CPF"
               value={cnpjInput}
-              onChange={(e) => setCnpjInput(e.target.value)}
+              onChange={(e) => setCnpjInput(maskCpfCnpj(e.target.value))}
               onBlur={handleCnpjBlur}
               disabled={disabled || verificandoDuplicidade}
               className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
