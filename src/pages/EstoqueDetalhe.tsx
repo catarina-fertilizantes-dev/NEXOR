@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,19 +13,24 @@ import { DocumentViewer } from "@/components/DocumentViewer";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { 
-  Loader2, 
-  ArrowLeft, 
-  Package, 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Loader2,
+  ArrowLeft,
+  Package,
   MapPin,
   Filter as FilterIcon,
   X,
   ChevronDown,
   ChevronUp,
   Archive,
-  Layers
+  Layers,
+  ArrowRightLeft,
+  Undo2,
+  Building2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatarCpfCnpj } from "@/lib/documentValidation";
 
 interface RemessaItem {
   id: string;
@@ -36,6 +41,21 @@ interface RemessaItem {
   url_xml_remessa: string | null;
   created_at: string;
   created_by: string | null;
+}
+
+interface TransferenciaItem {
+  id: string;
+  quantidade: number;
+  numero_pedido: string;
+  data_transferencia: string;
+  url_nota: string | null;
+  url_xml: string | null;
+  status: "ativa" | "cancelada";
+  created_at: string;
+  cliente_id: string | null;
+  cliente_cnpj_texto: string | null;
+  cliente_razao_social_texto: string | null;
+  cliente: { nome: string; cnpj_cpf: string } | null;
 }
 
 interface EstoqueDetalhes {
@@ -53,6 +73,7 @@ interface EstoqueDetalhes {
   quantidade_total: number;
   quantidade_disponivel: number;
   remessas: RemessaItem[];
+  transferencias: TransferenciaItem[];
 }
 
 const formatarDataHora = (data: string) => {
@@ -75,9 +96,16 @@ const EstoqueDetalhe = () => {
   const { produtoId, armazemId } = useParams<{ produtoId: string; armazemId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { user, userRole } = useAuth();
 
-  // Estados para filtros
+  const canGerenciarTransferencias = userRole === "admin" || userRole === "logistica";
+
+  // Estados das duas seções colapsáveis (fechadas por padrão)
+  const [remessasExpandida, setRemessasExpandida] = useState(false);
+  const [transferenciasExpandida, setTransferenciasExpandida] = useState(false);
+
+  // Estados para filtros — Histórico de Remessas
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -92,6 +120,27 @@ const EstoqueDetalhe = () => {
     setQuantidadeMin("");
     setQuantidadeMax("");
   };
+
+  // Estados para filtros — Transferências de Propriedade
+  const [transfFiltersOpen, setTransfFiltersOpen] = useState(false);
+  const [transfSearch, setTransfSearch] = useState("");
+  const [transfDateFrom, setTransfDateFrom] = useState("");
+  const [transfDateTo, setTransfDateTo] = useState("");
+  const [transfQuantidadeMin, setTransfQuantidadeMin] = useState("");
+  const [transfQuantidadeMax, setTransfQuantidadeMax] = useState("");
+
+  const clearTransfFilters = () => {
+    setTransfSearch("");
+    setTransfDateFrom("");
+    setTransfDateTo("");
+    setTransfQuantidadeMin("");
+    setTransfQuantidadeMax("");
+  };
+
+  // Estado do dialog de estorno de transferência
+  const [cancelandoTransferencia, setCancelandoTransferencia] = useState<TransferenciaItem | null>(null);
+  const [cancelPreview, setCancelPreview] = useState<{ pode_cancelar: boolean; motivo_bloqueio: string | null } | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   const { data: currentArmazem } = useQuery({
     queryKey: ["current-armazem-detalhe", user?.id],
@@ -179,12 +228,38 @@ const EstoqueDetalhe = () => {
         throw remessasError;
       }
 
+      const { data: transferenciasData, error: transferenciasError } = await supabase
+        .from("estoque_transferencias")
+        .select(`
+          id,
+          quantidade,
+          numero_pedido,
+          data_transferencia,
+          url_nota,
+          url_xml,
+          status,
+          created_at,
+          cliente_id,
+          cliente_cnpj_texto,
+          cliente_razao_social_texto,
+          cliente:clientes(nome, cnpj_cpf)
+        `)
+        .eq("produto_id", produtoId)
+        .eq("armazem_id", armazemId)
+        .order("created_at", { ascending: false });
+
+      if (transferenciasError) {
+        console.error("❌ [ERROR] EstoqueDetalhe - Erro ao buscar transferências:", transferenciasError);
+        throw transferenciasError;
+      }
+
       const resultado: EstoqueDetalhes = {
         produto: estoqueData.produto,
         armazem: estoqueData.armazem,
         quantidade_total: estoqueData.quantidade,
         quantidade_disponivel: estoqueData.quantidade_disponivel,  // ✅ ADICIONAR
-        remessas: remessasData || []
+        remessas: remessasData || [],
+        transferencias: (transferenciasData || []) as unknown as TransferenciaItem[]
       };
 
       console.log("✅ [SUCCESS] EstoqueDetalhe - Dados carregados:", resultado);
@@ -290,12 +365,105 @@ const EstoqueDetalhe = () => {
   const remessasFiltradas = estoqueDetalhes ? aplicarFiltros(estoqueDetalhes.remessas) : [];
   const numeroRemessasFiltradas = remessasFiltradas.length;
 
-  const activeFiltersCount = 
+  const activeFiltersCount =
     (search.trim() ? 1 : 0) +
     (dateFrom || dateTo ? 1 : 0) +
     (quantidadeMin.trim() || quantidadeMax.trim() ? 1 : 0);
-  
+
   const hasActiveFilters = search.trim() || dateFrom || dateTo || quantidadeMin.trim() || quantidadeMax.trim();
+
+  const nomeClienteTransferencia = (t: TransferenciaItem) =>
+    t.cliente?.nome || t.cliente_razao_social_texto || "—";
+  const documentoClienteTransferencia = (t: TransferenciaItem) =>
+    t.cliente?.cnpj_cpf || t.cliente_cnpj_texto || "";
+
+  const aplicarFiltrosTransferencias = (transferencias: TransferenciaItem[]): TransferenciaItem[] => {
+    return transferencias.filter(transf => {
+      if (transfSearch.trim()) {
+        const termo = transfSearch.trim().toLowerCase();
+        const cliente = nomeClienteTransferencia(transf).toLowerCase();
+        const documento = documentoClienteTransferencia(transf).toLowerCase();
+        const pedido = transf.numero_pedido.toLowerCase();
+        if (!cliente.includes(termo) && !documento.includes(termo) && !pedido.includes(termo)) {
+          return false;
+        }
+      }
+
+      if (transfDateFrom) {
+        const dataTransf = parseDate(transf.data_transferencia);
+        const dataInicio = new Date(transfDateFrom);
+        if (dataTransf < dataInicio) return false;
+      }
+
+      if (transfDateTo) {
+        const dataTransf = parseDate(transf.data_transferencia);
+        const dataFim = new Date(transfDateTo);
+        dataFim.setHours(23, 59, 59, 999);
+        if (dataTransf > dataFim) return false;
+      }
+
+      if (transfQuantidadeMin.trim()) {
+        const qtdMin = parseFloat(transfQuantidadeMin);
+        if (!isNaN(qtdMin) && transf.quantidade < qtdMin) return false;
+      }
+
+      if (transfQuantidadeMax.trim()) {
+        const qtdMax = parseFloat(transfQuantidadeMax);
+        if (!isNaN(qtdMax) && transf.quantidade > qtdMax) return false;
+      }
+
+      return true;
+    });
+  };
+
+  const transferenciasFiltradas = estoqueDetalhes ? aplicarFiltrosTransferencias(estoqueDetalhes.transferencias) : [];
+  const numeroTransferenciasFiltradas = transferenciasFiltradas.length;
+
+  const activeTransfFiltersCount =
+    (transfSearch.trim() ? 1 : 0) +
+    (transfDateFrom || transfDateTo ? 1 : 0) +
+    (transfQuantidadeMin.trim() || transfQuantidadeMax.trim() ? 1 : 0);
+
+  const hasActiveTransfFilters = transfSearch.trim() || transfDateFrom || transfDateTo || transfQuantidadeMin.trim() || transfQuantidadeMax.trim();
+
+  const abrirCancelamento = async (transf: TransferenciaItem) => {
+    setCancelandoTransferencia(transf);
+    setCancelPreview(null);
+    const { data, error } = await supabase.rpc("calcular_cancelamento_transferencia", {
+      p_transferencia_id: transf.id,
+    });
+    if (error || !(data as { success?: boolean })?.success) {
+      toast({ variant: "destructive", title: "Erro ao verificar transferência", description: error?.message || (data as { error?: string })?.error });
+      setCancelandoTransferencia(null);
+      return;
+    }
+    setCancelPreview(data as { pode_cancelar: boolean; motivo_bloqueio: string | null });
+  };
+
+  const confirmarCancelamento = async () => {
+    if (!cancelandoTransferencia) return;
+    setIsCanceling(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc("cancelar_transferencia_propriedade", {
+        p_transferencia_id: cancelandoTransferencia.id,
+        p_user_id: userData.user?.id,
+      });
+
+      if (error || !(data as { success?: boolean })?.success) {
+        toast({ variant: "destructive", title: "Erro ao estornar transferência", description: error?.message || (data as { error?: string })?.error });
+        return;
+      }
+
+      toast({ title: "Transferência estornada com sucesso!", description: "A quantidade foi devolvida ao estoque." });
+      setCancelandoTransferencia(null);
+      setCancelPreview(null);
+      queryClient.invalidateQueries({ queryKey: ["estoque-detalhe"] });
+      queryClient.invalidateQueries({ queryKey: ["estoque"] });
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   const renderRemessaCard = (remessa: RemessaItem) => (
     <Card key={remessa.id} className="transition-all hover:shadow-md">
@@ -365,11 +533,86 @@ const EstoqueDetalhe = () => {
     </Card>
   );
 
+  const renderTransferenciaCard = (transf: TransferenciaItem) => (
+    <Card key={transf.id} className={`transition-all hover:shadow-md ${transf.status === "cancelada" ? "opacity-60" : ""}`}>
+      <CardContent className="p-4">
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary flex-shrink-0">
+                <ArrowRightLeft className="h-4 w-4 md:h-5 md:w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm md:text-base text-foreground leading-tight break-words">
+                  Pedido {transf.numero_pedido}
+                </h3>
+                <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
+                  <Building2 className="h-3 w-3 flex-shrink-0" />
+                  {nomeClienteTransferencia(transf)}
+                  {documentoClienteTransferencia(transf) && ` - ${formatarCpfCnpj(documentoClienteTransferencia(transf))}`}
+                </p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Quantidade: <span className="font-semibold">{transf.quantidade.toLocaleString('pt-BR')} {estoqueDetalhes?.produto.unidade}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Data da transferência: {new Date(transf.data_transferencia + "T00:00:00").toLocaleDateString("pt-BR")}
+                </p>
+              </div>
+            </div>
+
+            <Badge variant={transf.status === "cancelada" ? "destructive" : "secondary"} className="text-xs self-start sm:self-auto">
+              {transf.status === "cancelada" ? "Estornada" : "Ativa"}
+            </Badge>
+          </div>
+
+          <div className="pt-2 border-t">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Documentos:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <DocumentViewer
+                url={transf.url_nota}
+                type="pdf"
+                bucket="estoque-documentos"
+                title="Nota Fiscal"
+                description="PDF"
+                variant="button"
+                size="md"
+                showPreview={true}
+              />
+              <DocumentViewer
+                url={transf.url_xml}
+                type="xml"
+                bucket="estoque-documentos"
+                title="Arquivo XML"
+                description="XML"
+                variant="button"
+                size="md"
+                showPreview={true}
+              />
+            </div>
+          </div>
+
+          {canGerenciarTransferencias && transf.status === "ativa" && (
+            <div className="pt-2 border-t flex justify-end">
+              <Button
+                size="sm"
+                className="btn-secondary min-h-[40px] gap-1"
+                onClick={() => abrirCancelamento(transf)}
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                Estornar
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (isLoading) {
     return (
       <TooltipProvider>
         <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-          <PageHeader 
+          <PageHeader
             title="Detalhes do Estoque"
             backButton={
               <Button
@@ -534,157 +777,347 @@ const EstoqueDetalhe = () => {
             </CardContent>
           </Card>
   
-          {/* Barra de filtros - Mobile otimizada */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <Input
-                className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
-                placeholder="Buscar por número da remessa..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <Button 
-                size="sm" 
-                onClick={() => setFiltersOpen(!filtersOpen)}
-                className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary"
-              >
-                <FilterIcon className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Filtros</span>
-                {activeFiltersCount ? ` (${activeFiltersCount})` : ""}
-                {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
-              </Button>
-            </div>
-  
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                Mostrando <span className="font-medium">{numeroRemessasFiltradas}</span> de <span className="font-medium">{estoqueDetalhes.remessas.length}</span>
-              </span>
-              {hasActiveFilters && (
-                <Button 
-                  size="sm" 
-                  onClick={clearFilters} 
-                  className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                >
-                  <X className="h-4 w-4" /> 
-                  Limpar Filtros
-                </Button>
-              )}
-            </div>
-          </div>
-  
-          {/* Filtros avançados - Mobile otimizado */}
-          {filtersOpen && (
-            <div className="rounded-md border p-3 space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Período */}
-                <div>
-                  <Label className="text-sm font-semibold mb-2 block">Período</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <Input 
-                      type="date" 
-                      value={dateFrom} 
-                      onChange={(e) => setDateFrom(e.target.value)} 
-                      className="min-h-[44px] max-md:min-h-[44px]" 
-                      placeholder="De"
-                    />
-                    <Input 
-                      type="date" 
-                      value={dateTo} 
-                      onChange={(e) => setDateTo(e.target.value)} 
-                      className="min-h-[44px] max-md:min-h-[44px]" 
-                      placeholder="Até"
-                    />
-                  </div>
-                </div>
-  
-                {/* Quantidade */}
-                <div>
-                  <Label className="text-sm font-semibold mb-2 block">
-                    Quantidade ({estoqueDetalhes.produto.unidade})
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      min="0"
-                      value={quantidadeMin} 
-                      onChange={(e) => setQuantidadeMin(e.target.value)} 
-                      className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-                      placeholder="Mín"
-                    />
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      min="0"
-                      value={quantidadeMax} 
-                      onChange={(e) => setQuantidadeMax(e.target.value)} 
-                      className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-                      placeholder="Máx"
-                    />
-                  </div>
-                </div>
+          {/* Seção colapsável: Histórico de Remessas */}
+          <div className="space-y-3">
+            <button
+              onClick={() => setRemessasExpandida(!remessasExpandida)}
+              className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-muted rounded-lg hover:bg-gray-100 dark:hover:bg-muted/70 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-foreground">
+                  Histórico de Remessas ({estoqueDetalhes.remessas.length})
+                </span>
               </div>
-            </div>
-          )}
-  
-          {/* Lista de remessas */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary flex-shrink-0" />
-              <h2 className="text-base md:text-lg font-semibold">
-                Histórico de Remessas 
-                {activeFiltersCount > 0 ? (
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
-                    ({numeroRemessasFiltradas} de {estoqueDetalhes.remessas.length})
-                  </span>
-                ) : (
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
-                    ({estoqueDetalhes.remessas.length})
-                  </span>
-                )}
-              </h2>
-            </div>
-            
-            <div className="space-y-3">
-              {remessasFiltradas.length > 0 ? (
-                remessasFiltradas.map(renderRemessaCard)
-              ) : hasActiveFilters ? (
-                <Card className="border-dashed">
-                  <CardContent className="p-6 md:p-8 text-center">
-                    <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-semibold text-muted-foreground mb-2">
-                      Nenhuma remessa encontrada
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Nenhuma remessa corresponde aos filtros aplicados.
-                    </p>
+              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${remessasExpandida ? 'rotate-180' : ''}`} />
+            </button>
+
+            {remessasExpandida && (
+              <div className="space-y-4">
+                {/* Barra de filtros - Mobile otimizada */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <Input
+                      className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                      placeholder="Buscar por número da remessa..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
                     <Button
                       size="sm"
-                      onClick={clearFilters}
-                      className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                      onClick={() => setFiltersOpen(!filtersOpen)}
+                      className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary"
                     >
-                      <X className="h-3 w-3 mr-1" />
-                      Limpar Filtros
+                      <FilterIcon className="h-4 w-4 mr-1" />
+                      <span className="hidden sm:inline">Filtros</span>
+                      {activeFiltersCount ? ` (${activeFiltersCount})` : ""}
+                      {filtersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
                     </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-dashed">
-                  <CardContent className="p-6 md:p-8 text-center">
-                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-semibold text-muted-foreground mb-2">
-                      Nenhuma remessa encontrada
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Não há remessas registradas para este produto neste armazém.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      Mostrando <span className="font-medium">{numeroRemessasFiltradas}</span> de <span className="font-medium">{estoqueDetalhes.remessas.length}</span>
+                    </span>
+                    {hasActiveFilters && (
+                      <Button
+                        size="sm"
+                        onClick={clearFilters}
+                        className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                      >
+                        <X className="h-4 w-4" />
+                        Limpar Filtros
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filtros avançados - Mobile otimizado */}
+                {filtersOpen && (
+                  <div className="rounded-md border p-3 space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-semibold mb-2 block">Período</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Input
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px]"
+                            placeholder="De"
+                          />
+                          <Input
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px]"
+                            placeholder="Até"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-semibold mb-2 block">
+                          Quantidade ({estoqueDetalhes.produto.unidade})
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={quantidadeMin}
+                            onChange={(e) => setQuantidadeMin(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            placeholder="Mín"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={quantidadeMax}
+                            onChange={(e) => setQuantidadeMax(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            placeholder="Máx"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {remessasFiltradas.length > 0 ? (
+                    remessasFiltradas.map(renderRemessaCard)
+                  ) : hasActiveFilters ? (
+                    <Card className="border-dashed">
+                      <CardContent className="p-6 md:p-8 text-center">
+                        <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="font-semibold text-muted-foreground mb-2">
+                          Nenhuma remessa encontrada
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Nenhuma remessa corresponde aos filtros aplicados.
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={clearFilters}
+                          className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Limpar Filtros
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-dashed">
+                      <CardContent className="p-6 md:p-8 text-center">
+                        <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="font-semibold text-muted-foreground mb-2">
+                          Nenhuma remessa encontrada
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Não há remessas registradas para este produto neste armazém.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Seção colapsável: Transferências de Propriedade */}
+          <div className="space-y-3">
+            <button
+              onClick={() => setTransferenciasExpandida(!transferenciasExpandida)}
+              className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-muted rounded-lg hover:bg-gray-100 dark:hover:bg-muted/70 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-foreground">
+                  Transferências de Propriedade ({estoqueDetalhes.transferencias.length})
+                </span>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${transferenciasExpandida ? 'rotate-180' : ''}`} />
+            </button>
+
+            {transferenciasExpandida && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <Input
+                      className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                      placeholder="Buscar por cliente ou nº do pedido..."
+                      value={transfSearch}
+                      onChange={(e) => setTransfSearch(e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => setTransfFiltersOpen(!transfFiltersOpen)}
+                      className="whitespace-nowrap min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                    >
+                      <FilterIcon className="h-4 w-4 mr-1" />
+                      <span className="hidden sm:inline">Filtros</span>
+                      {activeTransfFiltersCount ? ` (${activeTransfFiltersCount})` : ""}
+                      {transfFiltersOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      Mostrando <span className="font-medium">{numeroTransferenciasFiltradas}</span> de <span className="font-medium">{estoqueDetalhes.transferencias.length}</span>
+                    </span>
+                    {hasActiveTransfFilters && (
+                      <Button
+                        size="sm"
+                        onClick={clearTransfFilters}
+                        className="gap-1 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                      >
+                        <X className="h-4 w-4" />
+                        Limpar Filtros
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {transfFiltersOpen && (
+                  <div className="rounded-md border p-3 space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-semibold mb-2 block">Período (data da transferência)</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Input
+                            type="date"
+                            value={transfDateFrom}
+                            onChange={(e) => setTransfDateFrom(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px]"
+                            placeholder="De"
+                          />
+                          <Input
+                            type="date"
+                            value={transfDateTo}
+                            onChange={(e) => setTransfDateTo(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px]"
+                            placeholder="Até"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-semibold mb-2 block">
+                          Quantidade ({estoqueDetalhes.produto.unidade})
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={transfQuantidadeMin}
+                            onChange={(e) => setTransfQuantidadeMin(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            placeholder="Mín"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={transfQuantidadeMax}
+                            onChange={(e) => setTransfQuantidadeMax(e.target.value)}
+                            className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                            placeholder="Máx"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {transferenciasFiltradas.length > 0 ? (
+                    transferenciasFiltradas.map(renderTransferenciaCard)
+                  ) : hasActiveTransfFilters ? (
+                    <Card className="border-dashed">
+                      <CardContent className="p-6 md:p-8 text-center">
+                        <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="font-semibold text-muted-foreground mb-2">
+                          Nenhuma transferência encontrada
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Nenhuma transferência corresponde aos filtros aplicados.
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={clearTransfFilters}
+                          className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Limpar Filtros
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-dashed">
+                      <CardContent className="p-6 md:p-8 text-center">
+                        <ArrowRightLeft className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="font-semibold text-muted-foreground mb-2">
+                          Nenhuma transferência encontrada
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Não há transferências de propriedade registradas para este produto neste armazém.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Dialog de confirmação de estorno */}
+      <Dialog open={!!cancelandoTransferencia} onOpenChange={(open) => !open && !isCanceling && setCancelandoTransferencia(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Estornar Transferência de Propriedade</DialogTitle>
+          </DialogHeader>
+          {cancelPreview ? (
+            cancelPreview.pode_cancelar ? (
+              <div className="space-y-3 text-sm">
+                <p>
+                  Isso vai devolver <span className="font-semibold">{cancelandoTransferencia?.quantidade.toLocaleString('pt-BR')} {estoqueDetalhes?.produto.unidade}</span> ao estoque físico e disponível deste produto/armazém.
+                </p>
+                <p className="text-muted-foreground">Esta ação não pode ser desfeita.</p>
+              </div>
+            ) : (
+              <p className="text-sm text-destructive">{cancelPreview.motivo_bloqueio}</p>
+            )
+          ) : (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              className="btn-secondary min-h-[44px] w-full sm:w-auto"
+              onClick={() => setCancelandoTransferencia(null)}
+              disabled={isCanceling}
+            >
+              Cancelar
+            </Button>
+            {cancelPreview?.pode_cancelar && (
+              <Button
+                className="btn-primary min-h-[44px] w-full sm:w-auto"
+                onClick={confirmarCancelamento}
+                disabled={isCanceling}
+              >
+                {isCanceling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Undo2 className="h-4 w-4 mr-2" />}
+                Confirmar Estorno
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 };

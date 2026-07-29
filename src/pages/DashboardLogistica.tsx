@@ -21,6 +21,7 @@ import {
   X,
   Info,
   LucideIcon,
+  ArrowRightLeft,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -926,6 +927,32 @@ const DashboardLogistica = () => {
     refetchInterval: 120_000,
   });
 
+  const { data: transferenciasStats, isLoading: loadingTransferencias } = useQuery({
+    queryKey: ["dash-transferencias-propriedade", filtroArmazens, filtroProdutos],
+    queryFn: async () => {
+      const inicioMes = new Date();
+      inicioMes.setDate(1);
+      const inicioMesISO = inicioMes.toISOString().slice(0, 10);
+
+      let query = supabase
+        .from("estoque_transferencias")
+        .select("quantidade, produto_id, armazem_id")
+        .eq("status", "ativa")
+        .gte("data_transferencia", inicioMesISO);
+      if (filtroArmazens.length) query = query.in("armazem_id", filtroArmazens);
+      if (filtroProdutos.length) query = query.in("produto_id", filtroProdutos);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return {
+        count: data?.length ?? 0,
+        totalQuantidade: (data ?? []).reduce((acc, t) => acc + Number(t.quantidade), 0),
+      };
+    },
+    refetchInterval: 120_000,
+  });
+
   const dicaAtrasados =
     !loadingCarregamentosAtrasados && atrasadosInfo?.limitesPorEtapa.length
       ? `Prazo por etapa: ${atrasadosInfo.limitesPorEtapa.map((l) => `${l.label} ${l.minutos}min`).join(" • ")}`
@@ -1140,6 +1167,17 @@ const DashboardLogistica = () => {
             <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Gestão de Estoques
             </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <StatCard
+                title="Transferências de Propriedade"
+                value={loadingTransferencias ? "…" : transferenciasStats?.count ?? 0}
+                subtitle={loadingTransferencias ? undefined : `${formatT(transferenciasStats?.totalQuantidade ?? 0)}t este mês`}
+                icon={ArrowRightLeft}
+                variant="primary"
+                tooltip="Saídas de estoque por Transferência de Propriedade (sem Liberação/Agendamento/Carregamento) registradas este mês."
+                to="/estoque"
+              />
+            </div>
             <EstoqueBaixoCard itens={estoqueBaixo} isLoading={loadingEstoqueBaixo} />
           </section>
         </div>

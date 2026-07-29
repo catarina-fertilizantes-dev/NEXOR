@@ -538,6 +538,88 @@ export type Database = {
           },
         ]
       }
+      estoque_transferencias: {
+        Row: {
+          armazem_id: string
+          cancelado_em: string | null
+          cancelado_por: string | null
+          cliente_cnpj_texto: string | null
+          cliente_id: string | null
+          cliente_razao_social_texto: string | null
+          created_at: string | null
+          created_by: string | null
+          data_transferencia: string
+          id: string
+          numero_pedido: string
+          produto_id: string
+          quantidade: number
+          status: Database["public"]["Enums"]["estoque_transferencia_status"]
+          updated_at: string | null
+          url_nota: string
+          url_xml: string
+        }
+        Insert: {
+          armazem_id: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          cliente_cnpj_texto?: string | null
+          cliente_id?: string | null
+          cliente_razao_social_texto?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_transferencia?: string
+          id?: string
+          numero_pedido: string
+          produto_id: string
+          quantidade: number
+          status?: Database["public"]["Enums"]["estoque_transferencia_status"]
+          updated_at?: string | null
+          url_nota: string
+          url_xml: string
+        }
+        Update: {
+          armazem_id?: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          cliente_cnpj_texto?: string | null
+          cliente_id?: string | null
+          cliente_razao_social_texto?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_transferencia?: string
+          id?: string
+          numero_pedido?: string
+          produto_id?: string
+          quantidade?: number
+          status?: Database["public"]["Enums"]["estoque_transferencia_status"]
+          updated_at?: string | null
+          url_nota?: string
+          url_xml?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_transferencias_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_transferencias_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_transferencias_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       liberacoes: {
         Row: {
           armazem_id: string
@@ -813,6 +895,10 @@ export type Database = {
         Args: { p_liberacao_id: string }
         Returns: Json
       }
+      calcular_cancelamento_transferencia: {
+        Args: { p_transferencia_id: string }
+        Returns: Json
+      }
       can_access_carregamento_arquivo: {
         Args: { _for_insert?: boolean; _object_name: string; _user_id: string }
         Returns: boolean
@@ -823,6 +909,10 @@ export type Database = {
       }
       cancelar_liberacao: {
         Args: { p_liberacao_id: string; p_user_id: string }
+        Returns: Json
+      }
+      cancelar_transferencia_propriedade: {
+        Args: { p_transferencia_id: string; p_user_id: string }
         Returns: Json
       }
       check_user_active_status: { Args: { user_uuid: string }; Returns: Json }
@@ -1026,6 +1116,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      registrar_transferencia_propriedade: {
+        Args: {
+          p_armazem_id: string
+          p_cliente_cnpj_texto: string
+          p_cliente_id: string
+          p_cliente_razao_social_texto: string
+          p_data_transferencia: string
+          p_numero_pedido: string
+          p_produto_id: string
+          p_quantidade: number
+          p_url_nota: string
+          p_url_xml: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       update_user_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -1040,6 +1146,7 @@ export type Database = {
         | "em_andamento"
         | "concluido"
         | "cancelado"
+      estoque_transferencia_status: "ativa" | "cancelada"
       liberacao_status:
         | "disponivel"
         | "parcialmente_agendada"
@@ -1187,6 +1294,7 @@ export const Constants = {
         "concluido",
         "cancelado",
       ],
+      estoque_transferencia_status: ["ativa", "cancelada"],
       liberacao_status: [
         "disponivel",
         "parcialmente_agendada",
