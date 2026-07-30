@@ -18,7 +18,9 @@ const WEAK_PASSWORDS = new Set([
 
 const BodySchema = z.object({
   nome: z.string().trim().min(2).max(100),
-  cpf: z.string().trim().min(11).max(14),
+  cpf: z.string().trim().refine((v) => /^\d{11}$|^\d{14}$/.test(v), {
+    message: 'CPF/CNPJ deve ter exatamente 11 ou 14 dígitos numéricos',
+  }),
   email: z.string().trim().email().max(255),
   telefone: z.string().trim().optional().nullable(),
   regiao_atuacao: z.string().trim().optional().nullable(),
@@ -222,12 +224,17 @@ Deno.serve(async (req) => {
       
       const isDuplicateKey = representanteError.code === '23505';
       const isDuplicateEmail = /representantes_email(_unique)?|_email_key/i.test(representanteError.message || '');
-      
+      const isDuplicateCpf = /representantes_cpf(_unique)?|_cpf_key/i.test(representanteError.message || '');
+
       let status = 500, errorLabel = 'Failed to create representante record', errorDetails = representanteError.message;
       if (isDuplicateKey && isDuplicateEmail) {
         status = 409;
         errorLabel = 'Duplicidade';
         errorDetails = 'Já existe um representante com este email.';
+      } else if (isDuplicateKey && isDuplicateCpf) {
+        status = 409;
+        errorLabel = 'Duplicidade';
+        errorDetails = 'Já existe um representante com este CPF/CNPJ.';
       }
       
       return jsonResponse({

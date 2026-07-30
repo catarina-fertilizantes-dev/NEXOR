@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Warehouse, Plus, Filter as FilterIcon, Key, Loader2, X } from "lucide-react";
+import { Warehouse, Plus, Filter as FilterIcon, Key, Loader2, X, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,8 +26,10 @@ import { ModalFooter } from "@/components/ui/modal-footer";
 import type { Database } from "@/integrations/supabase/types";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
+import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
 
-// Helpers de máscara e formatação
+// Helpers de máscara e formatação (telefone/CEP ainda não padronizados)
 function maskPhoneInput(value: string): string {
   const cleaned = value.replace(/\D/g, "").slice(0, 11);
   if (cleaned.length === 11)
@@ -62,38 +64,8 @@ function formatCEP(cep: string): string {
     return cleaned.replace(/^(\d{5})(\d{3})$/, "$1-$2");
   return cep;
 }
-function maskCpfCnpjInput(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    // CPF
-    let cpf = digits.slice(0, 11);
-    if (cpf.length > 9)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, "$1.$2.$3-$4");
-    if (cpf.length > 6)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cpf.length > 3)
-      return cpf.replace(/^(\d{3})(\d{0,3})$/, "$1.$2");
-    return cpf;
-  } else {
-    // CNPJ
-    let cnpj = digits.slice(0, 14);
-    if (cnpj.length > 12)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
-    if (cnpj.length > 8)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})$/, "$1.$2.$3/$4");
-    if (cnpj.length > 5)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cnpj.length > 2)
-      return cnpj.replace(/^(\d{2})(\d{0,3})$/, "$1.$2");
-    return cnpj;
-  }
-}
 function formatCpfCnpj(v: string): string {
-  const onlyDigits = v.replace(/\D/g, "");
-  if (onlyDigits.length <= 11) {
-    return onlyDigits.padStart(11, "0").replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-  }
-  return onlyDigits.padStart(14, "0").replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  return v ? formatarCpfCnpj(v) : "—";
 }
 
 const estadosBrasil = [
@@ -176,6 +148,25 @@ const Armazens = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState<Record<string, boolean>>({});
 
+  const [cnpjCpfErro, setCnpjCpfErro] = useState<string | null>(null);
+  const [cnpjCpfDuplicado, setCnpjCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+
+  const handleCnpjCpfBlur = async () => {
+    const documento = normalizeDocumento(novoArmazem.cnpj_cpf);
+    setCnpjCpfDuplicado([]);
+    if (!documento) {
+      setCnpjCpfErro(null);
+      return;
+    }
+    if (!validarCpfOuCnpj(documento)) {
+      setCnpjCpfErro("CNPJ/CPF inválido — confira os números digitados.");
+      return;
+    }
+    setCnpjCpfErro(null);
+    const encontrados = await buscarDocumentoEmOutrosCadastros(documento, "armazens");
+    setCnpjCpfDuplicado(encontrados);
+  };
+
   const resetForm = () => {
     setNovoArmazem({
       nome: "",
@@ -188,6 +179,8 @@ const Armazens = () => {
       cep: "",
       cnpj_cpf: "",
     });
+    setCnpjCpfErro(null);
+    setCnpjCpfDuplicado([]);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -268,6 +261,10 @@ const Armazens = () => {
         variant: "destructive",
         title: "Preencha os campos obrigatórios",
       });
+      return;
+    }
+    if (!validarCpfOuCnpj(cnpj_cpf)) {
+      toast({ variant: "destructive", title: "CNPJ/CPF inválido", description: "Confira os números digitados." });
       return;
     }
   
@@ -660,14 +657,31 @@ const Armazens = () => {
                           id="cnpj_cpf"
                           value={novoArmazem.cnpj_cpf}
                           onChange={(e) => {
-                            setNovoArmazem({ ...novoArmazem, cnpj_cpf: maskCpfCnpjInput(e.target.value) });
+                            setNovoArmazem({ ...novoArmazem, cnpj_cpf: maskCpfCnpj(e.target.value) });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCnpjCpfBlur}
                           placeholder="00.000.000/0000-00 ou 000.000.000-00"
                           maxLength={18}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cnpjCpfErro && (
+                          <p className="text-xs text-destructive mt-1">{cnpjCpfErro}</p>
+                        )}
+                        {cnpjCpfDuplicado.length > 0 && (
+                          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-amber-800">Documento já cadastrado</p>
+                                <p className="text-amber-700 text-xs mt-1">
+                                  Este CNPJ/CPF já está cadastrado como {cnpjCpfDuplicado.map(d => `${d.label} (${d.nome})`).join(", ")}. Confirme se deseja continuar mesmo assim.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="telefone" className="text-sm font-medium">Telefone</Label>

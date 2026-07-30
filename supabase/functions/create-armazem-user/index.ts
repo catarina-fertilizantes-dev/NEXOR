@@ -32,7 +32,9 @@ const BodySchema = z.object({
   telefone: z.string().trim().optional().nullable(),
   endereco: z.string().trim().optional().nullable(),
   cep: z.string().trim().min(5).max(10).optional().nullable(),      // <-- novo campo
-  cnpj_cpf: z.string().trim().min(11).max(18),                     // <-- novo campo, obrigatório (igual ao frontend)
+  cnpj_cpf: z.string().trim().refine((v) => /^\d{11}$|^\d{14}$/.test(v), {
+    message: 'CNPJ/CPF deve ter exatamente 11 ou 14 dígitos numéricos',
+  }),
 });
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -288,17 +290,28 @@ Deno.serve(async (req)=>{
     // Rollback: delete role and user
     await serviceClient.from('user_roles').delete().eq('user_id', userId);
     await serviceClient.auth.admin.deleteUser(userId);
-    // Check if error is duplicate nome or cidade
+    // Check if error is duplicate nome, cidade ou cnpj_cpf
     const isDuplicateNome = armazemError.message?.includes('armazens_nome_unique') || armazemError.message?.includes('armazens_nome_key');
     const isDuplicateCidade = armazemError.message?.includes('armazens_cidade_unique') || armazemError.message?.includes('armazens_cidade_key');
+    const isDuplicateCnpjCpf = /armazens_cnpj_cpf(_unique)?|_cnpj_cpf_key/i.test(armazemError.message || '');
     let errorDetails = armazemError.message;
+    let errorLabel = 'Failed to create armazem record';
+    let status = 500;
     if (isDuplicateNome) {
       errorDetails = 'Ja existe um armazem com este nome.';
+      errorLabel = 'Duplicidade';
+      status = 409;
     } else if (isDuplicateCidade) {
       errorDetails = 'Ja existe um armazem nesta cidade.';
+      errorLabel = 'Duplicidade';
+      status = 409;
+    } else if (isDuplicateCnpjCpf) {
+      errorDetails = 'Ja existe um armazem com este CNPJ/CPF.';
+      errorLabel = 'Duplicidade';
+      status = 409;
     }
     return jsonResponse({
-      error: 'Failed to create armazem record',
+      error: errorLabel,
       details: errorDetails,
       stage: 'createArmazem',
       request_id,
@@ -306,7 +319,7 @@ Deno.serve(async (req)=>{
       email: emailLower,
       nome,
       cidade
-    }, 500);
+    }, status);
   }
   console.log(logPrefix, 'Armazem record created', {
     userId,

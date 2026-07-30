@@ -36,6 +36,8 @@ import { Navigate } from "react-router-dom";
 import type { Database } from "@/integrations/supabase/types";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
+import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
 
 const estadosBrasil = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -59,52 +61,9 @@ type Representante = {
   ativo: boolean;
 };
 
-// Helpers de formatação
-const formatCPF = (cpf: string) =>
-  cpf.replace(/\D/g, "")
-    .padStart(11, "0")
-    .slice(0, 11)
-    .replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-
-const formatCNPJ = (cnpj: string) =>
-  cnpj.replace(/\D/g, "")
-    .padStart(14, "0")
-    .slice(0, 14)
-    .replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-
-function formatCpfCnpj(v: string): string {
-  const onlyDigits = v.replace(/\D/g, "");
-  if (onlyDigits.length <= 11) {
-    return formatCPF(onlyDigits);
-  }
-  return formatCNPJ(onlyDigits);
-}
-function maskCpfCnpjInput(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    // CPF
-    let cpf = digits.slice(0, 11);
-    if (cpf.length > 9)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, "$1.$2.$3-$4");
-    if (cpf.length > 6)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cpf.length > 3)
-      return cpf.replace(/^(\d{3})(\d{0,3})$/, "$1.$2");
-    return cpf;
-  } else {
-    // CNPJ
-    let cnpj = digits.slice(0, 14);
-    if (cnpj.length > 12)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
-    if (cnpj.length > 8)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})$/, "$1.$2.$3/$4");
-    if (cnpj.length > 5)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cnpj.length > 2)
-      return cnpj.replace(/^(\d{2})(\d{0,3})$/, "$1.$2");
-    return cnpj;
-  }
-}
+// Helpers de formatação de CPF/CNPJ vêm de src/lib/documentValidation.ts
+// (formatarCpfCnpj/maskCpfCnpj/validarCpfOuCnpj); helpers de telefone/CEP
+// continuam locais, ainda não padronizados.
 function formatPhone(phone: string): string {
   let cleaned = phone.replace(/\D/g, "");
   if (cleaned.length === 11)
@@ -209,6 +168,26 @@ const Clientes = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState<Record<string, boolean>>({});
 
+  // Validação de CPF/CNPJ (dígito verificador + aviso cross-papel, não bloqueia)
+  const [cnpjCpfErro, setCnpjCpfErro] = useState<string | null>(null);
+  const [cnpjCpfDuplicado, setCnpjCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+
+  const handleCnpjCpfBlur = async () => {
+    const documento = normalizeDocumento(novoCliente.cnpj_cpf);
+    setCnpjCpfDuplicado([]);
+    if (!documento) {
+      setCnpjCpfErro(null);
+      return;
+    }
+    if (!validarCpfOuCnpj(documento)) {
+      setCnpjCpfErro("CNPJ/CPF inválido — confira os números digitados.");
+      return;
+    }
+    setCnpjCpfErro(null);
+    const encontrados = await buscarDocumentoEmOutrosCadastros(documento, "clientes");
+    setCnpjCpfDuplicado(encontrados);
+  };
+
   const resetForm = () => {
     setNovoCliente({
       nome: "",
@@ -221,6 +200,8 @@ const Clientes = () => {
       cep: "",
       representante_id: "",
     });
+    setCnpjCpfErro(null);
+    setCnpjCpfDuplicado([]);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -422,6 +403,10 @@ const Clientes = () => {
         variant: "destructive",
         title: "Preencha os campos obrigatórios",
       });
+      return;
+    }
+    if (!validarCpfOuCnpj(cnpj_cpf)) {
+      toast({ variant: "destructive", title: "CNPJ/CPF inválido", description: "Confira os números digitados." });
       return;
     }
 
@@ -778,14 +763,31 @@ const Clientes = () => {
                           id="cnpj_cpf"
                           value={novoCliente.cnpj_cpf}
                           onChange={(e) => {
-                            setNovoCliente({ ...novoCliente, cnpj_cpf: maskCpfCnpjInput(e.target.value) });
+                            setNovoCliente({ ...novoCliente, cnpj_cpf: maskCpfCnpj(e.target.value) });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCnpjCpfBlur}
                           placeholder="00.000.000/0000-00 ou 000.000.000-00"
                           maxLength={18}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cnpjCpfErro && (
+                          <p className="text-xs text-destructive mt-1">{cnpjCpfErro}</p>
+                        )}
+                        {cnpjCpfDuplicado.length > 0 && (
+                          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-amber-800">Documento já cadastrado</p>
+                                <p className="text-amber-700 text-xs mt-1">
+                                  Este CNPJ/CPF já está cadastrado como {cnpjCpfDuplicado.map(d => `${d.label} (${d.nome})`).join(", ")}. Confirme se deseja continuar mesmo assim.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="new-client-email" className="text-sm font-medium">Email *</Label>
@@ -1157,7 +1159,7 @@ const Clientes = () => {
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">CNPJ/CPF:</Label>
-                      <p className="font-semibold text-sm break-all">{detalhesCliente.cnpj_cpf ? formatCpfCnpj(detalhesCliente.cnpj_cpf) : "—"}</p>
+                      <p className="font-semibold text-sm break-all">{detalhesCliente.cnpj_cpf ? formatarCpfCnpj(detalhesCliente.cnpj_cpf) : "—"}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Telefone:</Label>
@@ -1318,7 +1320,7 @@ const Clientes = () => {
                 <p className="text-sm text-muted-foreground break-all">{cliente.email}</p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">CNPJ/CPF:</span> 
-                  <span className="ml-1 break-all">{formatCpfCnpj(cliente.cnpj_cpf)}</span>
+                  <span className="ml-1 break-all">{formatarCpfCnpj(cliente.cnpj_cpf)}</span>
                 </p>
                 
                 {/* Espaço reservado para representante - altura fixa */}

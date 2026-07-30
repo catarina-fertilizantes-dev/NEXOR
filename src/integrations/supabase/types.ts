@@ -106,7 +106,7 @@ export type Database = {
           capacidade_total: number | null
           cep: string | null
           cidade: string
-          cnpj_cpf: string | null
+          cnpj_cpf: string
           created_at: string | null
           email: string | null
           endereco: string | null
@@ -124,7 +124,7 @@ export type Database = {
           capacidade_total?: number | null
           cep?: string | null
           cidade: string
-          cnpj_cpf?: string | null
+          cnpj_cpf: string
           created_at?: string | null
           email?: string | null
           endereco?: string | null
@@ -142,7 +142,7 @@ export type Database = {
           capacidade_total?: number | null
           cep?: string | null
           cidade?: string
-          cnpj_cpf?: string | null
+          cnpj_cpf?: string
           created_at?: string | null
           email?: string | null
           endereco?: string | null
