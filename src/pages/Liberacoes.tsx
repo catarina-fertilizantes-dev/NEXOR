@@ -49,7 +49,13 @@ interface LiberacaoItem {
   percentualRetirado: number;
   percentualAgendado: number;
   finalizada: boolean;
+  cancelado_em: string | null;
 }
+
+const formatCanceladoEm = (iso: string | null) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("pt-BR");
+};
 
 const QUANTIDADE_TOOLTIPS = {
   liberada: "Quantidade total autorizada nesta liberação para retirada.",
@@ -330,6 +336,7 @@ const Liberacoes = () => {
       armazem_id: item.armazem_id,
       created_at: item.created_at,
       finalizada: item.status === 'finalizada',
+      cancelado_em: item.cancelado_em ?? null,
     }));
   }, [liberacoesData]);
 
@@ -948,76 +955,95 @@ const Liberacoes = () => {
             <p className="truncate"><span className="font-medium text-foreground">Data:</span> {lib.data}</p>
           </div>
 
-          {/* Métricas: Liberada / Agendada / Retirada / Saldo */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground">
-            <Popover>
-              <PopoverTrigger asChild>
-                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                  <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
-                </span>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                  <span className="font-medium text-blue-600 underline decoration-dotted decoration-blue-600/40 underline-offset-2">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
-                </span>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                  <span className="font-medium text-orange-600 underline decoration-dotted decoration-orange-600/40 underline-offset-2">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
-                </span>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                  <span className="font-semibold text-green-600 underline decoration-dotted decoration-green-600/40 underline-offset-2">Saldo:</span> {lib.saldo.toLocaleString('pt-BR')}t
-                </span>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="pt-2 border-t">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
-              <span className="text-xs text-blue-600 font-medium shrink-0">Agendamento:</span>
-
+          {lib.status === 'cancelada' ? (
+            <div className="pt-2 border-t flex items-center justify-between gap-2 text-xs">
               <Popover>
                 <PopoverTrigger asChild>
-                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-pointer min-w-0" onClick={(e) => e.stopPropagation()}>
-                    <div
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${lib.percentualAgendado}%` }}
-                    ></div>
-                  </div>
+                  <span className="whitespace-nowrap cursor-pointer text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                    <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
+                  </span>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
-                  <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
-                </PopoverContent>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
               </Popover>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium w-8 text-right">
-                      {lib.percentualAgendado}%
-                    </span>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
-                  <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2 text-red-600 font-medium whitespace-nowrap">
+                <XCircle className="h-4 w-4 shrink-0" />
+                Cancelado em {formatCanceladoEm(lib.cancelado_em) ?? "—"}
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Métricas: Liberada / Agendada / Retirada / Saldo */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-medium text-blue-600 underline decoration-dotted decoration-blue-600/40 underline-offset-2">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-medium text-orange-600 underline decoration-dotted decoration-orange-600/40 underline-offset-2">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-semibold text-green-600 underline decoration-dotted decoration-green-600/40 underline-offset-2">Saldo:</span> {lib.saldo.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
+                  <span className="text-xs text-blue-600 font-medium shrink-0">Agendamento:</span>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-pointer min-w-0" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${lib.percentualAgendado}%` }}
+                        ></div>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground font-medium w-8 text-right">
+                          {lib.percentualAgendado}%
+                        </span>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -1591,64 +1617,78 @@ const Liberacoes = () => {
                         </Button>
                       )}
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <div className="flex items-center gap-1">
-                          <Label className="text-sm font-medium text-muted-foreground">Agendada</Label>
-                          <Popover>
-                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
-                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
-                          </Popover>
+                    {detalhesLiberacao.status !== 'cancelada' && (
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <Label className="text-sm font-medium text-muted-foreground">Agendada</Label>
+                            <Popover>
+                              <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                              <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
+                            </Popover>
+                          </div>
+                          <p className="text-base md:text-lg font-semibold text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
                         </div>
-                        <p className="text-base md:text-lg font-semibold text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1">
-                          <Label className="text-sm font-medium text-muted-foreground">Retirada</Label>
-                          <Popover>
-                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
-                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
-                          </Popover>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <Label className="text-sm font-medium text-muted-foreground">Retirada</Label>
+                            <Popover>
+                              <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                              <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
+                            </Popover>
+                          </div>
+                          <p className="text-base md:text-lg font-semibold text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
                         </div>
-                        <p className="text-base md:text-lg font-semibold text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1">
-                          <Label className="text-sm font-medium text-muted-foreground">Saldo</Label>
-                          <Popover>
-                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
-                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
-                          </Popover>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <Label className="text-sm font-medium text-muted-foreground">Saldo</Label>
+                            <Popover>
+                              <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                              <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
+                            </Popover>
+                          </div>
+                          <p className="text-base md:text-lg font-semibold text-green-600">{detalhesLiberacao.saldo.toLocaleString('pt-BR')}t</p>
                         </div>
-                        <p className="text-base md:text-lg font-semibold text-green-600">{detalhesLiberacao.saldo.toLocaleString('pt-BR')}t</p>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="border-t"></div>
 
-                  {/* Seção 5: Status de Agendamentos */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 border-b pb-2">
-                      <Calendar className="h-4 w-4 text-indigo-600" />
-                      <h3 className="text-base font-semibold text-foreground">Status de Agendamentos</h3>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Progresso</span>
-                        <span className="text-sm font-medium">{detalhesLiberacao.percentualAgendado}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
-                        <div 
-                          className="bg-blue-500 h-3 rounded-full transition-all duration-300" 
-                          style={{ width: `${detalhesLiberacao.percentualAgendado}%` }}
-                        ></div>
+                  {detalhesLiberacao.status === 'cancelada' ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b pb-2">
+                        <XCircle className="h-4 w-4 text-red-600" />
+                        <h3 className="text-base font-semibold text-foreground">Cancelamento</h3>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {getAgendamentoBarTooltip(detalhesLiberacao.percentualAgendado, detalhesLiberacao.quantidadeAgendada, detalhesLiberacao.quantidade)}
+                        Cancelado em <span className="font-medium text-foreground">{formatCanceladoEm(detalhesLiberacao.cancelado_em) ?? "—"}</span>
                       </p>
                     </div>
-                  </div>
+                  ) : (
+                    /* Seção 5: Status de Agendamentos */
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b pb-2">
+                        <Calendar className="h-4 w-4 text-indigo-600" />
+                        <h3 className="text-base font-semibold text-foreground">Status de Agendamentos</h3>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Progresso</span>
+                          <span className="text-sm font-medium">{detalhesLiberacao.percentualAgendado}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
+                          <div
+                            className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                            style={{ width: `${detalhesLiberacao.percentualAgendado}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {getAgendamentoBarTooltip(detalhesLiberacao.percentualAgendado, detalhesLiberacao.quantidadeAgendada, detalhesLiberacao.quantidade)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

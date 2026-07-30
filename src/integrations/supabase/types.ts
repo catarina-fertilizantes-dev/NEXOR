@@ -956,6 +956,7 @@ export type Database = {
           armazem_estado: string
           armazem_id: string
           armazem_nome: string
+          cancelado_em: string
           carregamento_id: string
           cliente_cnpj_cpf: string
           cliente_id: string
@@ -1101,6 +1102,7 @@ export type Database = {
           armazem_estado: string
           armazem_id: string
           armazem_nome: string
+          cancelado_em: string
           cliente_cnpj_cpf: string
           cliente_id: string
           cliente_nome: string

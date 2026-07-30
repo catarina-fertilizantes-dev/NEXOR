@@ -198,6 +198,11 @@ const parseDate = (d: string) => {
   return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
 };
 
+const formatCanceladoEm = (iso: string | null) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("pt-BR");
+};
+
 type AgendamentoStatus = "pendente" | "em_andamento" | "concluido" | "cancelado";
 
 interface AgendamentoItem {
@@ -229,6 +234,7 @@ interface AgendamentoItem {
   tooltip_carregamento: string;
   carregamento_id: string | null;
   finalizado: boolean;
+  cancelado_em: string | null;
 }
 
 const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
@@ -483,6 +489,7 @@ const Agendamentos = () => {
           tooltip_carregamento: statusInfo.tooltip,
           carregamento_id: item.carregamento_id ?? null,
           finalizado,
+          cancelado_em: item.cancelado_em ?? null,
         };
       } else {
         let etapaAtual = 1;
@@ -523,6 +530,7 @@ const Agendamentos = () => {
           tooltip_carregamento: statusInfo.tooltip,
           carregamento_id: carregamento?.id ?? null,
           finalizado,
+          cancelado_em: item.cancelado_em ?? null,
         };
       }
     });
@@ -1172,36 +1180,47 @@ const Agendamentos = () => {
             <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(ag.placa)}</p>
           </div>
 
-          {/* Rodapé: etapa do carregamento + atalho */}
+          {/* Rodapé: etapa do carregamento + atalho, ou data de cancelamento */}
           <div className="pt-3 border-t flex items-center justify-between gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                  <Truck className="h-4 w-4 text-purple-600 shrink-0" />
-                  <span className="text-xs text-purple-600 font-medium shrink-0 hidden sm:inline">Carregamento:</span>
-                  <Badge variant="secondary" className={`${ag.cor_carregamento} text-xs font-normal whitespace-nowrap`}>
-                    Etapa {ag.etapa_carregamento}/6 · {ag.status_carregamento}
-                  </Badge>
-                </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto max-w-[260px] p-2" onClick={(e) => e.stopPropagation()}>
-                <p className="text-sm">{ag.tooltip_carregamento}. As etapas do carregamento são acompanhadas na página Carregamentos.</p>
-              </PopoverContent>
-            </Popover>
+            {ag.status === 'cancelado' ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+                <span className="text-xs text-red-600 font-medium whitespace-nowrap">
+                  Cancelado em {formatCanceladoEm(ag.cancelado_em) ?? "—"}
+                </span>
+              </div>
+            ) : (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <Truck className="h-4 w-4 text-purple-600 shrink-0" />
+                      <span className="text-xs text-purple-600 font-medium shrink-0 hidden sm:inline">Carregamento:</span>
+                      <Badge variant="secondary" className={`${ag.cor_carregamento} text-xs font-normal whitespace-nowrap`}>
+                        Etapa {ag.etapa_carregamento}/6 · {ag.status_carregamento}
+                      </Badge>
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[260px] p-2" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-sm">{ag.tooltip_carregamento}. As etapas do carregamento são acompanhadas na página Carregamentos.</p>
+                  </PopoverContent>
+                </Popover>
 
-            {ag.carregamento_id && (
-              <Button
-                size="sm"
-                className="h-8 shrink-0 gap-1 px-2.5 text-xs min-h-[32px] btn-secondary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/carregamentos/${ag.carregamento_id}`);
-                }}
-              >
-                <span className="hidden sm:inline">Ver carregamento</span>
-                <span className="sm:hidden">Ver</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
+                {ag.carregamento_id && (
+                  <Button
+                    size="sm"
+                    className="h-8 shrink-0 gap-1 px-2.5 text-xs min-h-[32px] btn-secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/carregamentos/${ag.carregamento_id}`);
+                    }}
+                  >
+                    <span className="hidden sm:inline">Ver carregamento</span>
+                    <span className="sm:hidden">Ver</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -1588,14 +1607,14 @@ const Agendamentos = () => {
                       </div>
                     )}
 
-                    <ModalFooter 
+                    <ModalFooter
                       variant="double"
                       onClose={() => handleCloseModal()}
                       onConfirm={handleCreateAgendamento}
                       confirmText="Criar Agendamento"
                       confirmIcon={<Plus className="h-4 w-4" />}
                       isLoading={isCreating}
-                      confirmDisabled={!temLiberacoesDisponiveis}
+                      disabled={!temLiberacoesDisponiveis}
                     />
                   </div>
                 </DialogContent>
@@ -1934,25 +1953,37 @@ const Agendamentos = () => {
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 border-b pb-2">
-                    <Package className="h-4 w-4 text-indigo-600" />
-                    <h3 className="text-base font-semibold text-foreground">Status do Carregamento</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Progresso</span>
-                      <span className="text-sm font-medium">{detalhesAgendamento.percentual_carregamento}%</span>
+                {detalhesAgendamento.status === 'cancelado' ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                      <h3 className="text-base font-semibold text-foreground">Cancelamento</h3>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
-                      <div 
-                        className="bg-purple-500 h-3 rounded-full transition-all duration-300" 
-                        style={{ width: `${detalhesAgendamento.percentual_carregamento}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{detalhesAgendamento.tooltip_carregamento}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Cancelado em <span className="font-medium text-foreground">{formatCanceladoEm(detalhesAgendamento.cancelado_em) ?? "—"}</span>
+                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Package className="h-4 w-4 text-indigo-600" />
+                      <h3 className="text-base font-semibold text-foreground">Status do Carregamento</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Progresso</span>
+                        <span className="text-sm font-medium">{detalhesAgendamento.percentual_carregamento}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
+                        <div
+                          className="bg-purple-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${detalhesAgendamento.percentual_carregamento}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{detalhesAgendamento.tooltip_carregamento}</p>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="pt-4 border-t border-border bg-background flex flex-wrap gap-2 justify-between">
