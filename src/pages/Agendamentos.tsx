@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle, Edit3 } from "lucide-react";
+import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle, Edit3, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +74,8 @@ const getAgendamentoStatusTooltip = (status: string) => {
       return "O carregamento referente à este agendamento está sendo realizado";
     case "concluido":
       return "O carregamento referente à este agendamento foi finalizado e o caminhão liberado";
+    case "cancelado":
+      return "Este agendamento foi cancelado e não ocupa mais saldo da liberação";
     default:
       return "";
   }
@@ -83,6 +85,7 @@ const STATUS_AGENDAMENTO = [
   { id: "pendente", nome: "Pendente", cor: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
   { id: "em_andamento", nome: "Em Andamento", cor: "bg-blue-100 text-blue-800 hover:bg-blue-200" },
   { id: "concluido", nome: "Concluído", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
+  { id: "cancelado", nome: "Cancelado", cor: "bg-red-100 text-red-800 hover:bg-red-200" },
 ];
 
 const EmptyStateCardWithAction = ({ 
@@ -195,7 +198,7 @@ const parseDate = (d: string) => {
   return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
 };
 
-type AgendamentoStatus = "pendente" | "em_andamento" | "concluido";
+type AgendamentoStatus = "pendente" | "em_andamento" | "concluido" | "cancelado";
 
 interface AgendamentoItem {
   id: string;
@@ -203,6 +206,7 @@ interface AgendamentoItem {
   produto: string;
   quantidade: number;
   data: string;
+  data_retirada_raw: string;
   placa: string;
   motorista: string;
   documento: string;
@@ -294,12 +298,26 @@ const Agendamentos = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [detalhesAgendamento, setDetalhesAgendamento] = useState<AgendamentoItem | null>(null);
   const [secaoFinalizadosExpandida, setSecaoFinalizadosExpandida] = useState(false);
+  const [secaoCanceladosExpandida, setSecaoCanceladosExpandida] = useState(false);
 
-  const [showEditarQuantidade, setShowEditarQuantidade] = useState(false);
-  const [novaQuantidadeAgendamento, setNovaQuantidadeAgendamento] = useState("");
-  const [isEditandoQuantidade, setIsEditandoQuantidade] = useState(false);
-  const [isLoadingMaxQuantidadeAgendamento, setIsLoadingMaxQuantidadeAgendamento] = useState(false);
-  const [maxQuantidadeAgendamento, setMaxQuantidadeAgendamento] = useState<number | null>(null);
+  const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
+  const [formEditarAgendamento, setFormEditarAgendamento] = useState({
+    quantidade: "",
+    data: "",
+    placa: "",
+    placaCarreta1: "",
+    placaCarreta2: "",
+    motorista: "",
+    documento: "",
+    transportadora: "",
+    cnpjTransportadora: "",
+  });
+  const [isEditandoAgendamento, setIsEditandoAgendamento] = useState(false);
+  const [isLoadingMaxQuantidadeEditar, setIsLoadingMaxQuantidadeEditar] = useState(false);
+  const [maxQuantidadeEditar, setMaxQuantidadeEditar] = useState<number | null>(null);
+
+  const [showCancelarAgendamento, setShowCancelarAgendamento] = useState(false);
+  const [isCancelandoAgendamento, setIsCancelandoAgendamento] = useState(false);
 
   const { data: agendamentosData, isLoading, error } = useQuery({
     queryKey: ["agendamentos", clienteId, armazemId, representanteId, userRole],
@@ -442,6 +460,7 @@ const Agendamentos = () => {
           produto: item.produto_nome,
           quantidade: item.quantidade,
           data: new Date(item.data_retirada).toLocaleDateString("pt-BR"),
+          data_retirada_raw: item.data_retirada,
           placa: item.placa_caminhao || "N/A",
           motorista: item.motorista_nome || "N/A",
           documento: item.motorista_documento || "N/A",
@@ -481,6 +500,7 @@ const Agendamentos = () => {
           data: item.data_retirada
             ? new Date(item.data_retirada).toLocaleDateString("pt-BR")
             : "",
+          data_retirada_raw: item.data_retirada || "",
           placa: item.placa_caminhao || "N/A",
           motorista: item.motorista_nome || "N/A",
           documento: item.motorista_documento || "N/A",
@@ -835,9 +855,8 @@ const Agendamentos = () => {
     }
   }, [agendamentos]);
 
-  const { agendamentosAtivos, agendamentosFinalizados } = useMemo(() => {
+  const { agendamentosAtivos, agendamentosFinalizados, agendamentosCancelados } = useMemo(() => {
     const filtered = agendamentos.filter((a) => {
-      if (a.status === 'cancelado') return false;
       const term = search.trim().toLowerCase();
       if (term) {
         const hay = `${a.cliente} ${a.produto} ${a.pedido} ${a.motorista}`.toLowerCase();
@@ -856,10 +875,11 @@ const Agendamentos = () => {
       return true;
     });
 
-    const ativos = filtered.filter(a => !a.finalizado);
-    const finalizados = filtered.filter(a => a.finalizado);
+    const cancelados = filtered.filter(a => a.status === 'cancelado');
+    const ativos = filtered.filter(a => !a.finalizado && a.status !== 'cancelado');
+    const finalizados = filtered.filter(a => a.finalizado && a.status !== 'cancelado');
 
-    return { agendamentosAtivos: ativos, agendamentosFinalizados: finalizados };
+    return { agendamentosAtivos: ativos, agendamentosFinalizados: finalizados, agendamentosCancelados: cancelados };
   }, [agendamentos, search, selectedStatuses, dateFrom, dateTo]);
 
   useEffect(() => {
@@ -868,7 +888,13 @@ const Agendamentos = () => {
     }
   }, [search, agendamentosFinalizados.length, secaoFinalizadosExpandida]);
 
-  const showingCount = agendamentosAtivos.length + agendamentosFinalizados.length;
+  useEffect(() => {
+    if (search.trim() && agendamentosCancelados.length > 0 && !secaoCanceladosExpandida) {
+      setSecaoCanceladosExpandida(true);
+    }
+  }, [search, agendamentosCancelados.length, secaoCanceladosExpandida]);
+
+  const showingCount = agendamentosAtivos.length + agendamentosFinalizados.length + agendamentosCancelados.length;
   const totalCount = agendamentos.length;
   const activeAdvancedCount = (selectedStatuses.length ? 1 : 0) + ((dateFrom || dateTo) ? 1 : 0);
   const hasActiveFilters = search.trim() || selectedStatuses.length > 0 || dateFrom || dateTo;
@@ -907,6 +933,8 @@ const Agendamentos = () => {
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
       case "concluido":
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+      case "cancelado":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
     }
@@ -920,23 +948,35 @@ const Agendamentos = () => {
         return "Em Andamento";
       case "concluido":
         return "Concluído";
+      case "cancelado":
+        return "Cancelado";
       default:
         return status;
     }
   };
 
-  const handleAbrirEditarQuantidade = async () => {
+  const handleAbrirEditarAgendamento = async () => {
     if (!detalhesAgendamento || !detalhesAgendamento.liberacao_id) return;
-    setShowEditarQuantidade(true);
-    setMaxQuantidadeAgendamento(null);
-    setNovaQuantidadeAgendamento(String(detalhesAgendamento.quantidade));
-    setIsLoadingMaxQuantidadeAgendamento(true);
+    setShowEditarAgendamento(true);
+    setMaxQuantidadeEditar(null);
+    setFormEditarAgendamento({
+      quantidade: String(detalhesAgendamento.quantidade),
+      data: detalhesAgendamento.data_retirada_raw,
+      placa: maskPlaca(detalhesAgendamento.placa),
+      placaCarreta1: maskPlaca(detalhesAgendamento.placa_carreta_1),
+      placaCarreta2: detalhesAgendamento.placa_carreta_2 ? maskPlaca(detalhesAgendamento.placa_carreta_2) : "",
+      motorista: detalhesAgendamento.motorista,
+      documento: maskCPF(detalhesAgendamento.documento),
+      transportadora: detalhesAgendamento.transportadora,
+      cnpjTransportadora: maskCNPJ(detalhesAgendamento.cnpj_transportadora),
+    });
+    setIsLoadingMaxQuantidadeEditar(true);
     try {
       const { data, error } = await supabase.rpc('get_quantidade_disponivel_liberacao', {
         liberacao_uuid: detalhesAgendamento.liberacao_id,
       });
       if (error) throw error;
-      setMaxQuantidadeAgendamento(Number(data) + detalhesAgendamento.quantidade);
+      setMaxQuantidadeEditar(Number(data) + detalhesAgendamento.quantidade);
     } catch (err) {
       toast({
         variant: "destructive",
@@ -944,60 +984,150 @@ const Agendamentos = () => {
         description: err instanceof Error ? err.message : "Erro desconhecido",
       });
     } finally {
-      setIsLoadingMaxQuantidadeAgendamento(false);
+      setIsLoadingMaxQuantidadeEditar(false);
     }
   };
 
-  const handleCloseEditarQuantidade = () => {
-    setShowEditarQuantidade(false);
-    setNovaQuantidadeAgendamento("");
-    setMaxQuantidadeAgendamento(null);
+  const handleCloseEditarAgendamento = () => {
+    setShowEditarAgendamento(false);
+    setFormEditarAgendamento({
+      quantidade: "",
+      data: "",
+      placa: "",
+      placaCarreta1: "",
+      placaCarreta2: "",
+      motorista: "",
+      documento: "",
+      transportadora: "",
+      cnpjTransportadora: "",
+    });
+    setMaxQuantidadeEditar(null);
   };
 
-  const handleEditarQuantidadeAgendamento = async () => {
+  const handleEditarAgendamento = async () => {
     if (!detalhesAgendamento) return;
 
-    const qtdNum = Number(novaQuantidadeAgendamento);
+    const qtdNum = Number(formEditarAgendamento.quantidade);
     if (Number.isNaN(qtdNum) || qtdNum <= 0) {
       toast({ variant: "destructive", title: "Quantidade inválida" });
       return;
     }
-    if (maxQuantidadeAgendamento !== null && qtdNum > maxQuantidadeAgendamento) {
+    if (maxQuantidadeEditar !== null && qtdNum > maxQuantidadeEditar) {
       toast({
         variant: "destructive",
         title: "Saldo insuficiente na liberação",
-        description: `Máximo permitido: ${maxQuantidadeAgendamento.toLocaleString('pt-BR')}t.`,
+        description: `Máximo permitido: ${maxQuantidadeEditar.toLocaleString('pt-BR')}t.`,
       });
       return;
     }
+    if (!formEditarAgendamento.data) {
+      toast({ variant: "destructive", title: "Data de retirada é obrigatória" });
+      return;
+    }
+    const placaSemMascara = formEditarAgendamento.placa.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    if (!validatePlaca(placaSemMascara)) {
+      toast({ variant: "destructive", title: "Placa do veículo inválida" });
+      return;
+    }
+    const placaCarreta1SemMascara = formEditarAgendamento.placaCarreta1.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    if (!validatePlaca(placaCarreta1SemMascara)) {
+      toast({ variant: "destructive", title: "Placa da Carreta 1 inválida" });
+      return;
+    }
+    let placaCarreta2SemMascara = "";
+    if (formEditarAgendamento.placaCarreta2.trim()) {
+      placaCarreta2SemMascara = formEditarAgendamento.placaCarreta2.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+      if (!validatePlaca(placaCarreta2SemMascara)) {
+        toast({ variant: "destructive", title: "Placa da Carreta 2 inválida" });
+        return;
+      }
+    }
+    if (!formEditarAgendamento.motorista.trim() || formEditarAgendamento.motorista.trim().length < 3) {
+      toast({ variant: "destructive", title: "Nome do motorista inválido" });
+      return;
+    }
+    const cpfLimpo = formEditarAgendamento.documento.replace(/\D/g, "");
+    if (cpfLimpo.length !== 11) {
+      toast({ variant: "destructive", title: "CPF do motorista inválido" });
+      return;
+    }
+    if (!formEditarAgendamento.transportadora.trim() || formEditarAgendamento.transportadora.trim().length < 3) {
+      toast({ variant: "destructive", title: "Nome da transportadora inválido" });
+      return;
+    }
+    const cnpjLimpo = formEditarAgendamento.cnpjTransportadora.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) {
+      toast({ variant: "destructive", title: "CNPJ da transportadora inválido" });
+      return;
+    }
 
-    setIsEditandoQuantidade(true);
+    setIsEditandoAgendamento(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const { data, error } = await supabase.rpc('alterar_quantidade_agendamento', {
+      const { data, error } = await supabase.rpc('editar_agendamento', {
         p_agendamento_id: detalhesAgendamento.id,
-        p_nova_quantidade: qtdNum,
+        p_quantidade: qtdNum,
+        p_data_retirada: formEditarAgendamento.data,
+        p_placa_caminhao: placaSemMascara,
+        p_placa_carreta_1: placaCarreta1SemMascara,
+        p_placa_carreta_2: placaCarreta2SemMascara || null,
+        p_motorista_nome: formEditarAgendamento.motorista.trim(),
+        p_motorista_documento: cpfLimpo,
+        p_transportadora: formEditarAgendamento.transportadora.trim(),
+        p_cnpj_transportadora: cnpjLimpo,
         p_user_id: userData.user?.id ?? '',
       });
       if (error) throw error;
-      const result = data as { success: boolean; error?: string; quantidade_anterior: number; quantidade_nova: number };
+      const result = data as { success: boolean; error?: string };
       if (!result.success) throw new Error(result.error);
-      toast({
-        title: "Quantidade do agendamento alterada",
-        description: `De ${Number(result.quantidade_anterior).toLocaleString('pt-BR')}t para ${Number(result.quantidade_nova).toLocaleString('pt-BR')}t.`,
-      });
-      handleCloseEditarQuantidade();
+      toast({ title: "Agendamento atualizado" });
+      handleCloseEditarAgendamento();
       setDetalhesAgendamento(null);
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos-totais"] });
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Erro ao alterar quantidade",
+        title: "Erro ao editar agendamento",
         description: err instanceof Error ? err.message : "Erro desconhecido",
       });
     } finally {
-      setIsEditandoQuantidade(false);
+      setIsEditandoAgendamento(false);
+    }
+  };
+
+  const handleAbrirCancelarAgendamento = () => {
+    setShowCancelarAgendamento(true);
+  };
+
+  const handleCancelarAgendamento = async () => {
+    if (!detalhesAgendamento) return;
+    setIsCancelandoAgendamento(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc('cancelar_agendamento', {
+        p_agendamento_id: detalhesAgendamento.id,
+        p_user_id: userData.user?.id ?? '',
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) throw new Error(result.error);
+      toast({
+        title: "Agendamento cancelado",
+        description: "O saldo foi liberado de volta para a liberação.",
+      });
+      setShowCancelarAgendamento(false);
+      setDetalhesAgendamento(null);
+      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["agendamentos-totais"] });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao cancelar agendamento",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsCancelandoAgendamento(false);
     }
   };
 
@@ -1566,7 +1696,7 @@ const Agendamentos = () => {
             </div>
             <div className="grid gap-4">
               {agendamentosAtivos.map(renderAgendamentoCard)}
-              {agendamentosAtivos.length === 0 && agendamentosFinalizados.length > 0 && (
+              {agendamentosAtivos.length === 0 && (agendamentosFinalizados.length > 0 || agendamentosCancelados.length > 0) && (
                 <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
                   <div className="rounded-full bg-muted p-3">
                     <Calendar className="h-6 w-6 text-muted-foreground" />
@@ -1607,7 +1737,33 @@ const Agendamentos = () => {
             </div>
           )}
 
-          {agendamentosAtivos.length === 0 && agendamentosFinalizados.length === 0 && (
+          {agendamentosCancelados.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                onClick={() => setSecaoCanceladosExpandida(!secaoCanceladosExpandida)}
+                className="w-full justify-between bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 min-h-[44px] max-md:min-h-[44px] dark:bg-red-950/20 dark:hover:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+              >
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-5 w-5" />
+                  <span className="text-sm font-medium">
+                    Agendamentos Cancelados ({agendamentosCancelados.length})
+                  </span>
+                </div>
+                {secaoCanceladosExpandida ?
+                  <ChevronUp className="h-4 w-4" /> :
+                  <ChevronDown className="h-4 w-4" />
+                }
+              </Button>
+
+              {secaoCanceladosExpandida && (
+                <div className="grid gap-3 rounded-lg bg-red-50/50 dark:bg-red-950/10 p-3">
+                  {agendamentosCancelados.map(renderAgendamentoCard)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {agendamentosAtivos.length === 0 && agendamentosFinalizados.length === 0 && agendamentosCancelados.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
               <div className="rounded-full bg-muted p-4">
                 <Calendar className="h-8 w-8 text-muted-foreground" />
@@ -1691,21 +1847,7 @@ const Agendamentos = () => {
                       <p className="text-sm font-medium">{detalhesAgendamento.produto}</p>
                     </div>
                     <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <Label className="text-sm font-medium text-muted-foreground">Quantidade</Label>
-                        {(hasRole("admin") || hasRole("logistica")) &&
-                         detalhesAgendamento.etapa_carregamento === 1 &&
-                         detalhesAgendamento.status !== 'cancelado' && (
-                          <Button
-                            size="sm"
-                            onClick={handleAbrirEditarQuantidade}
-                            className="h-7 px-2 text-xs min-h-[28px] btn-secondary shrink-0"
-                          >
-                            <Edit3 className="h-3 w-3 mr-1" />
-                            Alterar
-                          </Button>
-                        )}
-                      </div>
+                      <Label className="text-sm font-medium text-muted-foreground">Quantidade</Label>
                       <p className="text-sm font-medium">{detalhesAgendamento.quantidade.toLocaleString('pt-BR')}t</p>
                     </div>
                     <div className="md:col-span-2">
@@ -1813,104 +1955,295 @@ const Agendamentos = () => {
                 </div>
               </div>
               
-              <div className="pt-4 border-t border-border bg-background flex flex-col-reverse md:flex-row md:justify-end gap-2">
-                {detalhesAgendamento.carregamento_id && (
+              <div className="pt-4 border-t border-border bg-background flex flex-wrap gap-2 justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {(hasRole("admin") || hasRole("logistica")) &&
+                   detalhesAgendamento.etapa_carregamento === 1 &&
+                   detalhesAgendamento.status !== 'cancelado' && (
+                    <>
+                      <Button
+                        variant="destructive"
+                        onClick={handleAbrirCancelarAgendamento}
+                        className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancelar Agendamento
+                      </Button>
+                      <Button
+                        onClick={handleAbrirEditarAgendamento}
+                        className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-secondary"
+                      >
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Editar Agendamento
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {detalhesAgendamento.carregamento_id && (
+                    <Button
+                      onClick={() => navigate(`/carregamentos/${detalhesAgendamento.carregamento_id}`)}
+                      className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-primary gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Ver carregamento
+                    </Button>
+                  )}
                   <Button
-                    onClick={() => navigate(`/carregamentos/${detalhesAgendamento.carregamento_id}`)}
-                    className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-primary gap-2"
+                    onClick={() => setDetalhesAgendamento(null)}
+                    className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-secondary"
                   >
-                    <ExternalLink className="h-4 w-4" />
-                    Ver carregamento
+                    Fechar
                   </Button>
-                )}
-                <Button
-                  onClick={() => setDetalhesAgendamento(null)}
-                  className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-secondary"
-                >
-                  Fechar
-                </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
         )}
 
-        {/* Modal de Alteração de Quantidade do Agendamento */}
-        <Dialog open={showEditarQuantidade} onOpenChange={(open) => {
+        {/* Modal de Edição do Agendamento */}
+        <Dialog open={showEditarAgendamento} onOpenChange={(open) => {
           if (!open) {
-            handleCloseEditarQuantidade();
+            handleCloseEditarAgendamento();
           } else {
-            setShowEditarQuantidade(open);
+            setShowEditarAgendamento(open);
           }
         }}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Editar Agendamento</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesAgendamento?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-6">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950/20 dark:border-amber-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Só é possível editar o agendamento enquanto a chegada do caminhão ainda não foi registrada no carregamento.
+                  </p>
+                </div>
+              </div>
+
+              {isLoadingMaxQuantidadeEditar ? (
+                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando saldo disponível...
+                </div>
+              ) : maxQuantidadeEditar !== null && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="editar-quantidade" className="text-sm font-medium">Quantidade (t) *</Label>
+                      <Input
+                        id="editar-quantidade"
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={maxQuantidadeEditar}
+                        value={formEditarAgendamento.quantidade}
+                        onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, quantidade: e.target.value })}
+                        disabled={isEditandoAgendamento}
+                        className="min-h-[44px] mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Saldo máximo disponível na liberação: <span className="font-semibold">{maxQuantidadeEditar.toLocaleString('pt-BR')}t</span>
+                      </p>
+                      {(() => {
+                        const qtdNum = Number(formEditarAgendamento.quantidade);
+                        if (!formEditarAgendamento.quantidade || Number.isNaN(qtdNum) || qtdNum <= 0) return null;
+                        if (qtdNum > maxQuantidadeEditar) {
+                          return <p className="text-xs text-red-600 mt-1">⚠️ Excede o saldo disponível na liberação</p>;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    <div>
+                      <Label htmlFor="editar-data" className="text-sm font-medium">Data de Retirada *</Label>
+                      <Input
+                        id="editar-data"
+                        type="date"
+                        value={formEditarAgendamento.data}
+                        onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, data: e.target.value })}
+                        disabled={isEditandoAgendamento}
+                        className="min-h-[44px] mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Truck className="h-4 w-4 text-green-600" />
+                      <h3 className="text-base font-semibold text-foreground">Veículo e Carretas</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="editar-placa" className="text-sm font-medium">Placa do Veículo *</Label>
+                        <Input
+                          id="editar-placa"
+                          value={formEditarAgendamento.placa}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, placa: maskPlaca(e.target.value) })}
+                          placeholder="ABC-1234"
+                          maxLength={8}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-placaCarreta1" className="text-sm font-medium">Placa da Carreta 1 *</Label>
+                        <Input
+                          id="editar-placaCarreta1"
+                          value={formEditarAgendamento.placaCarreta1}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, placaCarreta1: maskPlaca(e.target.value) })}
+                          placeholder="ABC-1234"
+                          maxLength={8}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-placaCarreta2" className="text-sm font-medium">Placa da Carreta 2 (opcional)</Label>
+                        <Input
+                          id="editar-placaCarreta2"
+                          value={formEditarAgendamento.placaCarreta2}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, placaCarreta2: maskPlaca(e.target.value) })}
+                          placeholder="ABC-1234"
+                          maxLength={8}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <User className="h-4 w-4 text-purple-600" />
+                      <h3 className="text-base font-semibold text-foreground">Motorista</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="editar-motorista" className="text-sm font-medium">Nome do Motorista *</Label>
+                        <Input
+                          id="editar-motorista"
+                          value={formEditarAgendamento.motorista}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, motorista: e.target.value })}
+                          placeholder="Nome completo"
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-documento" className="text-sm font-medium">CPF do Motorista *</Label>
+                        <Input
+                          id="editar-documento"
+                          value={formEditarAgendamento.documento}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, documento: maskCPF(e.target.value) })}
+                          placeholder="000.000.000-00"
+                          maxLength={14}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Building2 className="h-4 w-4 text-orange-600" />
+                      <h3 className="text-base font-semibold text-foreground">Transportadora</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="editar-transportadora" className="text-sm font-medium">Nome da Transportadora *</Label>
+                        <Input
+                          id="editar-transportadora"
+                          value={formEditarAgendamento.transportadora}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, transportadora: e.target.value })}
+                          placeholder="Nome da empresa transportadora"
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-cnpjTransportadora" className="text-sm font-medium">CNPJ da Transportadora *</Label>
+                        <Input
+                          id="editar-cnpjTransportadora"
+                          value={formEditarAgendamento.cnpjTransportadora}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, cnpjTransportadora: maskCNPJ(e.target.value) })}
+                          placeholder="00.000.000/0000-00"
+                          maxLength={18}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <ModalFooter
+              variant="double"
+              onClose={handleCloseEditarAgendamento}
+              onConfirm={handleEditarAgendamento}
+              confirmText="Salvar Alterações"
+              isLoading={isEditandoAgendamento}
+              disabled={
+                maxQuantidadeEditar === null ||
+                isEditandoAgendamento ||
+                isLoadingMaxQuantidadeEditar ||
+                !formEditarAgendamento.quantidade ||
+                Number.isNaN(Number(formEditarAgendamento.quantidade)) ||
+                Number(formEditarAgendamento.quantidade) <= 0 ||
+                Number(formEditarAgendamento.quantidade) > maxQuantidadeEditar ||
+                !formEditarAgendamento.data ||
+                formEditarAgendamento.placa.replace(/[^A-Z0-9]/gi, "").length < 7 ||
+                formEditarAgendamento.placaCarreta1.replace(/[^A-Z0-9]/gi, "").length < 7 ||
+                (formEditarAgendamento.placaCarreta2.trim() !== "" && formEditarAgendamento.placaCarreta2.replace(/[^A-Z0-9]/gi, "").length < 7) ||
+                formEditarAgendamento.motorista.trim().length < 3 ||
+                formEditarAgendamento.documento.replace(/\D/g, "").length !== 11 ||
+                formEditarAgendamento.transportadora.trim().length < 3 ||
+                formEditarAgendamento.cnpjTransportadora.replace(/\D/g, "").length !== 14
+              }
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Confirmação de Cancelamento do Agendamento */}
+        <Dialog open={showCancelarAgendamento} onOpenChange={setShowCancelarAgendamento}>
           <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
             <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
-              <DialogTitle className="text-lg pr-2 mt-1">Alterar Quantidade do Agendamento</DialogTitle>
+              <DialogTitle className="text-lg pr-2 mt-1">Cancelar Agendamento?</DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
                 Pedido: {detalhesAgendamento?.pedido}
               </DialogDescription>
             </DialogHeader>
 
             <div className="py-4 px-1 space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950/20 dark:border-amber-800">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-800">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
-                    Só é possível alterar a quantidade enquanto a chegada do caminhão ainda não foi registrada no carregamento.
-                  </p>
+                  <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="text-sm space-y-1">
+                    <p className="font-medium text-red-800 dark:text-red-300">Esta ação é irreversível.</p>
+                    <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
+                      <li>O carregamento vinculado será removido</li>
+                      <li>A quantidade agendada volta a ficar disponível na liberação</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-
-              {isLoadingMaxQuantidadeAgendamento ? (
-                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Calculando saldo disponível...
-                </div>
-              ) : maxQuantidadeAgendamento !== null && (
-                <div>
-                  <Label htmlFor="nova-quantidade-agendamento" className="text-sm font-medium">
-                    Nova Quantidade (t) *
-                  </Label>
-                  <Input
-                    id="nova-quantidade-agendamento"
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    max={maxQuantidadeAgendamento}
-                    value={novaQuantidadeAgendamento}
-                    onChange={(e) => setNovaQuantidadeAgendamento(e.target.value)}
-                    disabled={isEditandoQuantidade}
-                    className="min-h-[44px] mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Saldo máximo disponível na liberação: <span className="font-semibold">{maxQuantidadeAgendamento.toLocaleString('pt-BR')}t</span>
-                  </p>
-                  {(() => {
-                    const qtdNum = Number(novaQuantidadeAgendamento);
-                    if (!novaQuantidadeAgendamento || Number.isNaN(qtdNum) || qtdNum <= 0) return null;
-                    if (qtdNum > maxQuantidadeAgendamento) {
-                      return <p className="text-xs text-red-600 mt-1">⚠️ Excede o saldo disponível na liberação</p>;
-                    }
-                    return null;
-                  })()}
-                </div>
-              )}
             </div>
 
             <ModalFooter
               variant="double"
-              onClose={handleCloseEditarQuantidade}
-              onConfirm={handleEditarQuantidadeAgendamento}
-              confirmText="Confirmar Alteração"
-              isLoading={isEditandoQuantidade}
-              disabled={
-                maxQuantidadeAgendamento === null ||
-                isEditandoQuantidade ||
-                isLoadingMaxQuantidadeAgendamento ||
-                !novaQuantidadeAgendamento ||
-                Number.isNaN(Number(novaQuantidadeAgendamento)) ||
-                Number(novaQuantidadeAgendamento) <= 0 ||
-                Number(novaQuantidadeAgendamento) > maxQuantidadeAgendamento
-              }
+              onClose={() => setShowCancelarAgendamento(false)}
+              onConfirm={handleCancelarAgendamento}
+              confirmText="Confirmar Cancelamento"
+              confirmVariant="destructive"
+              isLoading={isCancelandoAgendamento}
             />
           </DialogContent>
         </Dialog>

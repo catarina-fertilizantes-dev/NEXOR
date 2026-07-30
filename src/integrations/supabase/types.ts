@@ -17,6 +17,8 @@ export type Database = {
       agendamentos: {
         Row: {
           armazem_id: string | null
+          cancelado_em: string | null
+          cancelado_por: string | null
           cliente_id: string | null
           cnpj_transportadora: string
           created_at: string | null
@@ -37,6 +39,8 @@ export type Database = {
         }
         Insert: {
           armazem_id?: string | null
+          cancelado_em?: string | null
+          cancelado_por?: string | null
           cliente_id?: string | null
           cnpj_transportadora: string
           created_at?: string | null
@@ -57,6 +61,8 @@ export type Database = {
         }
         Update: {
           armazem_id?: string | null
+          cancelado_em?: string | null
+          cancelado_por?: string | null
           cliente_id?: string | null
           cnpj_transportadora?: string
           created_at?: string | null
@@ -907,6 +913,10 @@ export type Database = {
         Args: { _object_name: string; _user_id: string }
         Returns: boolean
       }
+      cancelar_agendamento: {
+        Args: { p_agendamento_id: string; p_user_id: string }
+        Returns: Json
+      }
       cancelar_liberacao: {
         Args: { p_liberacao_id: string; p_user_id: string }
         Returns: Json
@@ -917,6 +927,22 @@ export type Database = {
       }
       check_user_active_status: { Args: { user_uuid: string }; Returns: Json }
       clear_user_temp_password: { Args: { user_email: string }; Returns: Json }
+      editar_agendamento: {
+        Args: {
+          p_agendamento_id: string
+          p_cnpj_transportadora: string
+          p_data_retirada: string
+          p_motorista_documento: string
+          p_motorista_nome: string
+          p_placa_caminhao: string
+          p_placa_carreta_1: string
+          p_placa_carreta_2: string
+          p_quantidade: number
+          p_transportadora: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       get_agendamentos_universal: {
         Args: {
           p_armazem_id?: string
