@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,12 @@ import { DocumentViewer } from "@/components/DocumentViewer";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { ModalFooter } from "@/components/ui/modal-footer";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { formatFileSize, BUCKET_UPLOAD_LIMITS } from "@/lib/uploadValidation";
+import { TransferenciaClienteField, type TransferenciaClienteValue } from "@/components/TransferenciaClienteField";
 import {
   Loader2,
   ArrowLeft,
@@ -27,7 +32,8 @@ import {
   Layers,
   ArrowRightLeft,
   Undo2,
-  Building2
+  Building2,
+  FileText
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatarCpfCnpj } from "@/lib/documentValidation";
@@ -100,6 +106,52 @@ const EstoqueDetalhe = () => {
   const { user, userRole } = useAuth();
 
   const canGerenciarTransferencias = userRole === "admin" || userRole === "logistica";
+
+  // Registro de Transferência de Propriedade — produto e armazém já vêm fixos
+  // desta página (o usuário chega aqui sabendo exatamente qual estoque quer
+  // transferir, vindo da nota/pedido do ERP), sem seleção nenhuma no formulário.
+  const {
+    showAlert,
+    markAsChanged,
+    markAsSaved,
+    reset: resetUnsavedChanges,
+    handleClose,
+    confirmClose,
+    cancelClose
+  } = useUnsavedChanges();
+
+  const [transferenciaDialogOpen, setTransferenciaDialogOpen] = useState(false);
+  const [isRegistrandoTransferencia, setIsRegistrandoTransferencia] = useState(false);
+  const [transferenciaForm, setTransferenciaForm] = useState({
+    quantidade: "",
+    numeroPedido: "",
+    dataTransferencia: new Date().toISOString().slice(0, 10),
+  });
+  const [transferenciaCliente, setTransferenciaCliente] = useState<TransferenciaClienteValue>({
+    clienteId: null,
+    cnpjTexto: null,
+    razaoSocialTexto: null,
+  });
+  const [notaTransferenciaFile, setNotaTransferenciaFile] = useState<File | null>(null);
+  const [xmlTransferenciaFile, setXmlTransferenciaFile] = useState<File | null>(null);
+
+  const { data: clientesAtivos } = useQuery({
+    queryKey: ["clientes-ativos-transferencia"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, nome, cnpj_cpf")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) {
+        toast({ variant: "destructive", title: "Erro ao buscar clientes", description: error.message });
+        return [];
+      }
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: canGerenciarTransferencias && !!user?.id,
+  });
 
   // Estados das duas seções colapsáveis (fechadas por padrão)
   const [remessasExpandida, setRemessasExpandida] = useState(false);
@@ -465,6 +517,191 @@ const EstoqueDetalhe = () => {
     }
   };
 
+  const quantidadeTransferenciaValida = useMemo(() => {
+    const qtd = Number(transferenciaForm.quantidade);
+    const disponivel = estoqueDetalhes?.quantidade_disponivel ?? 0;
+    return !isNaN(qtd) && qtd > 0 && qtd <= disponivel;
+  }, [transferenciaForm.quantidade, estoqueDetalhes?.quantidade_disponivel]);
+
+  const resetFormTransferencia = () => {
+    setTransferenciaForm({
+      quantidade: "",
+      numeroPedido: "",
+      dataTransferencia: new Date().toISOString().slice(0, 10),
+    });
+    setTransferenciaCliente({ clienteId: null, cnpjTexto: null, razaoSocialTexto: null });
+    setNotaTransferenciaFile(null);
+    setXmlTransferenciaFile(null);
+    resetUnsavedChanges();
+  };
+
+  const handleCloseTransferenciaModal = () => {
+    handleClose(() => {
+      setTransferenciaDialogOpen(false);
+      resetFormTransferencia();
+    });
+  };
+
+  const handleFileChangeTransferencia = (
+    file: File | null,
+    allowedTypes: string[],
+    allowedExtensions: string[],
+    setterFunction: (file: File | null) => void,
+    inputElement: HTMLInputElement
+  ) => {
+    if (!file) {
+      setterFunction(null);
+      markAsChanged();
+      return;
+    }
+
+    const fileExtension = file.name.toLowerCase().split('.').pop();
+    const isValidExtension = allowedExtensions.includes(`.${fileExtension}`);
+    const isValidMimeType = allowedTypes.includes(file.type);
+
+    if (!isValidExtension || !isValidMimeType) {
+      toast({
+        variant: "destructive",
+        title: "Tipo de arquivo inválido",
+        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.`
+      });
+      inputElement.value = '';
+      setterFunction(null);
+      return;
+    }
+
+    const maxSizeBytes = BUCKET_UPLOAD_LIMITS['estoque-documentos'].maxSizeBytes;
+    if (file.size > maxSizeBytes) {
+      toast({
+        variant: "destructive",
+        title: "Arquivo muito grande",
+        description: `O arquivo "${file.name}" tem ${formatFileSize(file.size)} — o limite é ${formatFileSize(maxSizeBytes)}.`
+      });
+      inputElement.value = '';
+      setterFunction(null);
+      return;
+    }
+
+    setterFunction(file);
+    markAsChanged();
+  };
+
+  const uploadDocumentosTransferencia = async () => {
+    const uploads: { campo: string; url: string }[] = [];
+
+    if (notaTransferenciaFile) {
+      const fileName = `${produtoId}_${armazemId}_transferencia_nota_${Date.now()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from('estoque-documentos')
+        .upload(fileName, notaTransferenciaFile);
+      if (uploadError) {
+        throw new Error(`Erro ao fazer upload da nota: ${uploadError.message}`);
+      }
+      const { data: urlData } = supabase.storage.from('estoque-documentos').getPublicUrl(fileName);
+      uploads.push({ campo: 'url_nota', url: urlData.publicUrl });
+    }
+
+    if (xmlTransferenciaFile) {
+      const fileName = `${produtoId}_${armazemId}_transferencia_xml_${Date.now()}.xml`;
+      const { error: uploadError } = await supabase.storage
+        .from('estoque-documentos')
+        .upload(fileName, xmlTransferenciaFile);
+      if (uploadError) {
+        throw new Error(`Erro ao fazer upload do XML: ${uploadError.message}`);
+      }
+      const { data: urlData } = supabase.storage.from('estoque-documentos').getPublicUrl(fileName);
+      uploads.push({ campo: 'url_xml', url: urlData.publicUrl });
+    }
+
+    return uploads;
+  };
+
+  const handleRegistrarTransferencia = async () => {
+    const { quantidade, numeroPedido, dataTransferencia } = transferenciaForm;
+    const qtdNum = Number(quantidade);
+    const disponivel = estoqueDetalhes?.quantidade_disponivel ?? 0;
+
+    if (!quantidade || !numeroPedido.trim() || !dataTransferencia) {
+      toast({ variant: "destructive", title: "Preencha todos os campos obrigatórios" });
+      return;
+    }
+    if (!transferenciaCliente.clienteId && !(transferenciaCliente.cnpjTexto && transferenciaCliente.razaoSocialTexto)) {
+      toast({ variant: "destructive", title: "Informe o cliente", description: "Selecione um cliente cadastrado ou informe CNPJ/CPF e Razão Social válidos." });
+      return;
+    }
+    if (Number.isNaN(qtdNum) || qtdNum <= 0) {
+      toast({ variant: "destructive", title: "Valor inválido", description: "Digite uma quantidade numérica maior que zero." });
+      return;
+    }
+    if (qtdNum > disponivel) {
+      toast({ variant: "destructive", title: "Estoque insuficiente", description: `Quantidade solicitada (${qtdNum.toLocaleString('pt-BR')}t) excede o estoque disponível (${disponivel.toLocaleString('pt-BR')}t).` });
+      return;
+    }
+    if (!notaTransferenciaFile || !xmlTransferenciaFile) {
+      toast({ variant: "destructive", title: "Documentos obrigatórios", description: "Anexe a Nota (PDF) e o arquivo XML." });
+      return;
+    }
+
+    setIsRegistrandoTransferencia(true);
+    const arquivosUpload: string[] = [];
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+
+      const uploads = await uploadDocumentosTransferencia();
+      const urlNota = uploads.find(u => u.campo === 'url_nota')?.url || null;
+      const urlXml = uploads.find(u => u.campo === 'url_xml')?.url || null;
+      if (urlNota) arquivosUpload.push(urlNota);
+      if (urlXml) arquivosUpload.push(urlXml);
+
+      const { data, error } = await supabase.rpc('registrar_transferencia_propriedade', {
+        p_produto_id: produtoId,
+        p_armazem_id: armazemId,
+        p_quantidade: qtdNum,
+        p_cliente_id: transferenciaCliente.clienteId,
+        p_cliente_cnpj_texto: transferenciaCliente.cnpjTexto,
+        p_cliente_razao_social_texto: transferenciaCliente.razaoSocialTexto,
+        p_numero_pedido: numeroPedido.trim(),
+        p_data_transferencia: dataTransferencia,
+        p_url_nota: urlNota,
+        p_url_xml: urlXml,
+        p_user_id: userData.user?.id,
+      });
+
+      if (error || !(data as { success?: boolean })?.success) {
+        const mensagem = error?.message || (data as { error?: string })?.error || "Erro desconhecido";
+        for (const url of arquivosUpload) {
+          const fileName = url.split('/').pop();
+          if (fileName) await supabase.storage.from('estoque-documentos').remove([fileName]);
+        }
+        toast({ variant: "destructive", title: "Erro ao registrar transferência", description: mensagem });
+        return;
+      }
+
+      markAsSaved();
+      toast({
+        title: "Transferência de Propriedade registrada!",
+        description: `-${qtdNum.toLocaleString('pt-BR')}${estoqueDetalhes?.produto.unidade || ""} de ${estoqueDetalhes?.produto.nome || "produto"}. Documentos anexados.`,
+      });
+      resetFormTransferencia();
+      setTransferenciaDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["estoque-detalhe"] });
+      queryClient.invalidateQueries({ queryKey: ["estoque"] });
+    } catch (err: unknown) {
+      for (const url of arquivosUpload) {
+        const fileName = url.split('/').pop();
+        if (fileName) await supabase.storage.from('estoque-documentos').remove([fileName]);
+      }
+      toast({
+        variant: "destructive",
+        title: "Erro inesperado",
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsRegistrandoTransferencia(false);
+    }
+  };
+
   const renderRemessaCard = (remessa: RemessaItem) => (
     <Card key={remessa.id} className="transition-all hover:shadow-md">
       <CardContent className="p-4">
@@ -670,8 +907,13 @@ const EstoqueDetalhe = () => {
 
   return (
     <TooltipProvider>
+      <UnsavedChangesAlert
+        open={showAlert}
+        onConfirm={confirmClose}
+        onCancel={cancelClose}
+      />
       <div className="min-h-screen bg-background p-4 md:p-6 space-y-4 md:space-y-6">
-        <PageHeader 
+        <PageHeader
           title="Detalhes do Estoque"
           subtitle={`${estoqueDetalhes.produto.nome} - ${estoqueDetalhes.armazem.nome}`}
           backButton={
@@ -684,7 +926,214 @@ const EstoqueDetalhe = () => {
               <span className="hidden sm:inline">Voltar</span>
             </Button>
           }
-        />  
+          actions={
+            canGerenciarTransferencias ? (
+              <Dialog open={transferenciaDialogOpen} onOpenChange={(open) => {
+                if (!open && isRegistrandoTransferencia) return;
+                if (!open) {
+                  handleCloseTransferenciaModal();
+                } else {
+                  setTransferenciaDialogOpen(open);
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button className="btn-primary min-h-[44px] max-md:min-h-[44px]">
+                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                    Transferência de Propriedade
+                  </Button>
+                </DialogTrigger>
+
+                <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+                  <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+                    <DialogTitle className="text-lg md:text-xl pr-2 mt-1">Registrar Transferência de Propriedade</DialogTitle>
+                  </DialogHeader>
+
+                  <div className="py-4 px-1 space-y-6">
+                    <div className="space-y-4">
+                      <div className="rounded-md border bg-muted/30 p-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Produto</p>
+                          <p className="text-sm font-medium break-words">{estoqueDetalhes.produto.nome}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Armazém</p>
+                          <p className="text-sm font-medium break-words">{estoqueDetalhes.armazem.nome} — {estoqueDetalhes.armazem.cidade}/{estoqueDetalhes.armazem.estado}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="transferencia-quantidade" className="text-sm font-medium">Quantidade *</Label>
+                          <p className={`text-sm ${estoqueDetalhes.quantidade_disponivel > 0 ? "text-green-600" : "text-red-600"}`}>
+                            Estoque disponível: {estoqueDetalhes.quantidade_disponivel.toLocaleString('pt-BR')}{estoqueDetalhes.produto.unidade}
+                          </p>
+                          <Input
+                            id="transferencia-quantidade"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={estoqueDetalhes.quantidade_disponivel || undefined}
+                            placeholder="Ex: 1000"
+                            value={transferenciaForm.quantidade}
+                            onChange={(e) => {
+                              setTransferenciaForm((s) => ({ ...s, quantidade: e.target.value }));
+                              markAsChanged();
+                            }}
+                            disabled={isRegistrandoTransferencia}
+                            className={`min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base ${
+                              transferenciaForm.quantidade && !quantidadeTransferenciaValida
+                                ? "border-red-500 focus:border-red-500"
+                                : transferenciaForm.quantidade && quantidadeTransferenciaValida
+                                ? "border-green-500 focus:border-green-500"
+                                : ""
+                            }`}
+                          />
+                          {transferenciaForm.quantidade && !quantidadeTransferenciaValida && (
+                            <p className="text-xs text-red-600">
+                              {Number(transferenciaForm.quantidade) > estoqueDetalhes.quantidade_disponivel
+                                ? `Quantidade excede o estoque disponível (${estoqueDetalhes.quantidade_disponivel.toLocaleString('pt-BR')}${estoqueDetalhes.produto.unidade})`
+                                : "Quantidade deve ser maior que zero"}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="transferencia-data" className="text-sm font-medium">Data da Transferência *</Label>
+                          <Input
+                            id="transferencia-data"
+                            type="date"
+                            value={transferenciaForm.dataTransferencia}
+                            onChange={(e) => {
+                              setTransferenciaForm((s) => ({ ...s, dataTransferencia: e.target.value }));
+                              markAsChanged();
+                            }}
+                            disabled={isRegistrandoTransferencia}
+                            className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                          />
+                        </div>
+                      </div>
+
+                      <TransferenciaClienteField
+                        clientesAtivos={clientesAtivos || []}
+                        value={transferenciaCliente}
+                        onChange={(v) => {
+                          setTransferenciaCliente(v);
+                          markAsChanged();
+                        }}
+                        disabled={isRegistrandoTransferencia}
+                      />
+
+                      <div className="space-y-2">
+                        <Label htmlFor="transferencia-pedido" className="text-sm font-medium">Número do Pedido *</Label>
+                        <Input
+                          id="transferencia-pedido"
+                          type="text"
+                          placeholder="Ex: PED-001"
+                          value={transferenciaForm.numeroPedido}
+                          onChange={(e) => {
+                            setTransferenciaForm((s) => ({ ...s, numeroPedido: e.target.value }));
+                            markAsChanged();
+                          }}
+                          disabled={isRegistrandoTransferencia}
+                          className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
+                        />
+                      </div>
+
+                      <div className="border-t pt-4 space-y-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <FileText className="h-5 w-5 text-primary" />
+                          <h3 className="font-semibold text-base">Documentos Obrigatórios</h3>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="transferencia-nota" className="flex items-center gap-2 text-sm font-medium">
+                              <FileText className="h-4 w-4" />
+                              Nota Fiscal (PDF) *
+                            </Label>
+                            <div className="flex flex-col gap-2">
+                              <Input
+                                id="transferencia-nota"
+                                type="file"
+                                accept=".pdf"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] ?? null;
+                                  handleFileChangeTransferencia(
+                                    file,
+                                    ['application/pdf'],
+                                    ['.pdf'],
+                                    setNotaTransferenciaFile,
+                                    e.target
+                                  );
+                                }}
+                                className="min-h-[44px] max-md:min-h-[44px]"
+                                disabled={isRegistrandoTransferencia}
+                              />
+                              {notaTransferenciaFile && (
+                                <Badge variant="secondary" className="text-xs break-all self-start">
+                                  ✓ {notaTransferenciaFile.name}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="transferencia-xml" className="flex items-center gap-2 text-sm font-medium">
+                              <FileText className="h-4 w-4" />
+                              Arquivo XML *
+                            </Label>
+                            <div className="flex flex-col gap-2">
+                              <Input
+                                id="transferencia-xml"
+                                type="file"
+                                accept=".xml"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] ?? null;
+                                  handleFileChangeTransferencia(
+                                    file,
+                                    ['application/xml', 'text/xml'],
+                                    ['.xml'],
+                                    setXmlTransferenciaFile,
+                                    e.target
+                                  );
+                                }}
+                                className="min-h-[44px] max-md:min-h-[44px]"
+                                disabled={isRegistrandoTransferencia}
+                              />
+                              {xmlTransferenciaFile && (
+                                <Badge variant="secondary" className="text-xs break-all self-start">
+                                  ✓ {xmlTransferenciaFile.name}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        * Campos obrigatórios
+                      </p>
+                    </div>
+
+                    <ModalFooter
+                      variant="double"
+                      onClose={() => handleCloseTransferenciaModal()}
+                      onConfirm={handleRegistrarTransferencia}
+                      confirmText="Salvar"
+                      isLoading={isRegistrandoTransferencia}
+                      disabled={
+                        !quantidadeTransferenciaValida ||
+                        !transferenciaForm.numeroPedido.trim() ||
+                        !notaTransferenciaFile ||
+                        !xmlTransferenciaFile ||
+                        isRegistrandoTransferencia
+                      }
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : null
+          }
+        />
         <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
           {/* Card de informações gerais - Otimizado para mobile */}
           <Card className="shadow-sm">
