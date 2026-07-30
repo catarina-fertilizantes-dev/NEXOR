@@ -106,6 +106,7 @@ Após o setup, as credenciais ficam salvas em `tests/ui/system/state.json`.
 | Escritas não autorizadas em Carregamentos | Cliente não pode alterar etapas diretamente | ✅ |
 | RPCs sensíveis | alterar_armazem, cancelar_liberacao exigem role correto | ✅ |
 | Lógica de estoque | Criação → liberação → cancelamento → invariantes | ✅ |
+| RPCs de Agendamento | editar_agendamento/cancelar_agendamento exigem role correto e travam fora da etapa 1 | ✅ |
 
 ### Camada UI (Playwright) — `tests/ui/system/`
 
@@ -119,12 +120,12 @@ Após o setup, as credenciais ficam salvas em `tests/ui/system/state.json`.
 | `06-liberacao-cancelamento.spec.ts` | 5 | Cancelamento sem agendamentos; preview de impacto; cancelamento com agendamento ativo; acesso restrito (cliente não pode cancelar) |
 | `07-agendamentos-avancados.spec.ts` | 6 | Representante cria agendamento; status parcialmente→totalmente agendada; validação de quantidade excessiva; isolamento rep vs clientes não-representados |
 | `08-estoque-e-armazem.spec.ts` | 11 | Entrada de estoque (nova remessa com PDF+XML); verificação de aumento de quantidade; acesso restrito por role; alteração de armazém de liberação disponível; bloqueio para liberação totalmente agendada |
+| `10-agendamento-edicao-cancelamento.spec.ts` | 5 | Admin edita quantidade/data/placas/motorista/transportadora do agendamento; cancelamento move para seção "Cancelados" com data; modal de detalhe mostra "Cancelamento" no lugar de "Status do Carregamento"; cliente não vê os botões de editar/cancelar |
 
 ### Cenários ainda não cobertos por testes automatizados
 
 Os itens abaixo devem ser **testados manualmente** antes de cada release (funcionalidades ainda não implementadas na UI):
 
-- Cancelamento de agendamento
 - Edição de cadastros (clientes, armazéns, produtos, representantes)
 
 ---

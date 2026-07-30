@@ -12,6 +12,7 @@
  *  Suite 6 — Escritas não autorizadas em Carregamentos (cliente/representante)
  *  Suite 7 — RPCs sensíveis (alterar_armazem, cancelar)
  *  Suite 8 — Lógica de estoque (criação → liberação → cancelamento → invariantes)
+ *  Suite 8 — editar_agendamento / cancelar_agendamento (role e trava de etapa)
  */
 
 import { createRequire } from 'module';
@@ -769,6 +770,156 @@ if (errNovaLib) {
     estPostCancel && estPostCancel.quantidade === fisicoBefore,
     `Cancelar liberação NÃO alterou físico: ${estPostCancel?.quantidade}t`
   );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SUITE 8 — editar_agendamento / cancelar_agendamento (RPCs sensíveis)
+// ══════════════════════════════════════════════════════════════════════════════
+
+suite('8 — editar_agendamento / cancelar_agendamento: role e trava de etapa');
+
+// 8.0 Fixture: liberação + agendamento próprios deste suite (carregamento etapa 1 é
+// criado automaticamente pelo trigger insert_carregamento_from_agendamento)
+const { data: meAdmin8 } = await sbAdmin.auth.getUser();
+const { data: libAgdTeste, error: errLibAgdTeste } = await sbAdmin
+  .from('liberacoes')
+  .insert({
+    cliente_id:          IDS.cliente1,
+    armazem_id:          IDS.armazem2,
+    produto_id:          IDS.produto1,
+    quantidade_liberada: 20,
+    status:              'disponivel',
+    pedido_interno:      'TEST-EDITAR-CANCELAR-AGD-TMP',
+    data_liberacao:      '2026-07-30',
+    created_by:          meAdmin8.user.id,
+  })
+  .select('id')
+  .single();
+
+let agdTeste = null;
+let carrTeste = null;
+
+if (errLibAgdTeste) {
+  info(`Não foi possível criar liberação de teste para editar/cancelar agendamento: ${errLibAgdTeste.message}`);
+} else {
+  const { data: agdInsert, error: errAgdInsert } = await sbAdmin
+    .from('agendamentos')
+    .insert({
+      liberacao_id:        libAgdTeste.id,
+      cliente_id:          IDS.cliente1,
+      armazem_id:          IDS.armazem2,
+      quantidade:          10,
+      data_retirada:       '2026-08-01',
+      motorista_nome:      'Motorista Teste RLS',
+      motorista_documento: '11111111111',
+      placa_caminhao:      'TST1A11',
+      placa_carreta_1:     'TST1A12',
+      transportadora:      'Transportadora Teste RLS',
+      cnpj_transportadora: '11111111000111',
+      created_by:          meAdmin8.user.id,
+    })
+    .select('id')
+    .single();
+
+  if (errAgdInsert) {
+    info(`Não foi possível criar agendamento de teste: ${errAgdInsert.message}`);
+  } else {
+    agdTeste = agdInsert;
+    const { data: carr } = await sbAdmin.from('carregamentos')
+      .select('id, etapa_atual').eq('agendamento_id', agdTeste.id).single();
+    carrTeste = carr;
+  }
+}
+
+if (agdTeste) {
+  const payloadEdicaoBase = (overrides = {}) => ({
+    p_agendamento_id:      agdTeste.id,
+    p_quantidade:          10,
+    p_data_retirada:       '2026-08-01',
+    p_placa_caminhao:      'TST1A11',
+    p_placa_carreta_1:     'TST1A12',
+    p_placa_carreta_2:     null,
+    p_motorista_nome:      'Motorista Teste RLS',
+    p_motorista_documento: '11111111111',
+    p_transportadora:      'Transportadora Teste RLS',
+    p_cnpj_transportadora: '11111111000111',
+    ...overrides,
+  });
+
+  // 8.1–8.3 editar_agendamento bloqueada para cliente/armazem/representante
+  const { data: meCli } = await clients.cliente1.auth.getUser();
+  const { data: resEditCli } = await clients.cliente1.rpc('editar_agendamento', payloadEdicaoBase({ p_user_id: meCli?.user?.id }));
+  assert(resEditCli?.success === false, `cliente1 NÃO pode editar agendamento via RPC`);
+
+  const { data: meArm } = await clients.armazem1.auth.getUser();
+  const { data: resEditArm } = await clients.armazem1.rpc('editar_agendamento', payloadEdicaoBase({ p_user_id: meArm?.user?.id }));
+  assert(resEditArm?.success === false, `armazem1 NÃO pode editar agendamento via RPC`);
+
+  const { data: meRep } = await clients.representante1.auth.getUser();
+  const { data: resEditRep } = await clients.representante1.rpc('editar_agendamento', payloadEdicaoBase({ p_user_id: meRep?.user?.id }));
+  assert(resEditRep?.success === false, `representante1 NÃO pode editar agendamento via RPC`);
+
+  // 8.4–8.6 cancelar_agendamento bloqueada para cliente/armazem/representante
+  const { data: resCancelCli } = await clients.cliente1.rpc('cancelar_agendamento', { p_agendamento_id: agdTeste.id, p_user_id: meCli?.user?.id });
+  assert(resCancelCli?.success === false, `cliente1 NÃO pode cancelar agendamento via RPC`);
+
+  const { data: resCancelArm } = await clients.armazem1.rpc('cancelar_agendamento', { p_agendamento_id: agdTeste.id, p_user_id: meArm?.user?.id });
+  assert(resCancelArm?.success === false, `armazem1 NÃO pode cancelar agendamento via RPC`);
+
+  const { data: resCancelRep } = await clients.representante1.rpc('cancelar_agendamento', { p_agendamento_id: agdTeste.id, p_user_id: meRep?.user?.id });
+  assert(resCancelRep?.success === false, `representante1 NÃO pode cancelar agendamento via RPC`);
+
+  // 8.7 admin PODE editar agendamento via RPC (quantidade + demais campos persistem)
+  const { data: resEditAdmin } = await sbAdmin.rpc('editar_agendamento', payloadEdicaoBase({
+    p_quantidade:          12,
+    p_motorista_nome:      'Motorista Editado RLS',
+    p_motorista_documento: '22222222222',
+    p_user_id:             meAdmin8.user.id,
+  }));
+  assert(resEditAdmin?.success === true, `admin pode editar agendamento via RPC`);
+
+  const { data: agdPosEdit } = await sbAdmin.from('agendamentos')
+    .select('quantidade, motorista_nome').eq('id', agdTeste.id).single();
+  assert(agdPosEdit?.quantidade === 12, `editar_agendamento persistiu nova quantidade (12t)`);
+  assert(agdPosEdit?.motorista_nome === 'Motorista Editado RLS', `editar_agendamento persistiu novo motorista`);
+
+  // 8.8 Trava de etapa: carregamento em etapa 2 bloqueia editar/cancelar mesmo para admin
+  if (carrTeste) {
+    await sbAdmin.from('carregamentos').update({ etapa_atual: 2 }).eq('id', carrTeste.id);
+
+    const { data: resEditEtapa2 } = await sbAdmin.rpc('editar_agendamento', payloadEdicaoBase({ p_quantidade: 12, p_user_id: meAdmin8.user.id }));
+    assert(resEditEtapa2?.success === false, `editar_agendamento bloqueado quando etapa_atual != 1 (mesmo para admin)`);
+
+    const { data: resCancelEtapa2 } = await sbAdmin.rpc('cancelar_agendamento', { p_agendamento_id: agdTeste.id, p_user_id: meAdmin8.user.id });
+    assert(resCancelEtapa2?.success === false, `cancelar_agendamento bloqueado quando etapa_atual != 1 (mesmo para admin)`);
+
+    // Reverter para etapa 1 para poder testar o cancelamento efetivo em 8.9
+    await sbAdmin.from('carregamentos').update({ etapa_atual: 1 }).eq('id', carrTeste.id);
+  }
+
+  // 8.9 admin PODE cancelar agendamento via RPC (etapa 1) — saldo volta pra liberação
+  const { data: libAntesCancel } = await sbAdmin.from('liberacoes')
+    .select('quantidade_liberada').eq('id', libAgdTeste.id).single();
+
+  const { data: resCancelAdmin } = await sbAdmin.rpc('cancelar_agendamento', { p_agendamento_id: agdTeste.id, p_user_id: meAdmin8.user.id });
+  assert(resCancelAdmin?.success === true, `admin pode cancelar agendamento via RPC`);
+
+  const { data: agdPosCancel } = await sbAdmin.from('agendamentos')
+    .select('status, cancelado_em').eq('id', agdTeste.id).single();
+  assert(agdPosCancel?.status === 'cancelado', `agendamento marcado como cancelado`);
+  assert(!!agdPosCancel?.cancelado_em, `cancelado_em foi preenchido`);
+
+  const { data: carrPosCancel } = await sbAdmin.from('carregamentos').select('id').eq('agendamento_id', agdTeste.id);
+  assert((carrPosCancel?.length ?? 0) === 0, `carregamento vinculado foi removido ao cancelar`);
+
+  const { data: saldoPosCancel } = await sbAdmin.rpc('get_quantidade_disponivel_liberacao', { liberacao_uuid: libAgdTeste.id });
+  assert(
+    Math.abs(Number(saldoPosCancel) - Number(libAntesCancel.quantidade_liberada)) < 0.01,
+    `saldo da liberação voltou ao total liberado após cancelar o único agendamento (${saldoPosCancel}t)`
+  );
+
+  // Limpeza: cancelar a liberação de teste (mesmo padrão de TEST-LOGICA-ESTOQUE-TMP)
+  await sbAdmin.rpc('cancelar_liberacao', { p_liberacao_id: libAgdTeste.id, p_user_id: meAdmin8.user.id });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
