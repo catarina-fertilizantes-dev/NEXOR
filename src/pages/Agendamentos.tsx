@@ -20,6 +20,7 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validarCPF, validarCNPJ } from "@/lib/documentValidation";
 
 const getStatusCarregamento = (etapaAtual: number) => {
   if (etapaAtual === 1) {
@@ -264,13 +265,16 @@ const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
   }
   
   if (!ag.motorista || ag.motorista.trim().length < 3) errors.push("Nome do motorista");
-  if (!ag.documento || ag.documento.replace(/\D/g, "").length !== 11) errors.push("Documento (CPF) do motorista");
-  
+  const documentoLimpo = (ag.documento ?? "").replace(/\D/g, "");
+  if (!documentoLimpo || documentoLimpo.length !== 11) errors.push("Documento (CPF) do motorista");
+  else if (!validarCPF(documentoLimpo)) errors.push("CPF do motorista inválido");
+
   if (!ag.transportadora || ag.transportadora.trim().length < 3) errors.push("Nome da transportadora");
-  
+
   const cnpjLimpo = (ag.cnpjTransportadora ?? "").replace(/\D/g, "");
   if (cnpjLimpo.length !== 14) errors.push("CNPJ da transportadora");
-  
+  else if (!validarCNPJ(cnpjLimpo)) errors.push("CNPJ da transportadora inválido");
+
   return errors;
 };
 
@@ -1059,6 +1063,10 @@ const Agendamentos = () => {
       toast({ variant: "destructive", title: "CPF do motorista inválido" });
       return;
     }
+    if (!validarCPF(cpfLimpo)) {
+      toast({ variant: "destructive", title: "CPF do motorista inválido", description: "Confira os números digitados." });
+      return;
+    }
     if (!formEditarAgendamento.transportadora.trim() || formEditarAgendamento.transportadora.trim().length < 3) {
       toast({ variant: "destructive", title: "Nome da transportadora inválido" });
       return;
@@ -1066,6 +1074,10 @@ const Agendamentos = () => {
     const cnpjLimpo = formEditarAgendamento.cnpjTransportadora.replace(/\D/g, "");
     if (cnpjLimpo.length !== 14) {
       toast({ variant: "destructive", title: "CNPJ da transportadora inválido" });
+      return;
+    }
+    if (!validarCNPJ(cnpjLimpo)) {
+      toast({ variant: "destructive", title: "CNPJ da transportadora inválido", description: "Confira os números digitados." });
       return;
     }
 
@@ -2236,8 +2248,10 @@ const Agendamentos = () => {
                 (formEditarAgendamento.placaCarreta2.trim() !== "" && formEditarAgendamento.placaCarreta2.replace(/[^A-Z0-9]/gi, "").length < 7) ||
                 formEditarAgendamento.motorista.trim().length < 3 ||
                 formEditarAgendamento.documento.replace(/\D/g, "").length !== 11 ||
+                !validarCPF(formEditarAgendamento.documento) ||
                 formEditarAgendamento.transportadora.trim().length < 3 ||
-                formEditarAgendamento.cnpjTransportadora.replace(/\D/g, "").length !== 14
+                formEditarAgendamento.cnpjTransportadora.replace(/\D/g, "").length !== 14 ||
+                !validarCNPJ(formEditarAgendamento.cnpjTransportadora)
               }
             />
           </DialogContent>
