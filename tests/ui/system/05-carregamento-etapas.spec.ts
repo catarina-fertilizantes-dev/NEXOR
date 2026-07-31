@@ -10,7 +10,8 @@
  *   Etapa 5b:   colaborador1 (logística) envia Nota de Venda (PDF + XML)
  *   Etapa 5c:   armazem1 envia Nota de Remessa (PDF + XML) → sistema auto-avança para etapa 6
  *   Etapa 6:    verifica "Processo Finalizado"
- *   Pós:        admin verifica redução no estoque físico do armazém
+ *   Pós:        admin verifica que o estoque físico caiu exatamente a quantidade
+ *               do carregamento (50t, preenchida no agendamento do test 04)
  *
  * Execução: npx playwright test tests/ui/system/05-carregamento-etapas.spec.ts --project=edge
  */
@@ -19,6 +20,39 @@ import { test, expect, Page, Locator } from '@playwright/test';
 import { NEW_PASSWORD, readState, ADMIN } from './helpers';
 
 const SS = (name: string) => `tests/ui/system/screenshots/etapas-${name}.png`;
+
+// Quantidade preenchida no campo #quantidade do agendamento em 04-full-flow.spec.ts
+// (placa ABC-1234). Usada para validar o débito exato do estoque físico em 5.9.
+const QUANTIDADE_CARREGAMENTO = 50;
+
+// ─── Leitura do "Estoque Físico" na tela de detalhe do estoque ────────────────
+
+function parseQuantidadePtBr(texto: string): number {
+  const match = texto.match(/[\d.,]+/);
+  if (!match) throw new Error(`Não foi possível extrair número de "${texto}"`);
+  return parseFloat(match[0].replace(/\./g, '').replace(',', '.'));
+}
+
+async function lerEstoqueFisicoUreiaArmazem1(page: Page, armazem1Nome: string): Promise<number> {
+  await page.goto('/estoque');
+  await page.waitForLoadState('networkidle');
+
+  const cardArmazem1 = page.getByText(new RegExp(armazem1Nome, 'i')).first();
+  await expect(cardArmazem1).toBeVisible({ timeout: 8000 });
+  await cardArmazem1.click();
+  await page.waitForLoadState('networkidle');
+
+  const cardProduto = page.getByText(/Ureia 46%/i).first();
+  await expect(cardProduto).toBeVisible({ timeout: 8000 });
+  await cardProduto.click();
+  await page.waitForLoadState('networkidle');
+  await page.waitForURL(/\/estoque\//, { timeout: 10000 });
+
+  const blocoEstoqueFisico = page.locator('div', { hasText: 'Estoque Físico' }).last();
+  const valorTexto = await blocoEstoqueFisico.locator('p').first().textContent();
+  if (!valorTexto) throw new Error('Não foi possível ler o valor de "Estoque Físico"');
+  return parseQuantidadePtBr(valorTexto);
+}
 
 
 // ─── Login helper ─────────────────────────────────────────────────────────────
@@ -129,6 +163,12 @@ async function enviarDocumentosSubEtapa(
 
 test.describe.serial('Progressão completa do carregamento (etapas 1→6)', () => {
   const state = readState();
+  let estoqueFisicoAntes: number;
+
+  test('5.0 — admin: captura estoque físico do armazém 1 antes da finalização', async ({ page }) => {
+    await loginAs(page, ADMIN.email, ADMIN.password);
+    estoqueFisicoAntes = await lerEstoqueFisicoUreiaArmazem1(page, state.armazem1Nome!);
+  });
 
   test('5.1 — armazem1: etapa 1 (Chegada) → upload foto + avançar', async ({ page }) => {
     await loginAs(page, state.users.armazem1!.email);
@@ -211,36 +251,22 @@ test.describe.serial('Progressão completa do carregamento (etapas 1→6)', () =
     await page.screenshot({ path: SS('etapa6-confirmado') });
   });
 
-  test('5.9 — pós-finalização: estoque físico deve ter diminuído no armazém 1', async ({ page }) => {
+  test('5.9 — pós-finalização: estoque físico deve ter caído exatamente a quantidade do carregamento', async ({ page }) => {
     // Admin verifica redução no estoque físico do armazém 1
     await loginAs(page, ADMIN.email, ADMIN.password);
 
-    await page.goto('/estoque');
-    await page.waitForLoadState('networkidle');
-
-    // Navegar para o armazém 1
-    const cardArmazem1 = page.getByText(new RegExp(state.armazem1Nome!, 'i')).first();
-    await expect(cardArmazem1).toBeVisible({ timeout: 8000 });
-    await cardArmazem1.click();
-    await page.waitForLoadState('networkidle');
-
-    // Clicar no produto Ureia 46% para ver detalhe com quantidade_disponivel
-    const cardProduto = page.getByText(/Ureia 46%/i).first();
-    await expect(cardProduto).toBeVisible({ timeout: 8000 });
-    await cardProduto.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForURL(/\/estoque\//, { timeout: 10000 });
+    const estoqueFisicoDepois = await lerEstoqueFisicoUreiaArmazem1(page, state.armazem1Nome!);
 
     await page.screenshot({ path: SS('estoque-pos-finalizacao') });
 
-    // Verificar que "Estoque Disponível" está visível (campo do detalhe)
-    await expect(page.getByText(/Estoque Disponível/i)).toBeVisible({ timeout: 8000 });
-    // A quantidade física deve ter diminuído — não sabemos o valor exato pois depende
-    // do estado inicial, mas podemos verificar que o campo existe e está populado
-    const qtdPhysical = await page.getByText(/\d+[\.,]\d+\s*t|\d+\s*t/i).first().textContent();
-    expect(qtdPhysical).toBeTruthy();
+    console.log(`  📦 Estoque físico: ${estoqueFisicoAntes} → ${estoqueFisicoDepois} (esperado: -${QUANTIDADE_CARREGAMENTO})`);
 
-    console.log(`  📦 Estoque físico após finalização: ${qtdPhysical}`);
+    // Regressão: sync_estoque_fisico_from_carregamento rodava sem SECURITY DEFINER e
+    // a RLS bloqueava o débito silenciosamente quando quem finalizava era o usuário
+    // armazem — o carregamento "concluía" na tela mas o físico nunca caía. Por isso a
+    // asserção precisa comparar o valor exato antes/depois, não só checar que existe
+    // algum número na tela.
+    expect(estoqueFisicoDepois).toBe(estoqueFisicoAntes - QUANTIDADE_CARREGAMENTO);
   });
 
 });
