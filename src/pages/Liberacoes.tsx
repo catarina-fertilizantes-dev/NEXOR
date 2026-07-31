@@ -20,6 +20,7 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { parseDateOnly, formatDateOnlyBR } from "@/lib/utils";
 
 type StatusLiberacao = "disponivel" | "parcialmente_agendada" | "totalmente_agendada" | "finalizada" | "cancelada";
 
@@ -39,6 +40,7 @@ interface LiberacaoItem {
   quantidadeRetirada: number;
   pedido: string;
   data: string;
+  data_liberacao_raw: string;
   status: StatusLiberacao;
   armazem?: string;
   produto_id?: string;
@@ -121,11 +123,6 @@ const EmptyStateCard = ({
     </Button>
   </div>
 );
-
-const parseDate = (d: string) => {
-  const [dd, mm, yyyy] = d.split("/");
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-};
 
 const Liberacoes = () => {
   useScrollToTop();
@@ -329,7 +326,8 @@ const Liberacoes = () => {
       percentualRetirado: item.percentual_retirado,
       percentualAgendado: item.percentual_agendado,
       pedido: item.pedido_interno,
-      data: new Date(item.data_liberacao).toLocaleDateString("pt-BR"),
+      data: formatDateOnlyBR(item.data_liberacao),
+      data_liberacao_raw: item.data_liberacao,
       status: item.status,
       armazem: `${item.armazem_nome} - ${item.armazem_cidade}/${item.armazem_estado}`,
       produto_id: item.produto_id,
@@ -526,13 +524,13 @@ const Liberacoes = () => {
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(l.status)) return false;
       if (selectedArmazens.length > 0 && l.armazem && !selectedArmazens.includes(l.armazem)) return false;
       if (dateFrom) {
-        const from = new Date(dateFrom);
-        if (parseDate(l.data) < from) return false;
+        const from = parseDateOnly(dateFrom);
+        if (parseDateOnly(l.data_liberacao_raw) < from) return false;
       }
       if (dateTo) {
-        const to = new Date(dateTo);
+        const to = parseDateOnly(dateTo);
         to.setHours(23, 59, 59, 999);
-        if (parseDate(l.data) > to) return false;
+        if (parseDateOnly(l.data_liberacao_raw) > to) return false;
       }
       return true;
     });

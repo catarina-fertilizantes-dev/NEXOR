@@ -21,6 +21,7 @@ import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 import { validarCPF, validarCNPJ } from "@/lib/documentValidation";
+import { parseDateOnly, formatDateOnlyBR } from "@/lib/utils";
 
 const getStatusCarregamento = (etapaAtual: number) => {
   if (etapaAtual === 1) {
@@ -193,11 +194,6 @@ function formatCNPJ(cnpj: string): string {
   if (cleaned.length < 14) return maskCNPJ(cleaned);
   return cleaned.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
-
-const parseDate = (d: string) => {
-  const [dd, mm, yyyy] = d.split("/");
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-};
 
 const formatCanceladoEm = (iso: string | null) => {
   if (!iso) return null;
@@ -469,7 +465,7 @@ const Agendamentos = () => {
           cliente: item.cliente_nome,
           produto: item.produto_nome,
           quantidade: item.quantidade,
-          data: new Date(item.data_retirada).toLocaleDateString("pt-BR"),
+          data: formatDateOnlyBR(item.data_retirada),
           data_retirada_raw: item.data_retirada,
           placa: item.placa_caminhao || "N/A",
           motorista: item.motorista_nome || "N/A",
@@ -508,9 +504,7 @@ const Agendamentos = () => {
           cliente: item.liberacao?.clientes?.nome || "N/A",
           produto: item.liberacao?.produto?.nome || "N/A",
           quantidade: item.quantidade,
-          data: item.data_retirada
-            ? new Date(item.data_retirada).toLocaleDateString("pt-BR")
-            : "",
+          data: item.data_retirada ? formatDateOnlyBR(item.data_retirada) : "",
           data_retirada_raw: item.data_retirada || "",
           placa: item.placa_caminhao || "N/A",
           motorista: item.motorista_nome || "N/A",
@@ -791,7 +785,7 @@ const Agendamentos = () => {
 
       toast({
         title: "Agendamento criado com sucesso!",
-        description: `${(agendData.liberacao as any)?.clientes?.nome ?? ""} - ${new Date(agendData.data_retirada).toLocaleDateString("pt-BR")} - ${qtdNum}t`
+        description: `${(agendData.liberacao as any)?.clientes?.nome ?? ""} - ${formatDateOnlyBR(agendData.data_retirada)} - ${qtdNum}t`
       });
       resetFormNovoAgendamento();
       setDialogOpen(false);
@@ -876,13 +870,13 @@ const Agendamentos = () => {
       }
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(a.status)) return false;
       if (dateFrom) {
-        const from = new Date(dateFrom);
-        if (parseDate(a.data) < from) return false;
+        const from = parseDateOnly(dateFrom);
+        if (parseDateOnly(a.data_retirada_raw) < from) return false;
       }
       if (dateTo) {
-        const to = new Date(dateTo);
+        const to = parseDateOnly(dateTo);
         to.setHours(23, 59, 59, 999);
-        if (parseDate(a.data) > to) return false;
+        if (parseDateOnly(a.data_retirada_raw) > to) return false;
       }
       return true;
     });

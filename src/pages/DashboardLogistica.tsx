@@ -54,11 +54,16 @@ import {
   formatarDuracaoMinutos,
   media,
 } from "@/components/dashboard/DashboardShared";
+import { parseDateOnly } from "@/lib/utils";
 
 // Normaliza uma data (string ISO ou DATE) para meia-noite local, para
 // comparações de "dias decorridos" sem interferência de fuso/horário.
+// Colunas DATE-only ("YYYY-MM-DD") precisam de parse manual — `new
+// Date("YYYY-MM-DD")` é lido como UTC-meia-noite e viraria o dia anterior
+// em fusos negativos (ex: UTC-3) mesmo depois do setHours local.
 // (Mesmo helper duplicado em DashboardCliente.tsx — ver docs/DASHBOARDS.md.)
 const paraMeiaNoite = (iso: string) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return parseDateOnly(iso);
   const d = new Date(iso);
   d.setHours(0, 0, 0, 0);
   return d;

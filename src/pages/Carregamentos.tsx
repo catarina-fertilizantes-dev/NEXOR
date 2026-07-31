@@ -14,6 +14,7 @@ import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, ChevronRi
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { formatDateOnlyBR } from "@/lib/utils";
 
 const getStatusCarregamento = (etapaAtual: number) => {
   if (etapaAtual === 1) {
@@ -434,7 +435,7 @@ const Carregamentos = () => {
             <p className="truncate" title={carr.produto}><span className="font-medium text-foreground">Produto:</span> {carr.produto}</p>
             <p className="truncate" title={carr.armazem}><span className="font-medium text-foreground">Armazém:</span> {carr.armazem}</p>
             <p className="truncate"><span className="font-medium text-foreground">Quantidade:</span> {carr.quantidade.toLocaleString('pt-BR')}t</p>
-            <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {carr.data_retirada !== "N/A" ? new Date(carr.data_retirada).toLocaleDateString("pt-BR") : "N/A"}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {carr.data_retirada !== "N/A" ? formatDateOnlyBR(carr.data_retirada) : "N/A"}</p>
             <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(carr.placa)}</p>
             <p className="truncate" title={carr.motorista}><span className="font-medium text-foreground">Motorista:</span> {carr.motorista}</p>
             <p className="truncate" title={carr.transportadora}><span className="font-medium text-foreground">Transportadora:</span> {carr.transportadora || "N/A"}</p>

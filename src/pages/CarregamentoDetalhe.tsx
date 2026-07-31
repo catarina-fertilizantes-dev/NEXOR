@@ -19,6 +19,7 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 import { validateFileForBucket } from "@/lib/uploadValidation";
+import { formatDateOnlyBR } from "@/lib/utils";
 import {
   Loader2,
   CheckCircle,
@@ -1435,8 +1436,8 @@ const CarregamentoDetalhe = () => {
               <div>
                 <span className="text-xs text-muted-foreground">Data Agendada:</span>
                 <p className="font-semibold text-sm">
-                  {carregamento?.agendamento_data_retirada 
-                    ? new Date(carregamento.agendamento_data_retirada).toLocaleDateString("pt-BR")
+                  {carregamento?.agendamento_data_retirada
+                    ? formatDateOnlyBR(carregamento.agendamento_data_retirada)
                     : "N/A"}
                 </p>
               </div>
