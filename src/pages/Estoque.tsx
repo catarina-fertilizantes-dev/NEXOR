@@ -52,6 +52,7 @@ interface SupabaseEstoqueItem {
     nome: string;
     unidade: string;
     ativo?: boolean;
+    estoque_minimo?: number | null;
   } | null;
   armazem: {
     id: string;
@@ -172,7 +173,7 @@ const Estoque = () => {
           id,
           quantidade,
           updated_at,
-          produto:produtos(id, nome, unidade, ativo),
+          produto:produtos(id, nome, unidade, ativo, estoque_minimo),
           armazem:armazens(id, nome, cidade, estado, capacidade_total, ativo)
         `)
         .order("updated_at", { ascending: false });
@@ -278,7 +279,11 @@ const Estoque = () => {
         produto: item.produto?.nome || "N/A",
         quantidade: item.quantidade,
         unidade: item.produto?.unidade || "t",
-        status: item.quantidade < 10 ? "baixo" : "normal",
+        // Mesma regra do card "Estoque Baixo" do Dashboard: só conta como baixo se o
+        // produto tiver estoque_minimo configurado e a quantidade física ficar abaixo dele.
+        status: item.produto?.estoque_minimo != null && item.quantidade < item.produto.estoque_minimo
+          ? "baixo"
+          : "normal",
         data: new Date(item.updated_at).toLocaleDateString("pt-BR"),
         produto_id: item.produto?.id,
         ativo: item.produto?.ativo,
