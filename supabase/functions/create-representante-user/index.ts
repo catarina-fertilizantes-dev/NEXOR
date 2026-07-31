@@ -16,6 +16,38 @@ const WEAK_PASSWORDS = new Set([
   '123456', '12345678', 'password','senha123','admin123','qwerty','Representante123'
 ]);
 
+// Validação de dígito verificador de CPF/CNPJ (módulo 11) e tamanho de
+// telefone — espelha src/lib/documentValidation.ts e src/lib/contactValidation.ts.
+function calcularDigitoVerificador(digitos, pesos) {
+  const soma = digitos.split('').reduce((acc, d, i) => acc + Number(d) * pesos[i], 0);
+  const resto = soma % 11;
+  return resto < 2 ? 0 : 11 - resto;
+}
+function validarCPF(value) {
+  const cpf = value.replace(/\D/g, '');
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  const d1 = calcularDigitoVerificador(cpf.slice(0, 9), [10, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = calcularDigitoVerificador(cpf.slice(0, 9) + d1, [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return cpf === cpf.slice(0, 9) + String(d1) + String(d2);
+}
+function validarCNPJ(value) {
+  const cnpj = value.replace(/\D/g, '');
+  if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+  const d1 = calcularDigitoVerificador(cnpj.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = calcularDigitoVerificador(cnpj.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return cnpj === cnpj.slice(0, 12) + String(d1) + String(d2);
+}
+function validarCpfOuCnpj(value) {
+  const digitos = value.replace(/\D/g, '');
+  if (digitos.length === 11) return validarCPF(digitos);
+  if (digitos.length === 14) return validarCNPJ(digitos);
+  return false;
+}
+function validarTelefone(value) {
+  const digitos = value.replace(/\D/g, '');
+  return digitos.length === 10 || digitos.length === 11;
+}
+
 const BodySchema = z.object({
   nome: z.string().trim().min(2).max(100),
   cpf: z.string().trim().refine((v) => /^\d{11}$|^\d{14}$/.test(v), {
@@ -103,6 +135,26 @@ Deno.serve(async (req) => {
   const email = parsedData.email.toLowerCase();
   const telefone = parsedData.telefone ?? null;
   const regiao_atuacao = parsedData.regiao_atuacao ?? null;
+
+  // --- VALIDAÇÃO DE FORMATO (dígito verificador / tamanho) ---
+  if (!validarCpfOuCnpj(cpf)) {
+    return jsonResponse({
+      error: 'Validation',
+      details: 'CPF/CNPJ inválido — confira os números digitados.',
+      stage: 'validation',
+      request_id,
+      timestamp
+    }, 400);
+  }
+  if (telefone && !validarTelefone(telefone)) {
+    return jsonResponse({
+      error: 'Validation',
+      details: 'Telefone inválido — informe DDD + número (10 ou 11 dígitos).',
+      stage: 'validation',
+      request_id,
+      timestamp
+    }, 400);
+  }
 
   // --- PASSWORD ---
   function gerarSenha() {

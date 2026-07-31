@@ -22,6 +22,41 @@ const WEAK_PASSWORDS = new Set([
 const validatePassword = (password)=>{
   return password.length >= 6 && password.length <= 128 && !WEAK_PASSWORDS.has(password.toLowerCase());
 };
+
+// Validação de dígito verificador de CPF/CNPJ (módulo 11) e tamanho de
+// telefone/CEP — espelha src/lib/documentValidation.ts e src/lib/contactValidation.ts.
+function calcularDigitoVerificador(digitos, pesos) {
+  const soma = digitos.split('').reduce((acc, d, i) => acc + Number(d) * pesos[i], 0);
+  const resto = soma % 11;
+  return resto < 2 ? 0 : 11 - resto;
+}
+function validarCPF(value) {
+  const cpf = value.replace(/\D/g, '');
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  const d1 = calcularDigitoVerificador(cpf.slice(0, 9), [10, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = calcularDigitoVerificador(cpf.slice(0, 9) + d1, [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return cpf === cpf.slice(0, 9) + String(d1) + String(d2);
+}
+function validarCNPJ(value) {
+  const cnpj = value.replace(/\D/g, '');
+  if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+  const d1 = calcularDigitoVerificador(cnpj.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = calcularDigitoVerificador(cnpj.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return cnpj === cnpj.slice(0, 12) + String(d1) + String(d2);
+}
+function validarCpfOuCnpj(value) {
+  const digitos = value.replace(/\D/g, '');
+  if (digitos.length === 11) return validarCPF(digitos);
+  if (digitos.length === 14) return validarCNPJ(digitos);
+  return false;
+}
+function validarTelefone(value) {
+  const digitos = value.replace(/\D/g, '');
+  return digitos.length === 10 || digitos.length === 11;
+}
+function validarCEP(value) {
+  return value.replace(/\D/g, '').length === 8;
+}
 // ATUALIZAÇÃO: BodySchema agora inclui email, cep e cnpj_cpf como campos opcionais ou obrigatórios.
 const BodySchema = z.object({
   nome: z.string().trim().min(2).max(100),
@@ -121,6 +156,39 @@ Deno.serve(async (req)=>{
     cep,
     cnpj_cpf
   });
+
+  // --- VALIDAÇÃO DE FORMATO (dígito verificador / tamanho) ---
+  if (!validarCpfOuCnpj(cnpj_cpf)) {
+    return jsonResponse({
+      error: 'Validation',
+      details: 'CNPJ/CPF inválido — confira os números digitados.',
+      stage: 'validation',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 400);
+  }
+  if (telefone && !validarTelefone(telefone)) {
+    return jsonResponse({
+      error: 'Validation',
+      details: 'Telefone inválido — informe DDD + número (10 ou 11 dígitos).',
+      stage: 'validation',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 400);
+  }
+  if (cep && !validarCEP(cep)) {
+    return jsonResponse({
+      error: 'Validation',
+      details: 'CEP inválido — deve ter 8 dígitos.',
+      stage: 'validation',
+      request_id,
+      timestamp,
+      email: emailLower
+    }, 400);
+  }
+
   // Check permissions
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: {

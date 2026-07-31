@@ -869,6 +869,10 @@ export type Database = {
       }
     }
     Functions: {
+      _cpf_cnpj_dv: {
+        Args: { digitos: string; pesos: number[] }
+        Returns: number
+      }
       alterar_armazem_liberacao: {
         Args: {
           p_liberacao_id: string
@@ -1167,6 +1171,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      validar_cnpj: { Args: { cnpj: string }; Returns: boolean }
+      validar_cpf: { Args: { cpf: string }; Returns: boolean }
+      validar_cpf_ou_cnpj: { Args: { documento: string }; Returns: boolean }
     }
     Enums: {
       agendamento_status:
@@ -1342,5 +1349,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.111.0 (currently installed v2.78.1)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

@@ -774,6 +774,12 @@ const Agendamentos = () => {
             title: "Quantidade inválida",
             description: "A quantidade solicitada excede o disponível para esta liberação.",
           });
+        } else if (errAgend.code === "23514" && errAgend.message?.includes("motorista_documento_checksum")) {
+          setFormError("CPF do motorista inválido. Confira os números digitados.");
+          toast({ variant: "destructive", title: "CPF do motorista inválido", description: "Confira os números digitados." });
+        } else if (errAgend.code === "23514" && errAgend.message?.includes("cnpj_transportadora_checksum")) {
+          setFormError("CNPJ da transportadora inválido. Confira os números digitados.");
+          toast({ variant: "destructive", title: "CNPJ da transportadora inválido", description: "Confira os números digitados." });
         } else {
           setFormError(errAgend.message || "Erro desconhecido");
           toast({ variant: "destructive", title: "Erro ao criar agendamento", description: errAgend.message });
@@ -1100,11 +1106,18 @@ const Agendamentos = () => {
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos-totais"] });
     } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao editar agendamento",
-        description: err instanceof Error ? err.message : "Erro desconhecido",
-      });
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      if (msg.includes("motorista_documento_checksum")) {
+        toast({ variant: "destructive", title: "CPF do motorista inválido", description: "Confira os números digitados." });
+      } else if (msg.includes("cnpj_transportadora_checksum")) {
+        toast({ variant: "destructive", title: "CNPJ da transportadora inválido", description: "Confira os números digitados." });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao editar agendamento",
+          description: msg,
+        });
+      }
     } finally {
       setIsEditandoAgendamento(false);
     }
