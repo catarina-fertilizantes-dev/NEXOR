@@ -54,7 +54,7 @@ import {
   formatarDuracaoMinutos,
   media,
 } from "@/components/dashboard/DashboardShared";
-import { parseDateOnly } from "@/lib/utils";
+import { parseDateOnly, toDateOnlyISO } from "@/lib/utils";
 
 // Normaliza uma data (string ISO ou DATE) para meia-noite local, para
 // comparações de "dias decorridos" sem interferência de fuso/horário.
@@ -454,6 +454,9 @@ const DashboardLogistica = () => {
   const inicioHoje = startOfDayISO(hoje);
   const fimHoje = endOfDayISO(hoje);
   const inicioJanela30d = startOfDayISO(addDays(hoje, -30));
+  // "Hoje" pra colunas `date` (ex: agendamentos.data_retirada) — nunca usar
+  // inicioHoje/fimHoje (timestamptz) nelas, ver toDateOnlyISO() em lib/utils.
+  const hojeDateOnly = toDateOnlyISO(hoje);
 
   const [filtroArmazens, setFiltroArmazens] = useState<string[]>([]);
   const [filtroProdutos, setFiltroProdutos] = useState<string[]>([]);
@@ -577,18 +580,20 @@ const DashboardLogistica = () => {
     refetchInterval: 60_000,
   });
 
-  // Contagem + volume dos agendamentos para hoje, em todos os armazéns
-  // (filtro de armazém aplicado direto na query; produto exige ir até
-  // liberações, então é filtrado depois de buscar).
+  // Contagem + volume dos agendamentos pendentes/em andamento para hoje, em
+  // todos os armazéns (filtro de armazém aplicado direto na query; produto
+  // exige ir até liberações, então é filtrado depois de buscar). Só
+  // pendente/em_andamento — "concluído" não conta aqui, porque já tem o card
+  // "Finalizados Hoje" pra isso; contar os dois juntos inflava o número sem
+  // bater com o que "Agendamentos Ativos" mostra por padrão no deep-link.
   const { data: agendadosHoje, isLoading: loadingAgendadosHoje } = useQuery({
-    queryKey: ["dash-agendados-hoje", inicioHoje, fimHoje, filtroArmazens, filtroProdutos],
+    queryKey: ["dash-agendados-hoje", hojeDateOnly, filtroArmazens, filtroProdutos],
     queryFn: async () => {
       let query = supabase
         .from("agendamentos")
         .select("quantidade, liberacoes(produto_id)")
-        .gte("data_retirada", inicioHoje)
-        .lte("data_retirada", fimHoje)
-        .neq("status", "cancelado");
+        .eq("data_retirada", hojeDateOnly)
+        .in("status", ["pendente", "em_andamento"]);
       if (filtroArmazens.length) query = query.in("armazem_id", filtroArmazens);
       const { data, error } = await query;
       if (error) throw error;
@@ -741,13 +746,12 @@ const DashboardLogistica = () => {
   // Armazéns/clientes com operação hoje: agendamento marcado para hoje OU
   // carregamento atualmente em andamento (etapa < 6, independente de quando começou).
   const { data: operacoesHoje, isLoading: loadingOperacoesHoje } = useQuery({
-    queryKey: ["dash-operacoes-hoje", filtroArmazens],
+    queryKey: ["dash-operacoes-hoje", hojeDateOnly, filtroArmazens],
     queryFn: async () => {
       let agQuery = supabase
         .from("agendamentos")
         .select("armazem_id, cliente_id, armazens(nome), clientes(nome)")
-        .gte("data_retirada", inicioHoje)
-        .lte("data_retirada", fimHoje)
+        .eq("data_retirada", hojeDateOnly)
         .neq("status", "cancelado");
       let carQuery = supabase
         .from("carregamentos")
@@ -878,14 +882,14 @@ const DashboardLogistica = () => {
   });
 
   const { data: proximosAgendamentos, isLoading: loadingProximosAgendamentos } = useQuery({
-    queryKey: ["dash-proximos-agendamentos"],
+    queryKey: ["dash-proximos-agendamentos", hojeDateOnly],
     queryFn: async (): Promise<ProximoAgendamentoItem[]> => {
       const { data, error } = await supabase
         .from("agendamentos")
         .select(
           "id, data_retirada, quantidade, clientes(nome), armazens(nome), liberacoes(pedido_interno, produtos(nome, unidade))"
         )
-        .gte("data_retirada", new Date().toISOString())
+        .gte("data_retirada", hojeDateOnly)
         .neq("status", "cancelado")
         .order("data_retirada", { ascending: true })
         .limit(5);

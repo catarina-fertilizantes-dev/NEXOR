@@ -32,7 +32,7 @@ import {
   formatarDataHora,
   formatarData,
 } from "@/components/dashboard/DashboardShared";
-import { parseDateOnly } from "@/lib/utils";
+import { parseDateOnly, toDateOnlyISO } from "@/lib/utils";
 
 const formatarPlaca = (placa?: string | null) => {
   if (!placa) return "—";
@@ -332,18 +332,20 @@ const DashboardCliente = () => {
   const inicioHoje = startOfDayISO(hoje);
   const fimHoje = endOfDayISO(hoje);
   const inicioMes = startOfDayISO(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  // "Hoje" pra colunas `date` (ex: agendamentos.data_retirada) — nunca usar
+  // inicioHoje/fimHoje (timestamptz) nelas, ver toDateOnlyISO() em lib/utils.
+  const hojeDateOnly = toDateOnlyISO(hoje);
 
   const habilitado = !permissionsLoading && clienteIds.length > 0;
 
   const { data: agendamentosHoje, isLoading: loadingAgendamentosHoje } = useQuery({
-    queryKey: ["dash-cli-agendamentos-hoje", clienteIds],
+    queryKey: ["dash-cli-agendamentos-hoje", hojeDateOnly, clienteIds],
     queryFn: async () => {
       const { count, error } = await supabase
         .from("agendamentos")
         .select("id", { count: "exact", head: true })
         .in("cliente_id", clienteIds)
-        .gte("data_retirada", inicioHoje)
-        .lte("data_retirada", fimHoje)
+        .eq("data_retirada", hojeDateOnly)
         .neq("status", "cancelado");
       if (error) throw error;
       return count ?? 0;
@@ -604,7 +606,7 @@ const DashboardCliente = () => {
   });
 
   const { data: proximosAgendamentos, isLoading: loadingProximosAgendamentos } = useQuery({
-    queryKey: ["dash-cli-proximos-agendamentos", clienteIds],
+    queryKey: ["dash-cli-proximos-agendamentos", hojeDateOnly, clienteIds],
     queryFn: async (): Promise<ProximoAgendamentoItem[]> => {
       const { data, error } = await supabase
         .from("agendamentos")
@@ -612,7 +614,7 @@ const DashboardCliente = () => {
           "id, data_retirada, quantidade, clientes(nome), armazens(nome), liberacoes(pedido_interno, produtos(nome, unidade))"
         )
         .in("cliente_id", clienteIds)
-        .gte("data_retirada", new Date().toISOString())
+        .gte("data_retirada", hojeDateOnly)
         .neq("status", "cancelado")
         .order("data_retirada", { ascending: true })
         .limit(5);
@@ -658,7 +660,7 @@ const DashboardCliente = () => {
   });
 
   const { data: veiculosAgendados, isLoading: loadingVeiculosAgendados } = useQuery({
-    queryKey: ["dash-cli-veiculos-agendados", clienteIds],
+    queryKey: ["dash-cli-veiculos-agendados", hojeDateOnly, clienteIds],
     queryFn: async (): Promise<VeiculoAgendadoItem[]> => {
       const { data, error } = await supabase
         .from("agendamentos")
@@ -666,8 +668,7 @@ const DashboardCliente = () => {
           "id, data_retirada, motorista_nome, placa_caminhao, transportadora, clientes(nome), armazens(nome)"
         )
         .in("cliente_id", clienteIds)
-        .gte("data_retirada", inicioHoje)
-        .lte("data_retirada", fimHoje)
+        .eq("data_retirada", hojeDateOnly)
         .neq("status", "cancelado")
         .order("data_retirada", { ascending: true });
       if (error) throw error;

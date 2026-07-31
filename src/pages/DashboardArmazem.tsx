@@ -35,6 +35,7 @@ import {
   formatarDuracaoMinutos,
   media,
 } from "@/components/dashboard/DashboardShared";
+import { toDateOnlyISO } from "@/lib/utils";
 
 const DashboardArmazem = () => {
   const { armazemId, loading: permissionsLoading } = usePermissions();
@@ -42,21 +43,24 @@ const DashboardArmazem = () => {
   const hoje = useMemo(() => new Date(), []);
   const inicioHoje = startOfDayISO(hoje);
   const fimHoje = endOfDayISO(hoje);
-  const fimSemana = endOfDayISO(addDays(hoje, 6));
   const inicioMes = startOfDayISO(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const inicioJanela30d = startOfDayISO(addDays(hoje, -30));
+  // "Hoje"/limites pra colunas `date` (ex: agendamentos.data_retirada) —
+  // nunca usar inicioHoje/fimHoje (timestamptz) nelas, ver toDateOnlyISO()
+  // em lib/utils.
+  const hojeDateOnly = toDateOnlyISO(hoje);
+  const fimSemanaDateOnly = toDateOnlyISO(addDays(hoje, 6));
 
   const habilitado = !permissionsLoading && !!armazemId;
 
   const { data: agendamentosHoje, isLoading: loadingAgendamentosHoje } = useQuery({
-    queryKey: ["dash-arm-agendamentos-hoje", armazemId],
+    queryKey: ["dash-arm-agendamentos-hoje", hojeDateOnly, armazemId],
     queryFn: async () => {
       const { count, error } = await supabase
         .from("agendamentos")
         .select("id", { count: "exact", head: true })
         .eq("armazem_id", armazemId!)
-        .gte("data_retirada", inicioHoje)
-        .lte("data_retirada", fimHoje)
+        .eq("data_retirada", hojeDateOnly)
         .neq("status", "cancelado");
       if (error) throw error;
       return count ?? 0;
@@ -66,14 +70,14 @@ const DashboardArmazem = () => {
   });
 
   const { data: agendamentosSemana, isLoading: loadingAgendamentosSemana } = useQuery({
-    queryKey: ["dash-arm-agendamentos-semana", armazemId],
+    queryKey: ["dash-arm-agendamentos-semana", hojeDateOnly, fimSemanaDateOnly, armazemId],
     queryFn: async () => {
       const { count, error } = await supabase
         .from("agendamentos")
         .select("id", { count: "exact", head: true })
         .eq("armazem_id", armazemId!)
-        .gte("data_retirada", inicioHoje)
-        .lte("data_retirada", fimSemana)
+        .gte("data_retirada", hojeDateOnly)
+        .lte("data_retirada", fimSemanaDateOnly)
         .neq("status", "cancelado");
       if (error) throw error;
       return count ?? 0;
@@ -289,7 +293,7 @@ const DashboardArmazem = () => {
   });
 
   const { data: proximosAgendamentos, isLoading: loadingProximosAgendamentos } = useQuery({
-    queryKey: ["dash-arm-proximos-agendamentos", armazemId],
+    queryKey: ["dash-arm-proximos-agendamentos", hojeDateOnly, armazemId],
     queryFn: async (): Promise<ProximoAgendamentoItem[]> => {
       const { data, error } = await supabase
         .from("agendamentos")
@@ -297,7 +301,7 @@ const DashboardArmazem = () => {
           "id, data_retirada, quantidade, clientes(nome), armazens(nome), liberacoes(pedido_interno, produtos(nome, unidade))"
         )
         .eq("armazem_id", armazemId!)
-        .gte("data_retirada", new Date().toISOString())
+        .gte("data_retirada", hojeDateOnly)
         .neq("status", "cancelado")
         .order("data_retirada", { ascending: true })
         .limit(5);

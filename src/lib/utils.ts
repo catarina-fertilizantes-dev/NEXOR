@@ -19,3 +19,17 @@ export function formatDateOnlyBR(iso: string): string {
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}/${m}/${y}`;
 }
+
+// Inverso de parseDateOnly: formata uma Date local como "YYYY-MM-DD" pra usar
+// em filtros contra colunas `date` (ex: `.eq("data_retirada", ...)`). Nunca
+// usar `date.toISOString()` (timestamp completo em UTC) nesses filtros: o
+// Postgres/PostgREST trunca o literal pro texto Y-M-D sem ajustar fuso, e em
+// fusos negativos (Brasil, UTC-3) o fim do dia local (23:59:59.999) já virou
+// o dia seguinte em UTC — um filtro "até o fim de hoje" feito com
+// endOfDayISO() silenciosamente também inclui o dia seguinte inteiro.
+export function toDateOnlyISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
