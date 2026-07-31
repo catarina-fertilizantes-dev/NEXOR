@@ -28,42 +28,8 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
 import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
+import { validarTelefone, formatPhone, maskPhoneInput, normalizePhone, validarCEP, formatCEP, maskCEPInput, normalizeCep } from "@/lib/contactValidation";
 
-// Helpers de máscara e formatação (telefone/CEP ainda não padronizados)
-function maskPhoneInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 11);
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length > 6)
-    return cleaned.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, "($1) $2-$3");
-  if (cleaned.length > 2)
-    return cleaned.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
-  if (cleaned.length > 0)
-    return cleaned.replace(/^(\d{0,2})/, "($1");
-  return "";
-}
-function formatPhone(phone: string): string {
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  return phone;
-}
-function maskCEPInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length > 5)
-    return cleaned.replace(/^(\d{5})(\d{0,3})$/, "$1-$2");
-  return cleaned;
-}
-function formatCEP(cep: string): string {
-  const cleaned = cep.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length === 8)
-    return cleaned.replace(/^(\d{5})(\d{3})$/, "$1-$2");
-  return cep;
-}
 function formatCpfCnpj(v: string): string {
   return v ? formatarCpfCnpj(v) : "—";
 }
@@ -150,6 +116,8 @@ const Armazens = () => {
 
   const [cnpjCpfErro, setCnpjCpfErro] = useState<string | null>(null);
   const [cnpjCpfDuplicado, setCnpjCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+  const [telefoneErro, setTelefoneErro] = useState<string | null>(null);
+  const [cepErro, setCepErro] = useState<string | null>(null);
 
   const handleCnpjCpfBlur = async () => {
     const documento = normalizeDocumento(novoArmazem.cnpj_cpf);
@@ -167,6 +135,16 @@ const Armazens = () => {
     setCnpjCpfDuplicado(encontrados);
   };
 
+  const handleTelefoneBlur = () => {
+    const digitos = normalizePhone(novoArmazem.telefone);
+    setTelefoneErro(!digitos || validarTelefone(digitos) ? null : "Telefone inválido — informe DDD + número (10 ou 11 dígitos).");
+  };
+
+  const handleCepBlur = () => {
+    const digitos = normalizeCep(novoArmazem.cep);
+    setCepErro(!digitos || validarCEP(digitos) ? null : "CEP inválido — deve ter 8 dígitos.");
+  };
+
   const resetForm = () => {
     setNovoArmazem({
       nome: "",
@@ -181,6 +159,8 @@ const Armazens = () => {
     });
     setCnpjCpfErro(null);
     setCnpjCpfDuplicado([]);
+    setTelefoneErro(null);
+    setCepErro(null);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -267,7 +247,15 @@ const Armazens = () => {
       toast({ variant: "destructive", title: "CNPJ/CPF inválido", description: "Confira os números digitados." });
       return;
     }
-  
+    if (telefone.trim() && !validarTelefone(telefone)) {
+      toast({ variant: "destructive", title: "Telefone inválido", description: "Informe DDD + número (10 ou 11 dígitos)." });
+      return;
+    }
+    if (cep.trim() && !validarCEP(cep)) {
+      toast({ variant: "destructive", title: "CEP inválido", description: "O CEP deve ter 8 dígitos." });
+      return;
+    }
+
     setIsCreating(true);
   
     try {
@@ -695,11 +683,15 @@ const Armazens = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleTelefoneBlur}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {telefoneErro && (
+                          <p className="text-xs text-destructive mt-1">{telefoneErro}</p>
+                        )}
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="endereco" className="text-sm font-medium">Endereço</Label>
@@ -727,11 +719,15 @@ const Armazens = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCepBlur}
                           placeholder="00000-000"
                           maxLength={9}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cepErro && (
+                          <p className="text-xs text-destructive mt-1">{cepErro}</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="capacidade_total" className="text-sm font-medium">Capacidade Total (toneladas)</Label>

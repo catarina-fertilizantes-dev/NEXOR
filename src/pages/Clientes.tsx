@@ -38,6 +38,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
 import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
+import { validarTelefone, formatPhone, maskPhoneInput, normalizePhone, validarCEP, formatCEP, maskCEPInput, normalizeCep } from "@/lib/contactValidation";
 
 const estadosBrasil = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -61,43 +62,8 @@ type Representante = {
   ativo: boolean;
 };
 
-// Helpers de formatação de CPF/CNPJ vêm de src/lib/documentValidation.ts
-// (formatarCpfCnpj/maskCpfCnpj/validarCpfOuCnpj); helpers de telefone/CEP
-// continuam locais, ainda não padronizados.
-function formatPhone(phone: string): string {
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  return phone;
-}
-function maskPhoneInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 11);
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length > 6)
-    return cleaned.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, "($1) $2-$3");
-  if (cleaned.length > 2)
-    return cleaned.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
-  if (cleaned.length > 0)
-    return cleaned.replace(/^(\d{0,2})/, "($1");
-  return "";
-}
-function formatCEP(cep: string): string {
-  const cleaned = cep.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length === 8)
-    return cleaned.replace(/^(\d{5})(\d{3})$/, "$1-$2");
-  return cep;
-}
-function maskCEPInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length > 5)
-    return cleaned.replace(/^(\d{5})(\d{0,3})$/, "$1-$2");
-  return cleaned;
-}
+// Helpers de formatação de CPF/CNPJ vêm de src/lib/documentValidation.ts,
+// telefone/CEP vêm de src/lib/contactValidation.ts.
 
 const Clientes = () => {
   useScrollToTop();
@@ -171,6 +137,8 @@ const Clientes = () => {
   // Validação de CPF/CNPJ (dígito verificador + aviso cross-papel, não bloqueia)
   const [cnpjCpfErro, setCnpjCpfErro] = useState<string | null>(null);
   const [cnpjCpfDuplicado, setCnpjCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+  const [telefoneErro, setTelefoneErro] = useState<string | null>(null);
+  const [cepErro, setCepErro] = useState<string | null>(null);
 
   const handleCnpjCpfBlur = async () => {
     const documento = normalizeDocumento(novoCliente.cnpj_cpf);
@@ -188,6 +156,16 @@ const Clientes = () => {
     setCnpjCpfDuplicado(encontrados);
   };
 
+  const handleTelefoneBlur = () => {
+    const digitos = normalizePhone(novoCliente.telefone);
+    setTelefoneErro(!digitos || validarTelefone(digitos) ? null : "Telefone inválido — informe DDD + número (10 ou 11 dígitos).");
+  };
+
+  const handleCepBlur = () => {
+    const digitos = normalizeCep(novoCliente.cep);
+    setCepErro(!digitos || validarCEP(digitos) ? null : "CEP inválido — deve ter 8 dígitos.");
+  };
+
   const resetForm = () => {
     setNovoCliente({
       nome: "",
@@ -202,6 +180,8 @@ const Clientes = () => {
     });
     setCnpjCpfErro(null);
     setCnpjCpfDuplicado([]);
+    setTelefoneErro(null);
+    setCepErro(null);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -407,6 +387,14 @@ const Clientes = () => {
     }
     if (!validarCpfOuCnpj(cnpj_cpf)) {
       toast({ variant: "destructive", title: "CNPJ/CPF inválido", description: "Confira os números digitados." });
+      return;
+    }
+    if (telefone.trim() && !validarTelefone(telefone)) {
+      toast({ variant: "destructive", title: "Telefone inválido", description: "Informe DDD + número (10 ou 11 dígitos)." });
+      return;
+    }
+    if (cep.trim() && !validarCEP(cep)) {
+      toast({ variant: "destructive", title: "CEP inválido", description: "O CEP deve ter 8 dígitos." });
       return;
     }
 
@@ -861,11 +849,15 @@ const Clientes = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleTelefoneBlur}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {telefoneErro && (
+                          <p className="text-xs text-destructive mt-1">{telefoneErro}</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="cep" className="text-sm font-medium">CEP</Label>
@@ -876,11 +868,15 @@ const Clientes = () => {
                             setNovoCliente({ ...novoCliente, cep: maskCEPInput(e.target.value) });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCepBlur}
                           placeholder="00000-000"
                           maxLength={9}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cepErro && (
+                          <p className="text-xs text-destructive mt-1">{cepErro}</p>
+                        )}
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="endereco" className="text-sm font-medium">Endereço</Label>

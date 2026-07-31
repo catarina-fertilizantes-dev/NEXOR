@@ -28,6 +28,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
 import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
 import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
+import { validarTelefone, formatPhone as formatPhoneShared, maskPhoneInput, normalizePhone } from "@/lib/contactValidation";
 
 type Representante = Database['public']['Tables']['representantes']['Row'] & {
   temp_password?: string | null;
@@ -39,30 +40,11 @@ function formatCpfCnpj(v: string): string {
   return v ? formatarCpfCnpj(v) : "—";
 }
 
+// Telefone vem de src/lib/contactValidation.ts; mantém o guard de exibição
+// que já existia aqui ("—" quando vazio).
 function formatPhone(phone: string): string {
   if (!phone) return "—";
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  return phone;
-}
-
-function maskPhoneInput(value: string): string {
-  if (!value) return "";
-  const cleaned = value.replace(/\D/g, "").slice(0, 11);
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length > 6)
-    return cleaned.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, "($1) $2-$3");
-  if (cleaned.length > 2)
-    return cleaned.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
-  if (cleaned.length > 0)
-    return cleaned.replace(/^(\d{0,2})/, "($1");
-  return "";
+  return formatPhoneShared(phone);
 }
 
 const Representantes = () => {
@@ -131,6 +113,7 @@ const Representantes = () => {
 
   const [cpfErro, setCpfErro] = useState<string | null>(null);
   const [cpfDuplicado, setCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+  const [telefoneErro, setTelefoneErro] = useState<string | null>(null);
 
   const handleCpfBlur = async () => {
     const documento = normalizeDocumento(novoRepresentante.cpf);
@@ -148,6 +131,11 @@ const Representantes = () => {
     setCpfDuplicado(encontrados);
   };
 
+  const handleTelefoneBlur = () => {
+    const digitos = normalizePhone(novoRepresentante.telefone);
+    setTelefoneErro(!digitos || validarTelefone(digitos) ? null : "Telefone inválido — informe DDD + número (10 ou 11 dígitos).");
+  };
+
   const resetForm = () => {
     setNovoRepresentante({
       nome: "",
@@ -157,6 +145,7 @@ const Representantes = () => {
       regiao_atuacao: "",
     });
     setCpfErro(null);
+    setTelefoneErro(null);
     setCpfDuplicado([]);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
@@ -284,6 +273,10 @@ const Representantes = () => {
     }
     if (!validarCpfOuCnpj(cpf)) {
       toast({ variant: "destructive", title: "CPF/CNPJ inválido", description: "Confira os números digitados." });
+      return;
+    }
+    if (telefone.trim() && !validarTelefone(telefone)) {
+      toast({ variant: "destructive", title: "Telefone inválido", description: "Informe DDD + número (10 ou 11 dígitos)." });
       return;
     }
 
@@ -636,11 +629,15 @@ const Representantes = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleTelefoneBlur}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {telefoneErro && (
+                          <p className="text-xs text-destructive mt-1">{telefoneErro}</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="regiao_atuacao" className="text-sm font-medium">Região de Atuação</Label>
