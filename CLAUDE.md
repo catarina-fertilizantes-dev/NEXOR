@@ -46,7 +46,7 @@ Liberação → Agendamento → Carregamento
    - Statuses: `disponivel` → `parcialmente_agendada` → `totalmente_agendada` → `finalizada` / `cancelada`
    - Campos chave: `quantidade_liberada`, `quantidade_retirada`, `pedido_interno`
    - Validação inline: a quantidade da liberação não pode exceder o estoque disponível no armazém selecionado
-   - **Ao cancelar** (`cancelar_liberacao`, admin/logistica only): agendamentos não iniciados são arquivados/removidos; carregamentos não iniciados são removidos; carregamentos **em andamento continuam até conclusão natural** (não são interrompidos); nenhum desses agendamentos/carregamentos cancelados aparece mais na interface (decisão de produto, não bug). Colunas de auditoria: `cancelado_por`, `cancelado_em`.
+   - **Cancelamento** (`cancelar_liberacao`, admin/logistica only): só é permitido se **nenhum** carregamento vinculado foi iniciado (etapa_atual ≥ 2) nem finalizado (etapa_atual = 6) — todos precisam ainda estar na etapa 1 (chegada não registrada). Se algum já foi iniciado ou finalizado, o cancelamento é bloqueado (`calcular_cancelamento_liberacao` retorna `pode_cancelar: false` + `motivo_bloqueio`) e a única opção é `alterar_quantidade_liberacao` para reduzir o saldo ainda não comprometido. Quando o cancelamento é permitido: agendamentos são marcados `cancelado`, carregamentos (todos etapa 1) são removidos, e a quantidade não utilizada volta ao `quantidade_disponivel` do estoque. Colunas de auditoria: `cancelado_por`, `cancelado_em`. Regra implementada em `20260717143154_alterar_quantidade_liberacao_e_agendamento.sql` e mensagens refinadas em `20260731181523_fix_security_definer_estoque_liberacao_triggers.sql` — sempre conferir a migration mais recente antes de descrever esta regra, ela já mudou mais de uma vez.
 
 2. **Agendamento** — Cliente ou representante agenda a data/horário de retirada com dados do caminhão e motorista.
    - Statuses: `pendente` → `em_andamento` → `concluido` → `cancelado`
@@ -121,8 +121,10 @@ Usuários de `admin` e `logistica` (Colaboradores) criados diretamente na págin
 - `get_quantidade_disponivel_liberacao(liberacao_uuid uuid)` — quantidade não agendada de uma liberação
 - `alterar_armazem_liberacao(id, novo_armazem_id)` — mover liberação entre armazéns
 - `check_user_active_status(user_id)` — valida se usuário está ativo no login
-- `cancelar_liberacao(id)` — cancela liberação e retorna `quantidade_liberada − quantidade_retirada − qty_em_andamento` ao `quantidade_disponivel` do estoque
-- `calcular_cancelamento_liberacao(id)` — preview read-only do cálculo de cancelamento (sem side effects); ao implementar cancelamento de outras entidades, seguir o mesmo padrão: RPC de preview read-only + dialog de confirmação mostrando o impacto + RPC que efetivamente cancela e devolve estoque
+- `cancelar_liberacao(id)` — cancela liberação (só se nenhum carregamento vinculado foi iniciado/finalizado) e retorna `quantidade_liberada − quantidade_retirada − qty_em_andamento` ao `quantidade_disponivel` do estoque
+- `calcular_cancelamento_liberacao(id)` — preview read-only do cálculo de cancelamento (sem side effects), incluindo `pode_cancelar`/`motivo_bloqueio`; ao implementar cancelamento de outras entidades, seguir o mesmo padrão: RPC de preview read-only + dialog de confirmação mostrando o impacto + RPC que efetivamente cancela e devolve estoque
+- `alterar_quantidade_liberacao(id, nova_quantidade)` / `calcular_alteracao_liberacao(id)` — altera a quantidade total liberada (preview + execução, mesmo padrão); é a alternativa quando `cancelar_liberacao` está bloqueado; nova quantidade não pode ficar abaixo do já retirado + em carregamento
+- `editar_agendamento(...)` / `cancelar_agendamento(id)` — editar/cancelar um agendamento, só permitido enquanto o carregamento vinculado está na etapa 1 (chegada ainda não registrada)
 - `can_upload_foto_for_carregamento(id)` — RLS para uploads de fotos
 - `insert_carregamento_from_agendamento()` — trigger SECURITY DEFINER; cria carregamento automaticamente ao inserir agendamento
 
