@@ -266,8 +266,8 @@ export const AgendamentosSection = () => {
                 { action: "Visualizar TODOS os agendamentos do sistema", allowed: true },
                 { action: "Ver detalhes de cada agendamento", allowed: true },
                 { action: "Filtrar por período, status ou busca", allowed: true },
-                { action: "Editar agendamentos após criação", allowed: false },
-                { action: "Cancelar agendamentos", allowed: false },
+                { action: "Editar agendamentos (dados do caminhão/motorista/quantidade)", allowed: true },
+                { action: "Cancelar agendamentos", allowed: true },
                 { action: "Atualizar etapas de carregamento", allowed: false },
               ].map((row, i) => (
                 <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
@@ -284,6 +284,23 @@ export const AgendamentosSection = () => {
             </tbody>
           </table>
         </div>
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mt-3">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">Editar e cancelar só na Etapa 1</h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  Os botões "Editar Agendamento" e "Cancelar Agendamento" só aparecem enquanto o carregamento
+                  vinculado ainda está na <strong>Etapa 1 – Chegada</strong> (ou seja, o caminhão ainda não iniciou o
+                  carregamento). Depois disso, o agendamento não pode mais ser editado ou cancelado pela tela.
+                  Ao editar, é possível ajustar quantidade, placas, motorista, transportadora e observações em uma
+                  única tela.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div>

@@ -14,7 +14,7 @@ export const CarregamentosSection = () => {
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
             A funcionalidade de Carregamentos possui duas páginas principais: a <strong className="text-foreground">Lista de Carregamentos</strong>, onde você 
-            visualiza todos os carregamentos do armazém, e os <strong className="text-foreground">Detalhes do Carregamento</strong>, onde você gerencia as 6 etapas 
+            visualiza todos os carregamentos do armazém, e os <strong className="text-foreground">Detalhes do Carregamento</strong>, onde você gerencia as 5 etapas
             do processo, anexando fotos e documentos necessários.
           </p>
         </CardContent>
@@ -37,7 +37,7 @@ export const CarregamentosSection = () => {
                   <p className="font-medium text-foreground mb-1">🎯 Filtros</p>
                   <p className="text-muted-foreground mb-1">Clique em "Filtros" para filtrar por:</p>
                   <ul className="list-disc list-inside text-muted-foreground ml-2">
-                    <li>Status (Aguardando, Em Andamento, Finalizado)</li>
+                    <li>Status (Aguardando, Em Andamento, Processo Finalizado)</li>
                     <li>Período (data inicial e final)</li>
                   </ul>
                 </div>
@@ -81,11 +81,9 @@ export const CarregamentosSection = () => {
             <h4 className="font-medium text-foreground mb-2">Entendendo os Status nos Badges</h4>
             <div className="grid gap-2 sm:grid-cols-2">
               {[
-                { status: "Aguardando", color: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400", desc: "Aguardando chegada do veículo" },
-                { status: "Em andamento", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400", desc: "Processo em execução" },
-                { status: "Documentação", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400", desc: "Aguardando anexo de documentos" },
-                { status: "Processo Finalizado", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400", desc: "Carregamento concluído com sucesso" },
-                { status: "Cancelado", color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400", desc: "Carregamento foi cancelado" },
+                { status: "Aguardando", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400", desc: "Etapa 1 — aguardando chegada do veículo" },
+                { status: "Em Andamento", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400", desc: "Etapas 2 a 5 — do início do carregamento até a documentação" },
+                { status: "Processo Finalizado", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400", desc: "Documentação completa (5A+5B+5C) e processo encerrado" },
               ].map((item, i) => (
                 <Card key={i}>
                   <CardContent className="p-3 flex items-start gap-3">
@@ -205,7 +203,7 @@ export const CarregamentosSection = () => {
           </div>
 
           <div>
-            <h4 className="font-medium text-foreground mb-3">As 6 Etapas do Processo</h4>
+            <h4 className="font-medium text-foreground mb-3">As 5 Etapas do Processo</h4>
 
             {/* Etapa 1 */}
             <Card className="mb-3">
@@ -405,7 +403,7 @@ export const CarregamentosSection = () => {
                               </div>
                             ))}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-2">✅ Sistema avança automaticamente para Etapa 6 (Finalizado)</p>
+                          <p className="text-xs text-muted-foreground mt-2">✅ Sistema conclui automaticamente o processo assim que 5A, 5B e 5C estiverem completas</p>
                         </CardContent>
                       </Card>
                     </div>
@@ -414,16 +412,21 @@ export const CarregamentosSection = () => {
               </CardContent>
             </Card>
 
-            {/* Etapa 6 */}
-            <Card className="mb-3">
+            {/* Processo Finalizado (painel automático, não é uma etapa clicável) */}
+            <Card className="mb-3 border-green-200 bg-green-50/50 dark:bg-green-950/10">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-white font-bold text-sm shrink-0">6</div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-white shrink-0">
+                    <CheckCircle className="h-4 w-4" />
+                  </div>
                   <div className="space-y-2 flex-1">
-                    <h5 className="font-semibold text-foreground">Finalizado 🎉</h5>
-                    <p className="text-sm text-muted-foreground">Carregamento concluído com sucesso. Parabéns!</p>
+                    <h5 className="font-semibold text-foreground">Processo Finalizado 🎉</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Assim que a Etapa 5 é concluída (5A + 5B + 5C), o sistema encerra o carregamento automaticamente
+                      e substitui a timeline por este painel — não é um passo com ação, é só um resumo.
+                    </p>
                     <div className="space-y-1 text-sm">
-                      <p className="font-medium text-foreground">O que acontece agora:</p>
+                      <p className="font-medium text-foreground">O que acontece:</p>
                       {[
                         'Status muda para "Processo Finalizado" (badge verde)',
                         "Barra de progresso mostra 100%",

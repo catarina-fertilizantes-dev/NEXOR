@@ -330,8 +330,8 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* Manual - Logística */}
-              {userRole === "logistica" && (
+              {/* Manual - Logística (também visível para admin) */}
+              {(userRole === "logistica" || userRole === "admin") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <NavLink
