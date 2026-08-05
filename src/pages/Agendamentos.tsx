@@ -871,7 +871,7 @@ const Agendamentos = () => {
     const filtered = agendamentos.filter((a) => {
       const term = search.trim().toLowerCase();
       if (term) {
-        const hay = `${a.cliente} ${a.produto} ${a.pedido} ${a.motorista}`.toLowerCase();
+        const hay = `${a.cliente} ${a.produto} ${a.pedido} ${a.motorista} ${a.armazem} ${a.placa}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(a.status)) return false;
@@ -1646,7 +1646,7 @@ const Agendamentos = () => {
           <div className="flex items-center gap-3">
             <Input 
               className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-              placeholder="Buscar por cliente, produto, pedido ou motorista..." 
+              placeholder="Buscar por cliente, produto, armazém, placa, pedido ou motorista..."
               value={search} 
               onChange={(e) => setSearch(e.target.value)} 
             />

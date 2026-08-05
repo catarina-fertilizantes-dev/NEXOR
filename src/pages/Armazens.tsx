@@ -495,7 +495,8 @@ const Armazens = () => {
           armazem.cidade?.toLowerCase().includes(term) ||
           armazem.estado?.toLowerCase().includes(term) ||
           armazem.email?.toLowerCase().includes(term) ||
-          (armazem.cnpj_cpf && armazem.cnpj_cpf.toLowerCase().includes(term));
+          (armazem.cnpj_cpf && armazem.cnpj_cpf.toLowerCase().includes(term)) ||
+          (armazem.telefone && armazem.telefone.toLowerCase().includes(term));
         if (!matches) return false;
       }
       return true;
@@ -783,7 +784,7 @@ const Armazens = () => {
             </Select>
           </div>
           <Input
-            placeholder="Buscar por nome, cidade, estado, email ou CNPJ/CPF..."
+            placeholder="Buscar por nome, cidade, estado, email, telefone ou CNPJ/CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full md:max-w-md min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
