@@ -238,7 +238,10 @@ export const CarregamentosSection = () => {
         <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 mb-4">
           <AlertCircle className="h-5 w-5 text-orange-600" />
           <AlertDescription className="text-orange-800 dark:text-orange-200 ml-2">
-            <strong>Importante:</strong> Os documentos só ficam disponíveis para download após cada responsável concluir a sub-etapa correspondente. Aguarde todas as 3 sub-etapas (5A, 5B e 5C) com badge verde antes de baixar.
+            <strong>Importante:</strong> cada sub-etapa fica disponível para visualizar e baixar assim que o
+            responsável por ela a concluir — não é preciso esperar as 3 (5A, 5B e 5C) ficarem prontas. Inclusive,
+            você vai precisar baixar a Nota de Retorno da 5A (concluída pelo Armazém) antes de conseguir emitir e
+            anexar a Nota de Venda na 5B.
           </AlertDescription>
         </Alert>
       </div>
@@ -249,7 +252,7 @@ export const CarregamentosSection = () => {
           {[
             "Acesse o carregamento (clique no card na lista)",
             "Vá até a Etapa 5 – Documentação",
-            "Aguarde as 3 sub-etapas serem concluídas (5A, 5B e 5C com badge verde)",
+            "Cada sub-etapa já concluída (badge verde) mostra seus próprios botões de download, mesmo que as outras ainda não tenham sido feitas",
             'Clique nos botões "Nota Fiscal (PDF)" ou "Arquivo XML"',
             "O documento será baixado automaticamente",
           ].map((step, i) => (

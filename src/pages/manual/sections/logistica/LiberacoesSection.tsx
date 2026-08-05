@@ -155,13 +155,13 @@ export const LiberacoesSection = () => {
         </Card>
         <p className="text-sm text-muted-foreground mb-2">
           Use esta opção para aumentar ou reduzir a quantidade total liberada — por exemplo, quando o pedido do
-          cliente mudou depois da liberação já criada. É a alternativa recomendada quando a liberação não pode
-          mais ser cancelada por já ter agendamentos ou carregamentos em andamento.
+          cliente mudou depois da liberação já criada. É a alternativa quando a liberação não pode mais ser
+          cancelada por já ter algum carregamento iniciado ou finalizado.
         </p>
         <div className="space-y-2">
           {[
             "Clique na liberação e depois em \"Alterar Quantidade\" (ao lado do campo Liberada)",
-            "O sistema mostra a quantidade já comprometida (retirada, em carregamento ou agendada) e o máximo possível (quantidade atual + estoque disponível no armazém)",
+            "O sistema mostra a quantidade já comprometida (retirada ou em carregamento) e o máximo possível (quantidade atual + estoque disponível no armazém)",
             "Informe a nova quantidade total — não pode ficar abaixo da quantidade já comprometida",
             "Aumentar debita a diferença do estoque disponível do armazém; reduzir devolve a diferença",
             'Confirme clicando em "Confirmar Alteração"',
@@ -174,10 +174,34 @@ export const LiberacoesSection = () => {
             </div>
           ))}
         </div>
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mt-3">
+          <CardContent className="p-4">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              Se você reduzir a quantidade exatamente até o valor já comprometido, a liberação <strong>não é
+              cancelada</strong> — ela continua ativa e passa a status <strong>Finalizada</strong> automaticamente
+              assim que os carregamentos em andamento forem concluídos.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Cancelar uma Liberação</h3>
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mb-3">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Quando está disponível?</h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  Somente se <strong>nenhum</strong> carregamento vinculado a esta liberação foi iniciado —
+                  ou seja, todos ainda aguardam a chegada do caminhão no armazém. Se algum carregamento já foi
+                  iniciado ou já foi finalizado, o cancelamento é bloqueado (veja abaixo).
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Alert className="border-red-200 bg-red-50 dark:bg-red-950/20 mb-3">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <div className="ml-2">
@@ -185,17 +209,16 @@ export const LiberacoesSection = () => {
               ⚠️ Ação irreversível
             </AlertTitle>
             <AlertDescription className="text-red-800 dark:text-red-200">
-              Ao cancelar uma liberação: agendamentos ainda não iniciados são removidos, carregamentos ainda não
-              iniciados são removidos, e a quantidade não utilizada volta para o estoque disponível do armazém.
-              Carregamentos <strong>já em andamento continuam normalmente até serem concluídos</strong> — eles não
-              são interrompidos, mas deixam de aparecer vinculados à liberação cancelada.
+              Ao cancelar: os agendamentos são marcados como cancelados, os carregamentos vinculados (todos ainda
+              não iniciados) são removidos, e a quantidade não utilizada volta para o estoque disponível do
+              armazém.
             </AlertDescription>
           </div>
         </Alert>
         <div className="space-y-2 mb-3">
           {[
             'Clique na liberação e depois em "Cancelar Liberação"',
-            "O sistema calcula e mostra o impacto: quantidade liberada, já retirada, em carregamento e o total que será devolvido ao estoque",
+            "O sistema calcula e mostra o impacto: quantidade liberada, já retirada e o total que será devolvido ao estoque",
             "Confirme o cancelamento",
           ].map((step, i) => (
             <div key={i} className="flex items-start gap-3 text-sm">
@@ -213,8 +236,9 @@ export const LiberacoesSection = () => {
               <div>
                 <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">Quando o cancelamento é bloqueado</h4>
                 <p className="text-sm text-amber-800 dark:text-amber-200">
-                  Se a liberação já tem carregamento em andamento, o sistema bloqueia o cancelamento e explica o
-                  motivo. Nesse caso, use <strong>Alterar Quantidade</strong> para reduzir o saldo ainda não utilizado.
+                  Se algum carregamento desta liberação já foi iniciado ou já foi finalizado, o sistema bloqueia o
+                  cancelamento e explica o motivo. Nesse caso, use <strong>Alterar Quantidade</strong> para reduzir
+                  o saldo ainda não comprometido.
                 </p>
               </div>
             </div>

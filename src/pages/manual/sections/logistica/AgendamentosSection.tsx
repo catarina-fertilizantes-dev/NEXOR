@@ -289,13 +289,12 @@ export const AgendamentosSection = () => {
             <div className="flex items-start gap-3">
               <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">Editar e cancelar só na Etapa 1</h4>
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">Editar e cancelar só antes do carregamento iniciar</h4>
                 <p className="text-sm text-blue-800 dark:text-blue-200">
                   Os botões "Editar Agendamento" e "Cancelar Agendamento" só aparecem enquanto o carregamento
-                  vinculado ainda está na <strong>Etapa 1 – Chegada</strong> (ou seja, o caminhão ainda não iniciou o
-                  carregamento). Depois disso, o agendamento não pode mais ser editado ou cancelado pela tela.
-                  Ao editar, é possível ajustar quantidade, placas, motorista, transportadora e observações em uma
-                  única tela.
+                  vinculado ainda não foi iniciado. Depois que o armazém registra a chegada do caminhão, o
+                  agendamento não pode mais ser editado ou cancelado pela tela. Ao editar, é possível ajustar
+                  quantidade, placas, motorista, transportadora e observações em uma única tela.
                 </p>
               </div>
             </div>

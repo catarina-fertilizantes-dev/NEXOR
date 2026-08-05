@@ -14,7 +14,8 @@ export const EstoqueSection = () => {
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
             A funcionalidade de Estoque permite visualizar e controlar as quantidades físicas disponíveis em cada
-            armazém, registrar entradas de produtos (remessas) e acompanhar o histórico de movimentações.
+            armazém, registrar entradas de produtos (remessas), realizar transferências de propriedade e
+            acompanhar o histórico de movimentações.
           </p>
         </CardContent>
       </Card>
@@ -58,10 +59,10 @@ export const EstoqueSection = () => {
                 <h5 className="font-medium text-foreground mb-2">Entendendo a diferença — Exemplo prático:</h5>
                 <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
                   <p className="text-sm text-foreground">• Você tem <strong>1000t</strong> de fertilizante no armazém (Estoque Físico)</p>
-                  <p className="text-sm text-foreground">• Você liberou <strong>300t</strong> para um cliente que ainda não buscou</p>
-                  <p className="text-sm text-foreground">• O <strong>Estoque Disponível</strong> será <strong>700t</strong> (1000t - 300t)</p>
-                  <p className="text-sm text-foreground">• O <strong>Estoque Físico</strong> continua <strong>1000t</strong> (produto ainda está no armazém)</p>
-                  <p className="text-sm text-foreground">• Quando o caminhão carregar e sair, <strong>ambos os valores diminuirão</strong></p>
+                  <p className="text-sm text-foreground">• Ao criar uma liberação de <strong>300t</strong> para um cliente, só o <strong>Estoque Disponível</strong> cai — para <strong>700t</strong> (1000t - 300t)</p>
+                  <p className="text-sm text-foreground">• O <strong>Estoque Físico</strong> continua <strong>1000t</strong> (produto ainda está no armazém, nada saiu ainda)</p>
+                  <p className="text-sm text-foreground">• Só quando um caminhão retira parte da carga (carregamento finalizado) é que o <strong>Estoque Físico</strong> cai — na mesma proporção do que foi retirado</p>
+                  <p className="text-sm text-foreground">• Quando todas as retiradas dessa liberação forem concluídas, o Estoque Físico volta a ficar igual ao Estoque Disponível</p>
                 </div>
               </div>
             </CardContent>
@@ -119,10 +120,10 @@ export const EstoqueSection = () => {
         <div className="space-y-2 mb-4">
           {[
             'Acesse "Estoque"',
-            'Clique em "Registrar Remessa"',
+            'Clique em "Entrada de Estoque"',
             "Preencha os campos obrigatórios (descritos abaixo)",
-            'Clique em "Registrar Entrada"',
-            "Sistema atualiza: estoque_fisico += quantidade informada",
+            'Clique em "Salvar"',
+            "O sistema soma a quantidade informada tanto ao Estoque Físico quanto ao Estoque Disponível do produto neste armazém",
           ].map((step, i) => (
             <div key={i} className="flex items-start gap-3 text-sm">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0 text-xs mt-0.5">
@@ -146,10 +147,10 @@ export const EstoqueSection = () => {
                 { campo: "Produto *", desc: "Select de produtos ativos" },
                 { campo: "Armazém *", desc: "Select de armazéns ativos" },
                 { campo: "Quantidade *", desc: "Número positivo" },
-                { campo: "Unidade *", desc: "t (toneladas) ou kg (quilos)" },
-                { campo: "PDF Remessa", desc: "Upload opcional" },
-                { campo: "XML Remessa", desc: "Upload opcional" },
-                { campo: "Nº Remessa", desc: "Texto opcional" },
+                { campo: "Unidade", desc: "t (toneladas) ou kg (quilos)" },
+                { campo: "Número da Remessa *", desc: "Texto — obrigatório" },
+                { campo: "Nota de Remessa (PDF) *", desc: "Upload obrigatório" },
+                { campo: "Arquivo XML da Remessa *", desc: "Upload obrigatório" },
                 { campo: "Observações", desc: "Texto opcional" },
               ].map((row, i) => (
                 <tr key={i} className="border-b border-border">

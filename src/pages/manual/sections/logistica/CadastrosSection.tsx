@@ -49,9 +49,9 @@ export const CadastrosSection = () => {
             'Clique em "Novo Armazém"',
             "Preencha os campos obrigatórios (descritos abaixo)",
             'Clique em "Cadastrar Armazém"',
-            "⚠️ Sistema cria usuário automaticamente via Edge Function",
+            "⚠️ Sistema cria usuário automaticamente",
             "Modal exibe: Email + Senha Temporária",
-            "📋 COPIE E REPASSE as credenciais para o responsável do armazém",
+            "📋 Repasse as credenciais para o responsável do armazém",
           ].map((step, i) => (
             <div key={i} className="flex items-start gap-3 text-sm">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0 text-xs mt-0.5">
@@ -342,9 +342,8 @@ export const CadastrosSection = () => {
               <p>Após criar Armazém, Cliente ou Representante:</p>
               <ol className="list-decimal list-inside space-y-1 ml-2">
                 <li>Modal exibe Email + Senha Temporária</li>
-                <li><strong>COPIE as credenciais imediatamente</strong></li>
-                <li>REPASSE ao usuário criado</li>
-                <li>Usuário DEVE trocar a senha no primeiro login</li>
+                <li>Repasse as credenciais ao usuário criado</li>
+                <li>No primeiro login, o usuário será obrigado a trocar a senha</li>
               </ol>
             </AlertDescription>
           </div>
@@ -357,7 +356,10 @@ export const CadastrosSection = () => {
               <div>
                 <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">💡 Dica</h4>
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  Você pode visualizar a senha temporária na listagem do cadastro correspondente.
+                  Não copiou as credenciais na hora? Sem problema: clique no cadastro (armazém, cliente ou
+                  representante) e depois em <strong>"Ver Credenciais"</strong> para rever o email e a senha
+                  temporária. Esse botão fica disponível até o usuário acessar com a senha provisória e cadastrar
+                  sua própria senha — depois disso, a senha não pode mais ser recuperada por aqui.
                 </p>
               </div>
             </div>
@@ -404,11 +406,11 @@ export const CadastrosSection = () => {
             </thead>
             <tbody>
               {[
-                { tipo: "Armazéns", criar: true, editarRep: false, ativar: true, excluir: false, senha: true },
-                { tipo: "Clientes", criar: true, editarRep: true, ativar: true, excluir: false, senha: true },
-                { tipo: "Representantes", criar: true, editarRep: false, ativar: true, excluir: false, senha: true },
-                { tipo: "Produtos", criar: true, editarRep: false, ativar: true, excluir: false, senha: false },
-                { tipo: "Colaboradores", criar: false, editarRep: false, ativar: false, excluir: false, senha: false },
+                { tipo: "Armazéns", criar: true, editarRep: null as boolean | null, ativar: true, excluir: false, senha: true },
+                { tipo: "Clientes", criar: true, editarRep: true as boolean | null, ativar: true, excluir: false, senha: true },
+                { tipo: "Representantes", criar: true, editarRep: null as boolean | null, ativar: true, excluir: false, senha: true },
+                { tipo: "Produtos", criar: true, editarRep: null as boolean | null, ativar: true, excluir: false, senha: false },
+                { tipo: "Colaboradores", criar: false, editarRep: null as boolean | null, ativar: false, excluir: false, senha: false },
               ].map((row, i) => (
                 <tr key={i} className="border-b border-border hover:bg-muted/30 transition-colors">
                   <td className="p-2 font-medium text-foreground">{row.tipo}</td>
@@ -418,9 +420,13 @@ export const CadastrosSection = () => {
                     </Badge>
                   </td>
                   <td className="p-2">
-                    <Badge className={row.editarRep ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"}>
-                      {row.editarRep ? "✅" : "❌"}
-                    </Badge>
+                    {row.editarRep === null ? (
+                      <span className="text-xs text-muted-foreground">N/A</span>
+                    ) : (
+                      <Badge className={row.editarRep ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"}>
+                        {row.editarRep ? "✅" : "❌"}
+                      </Badge>
+                    )}
                   </td>
                   <td className="p-2">
                     <Badge className={row.ativar ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"}>
