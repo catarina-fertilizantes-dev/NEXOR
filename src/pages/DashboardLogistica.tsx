@@ -22,6 +22,7 @@ import {
   Info,
   LucideIcon,
   ArrowRightLeft,
+  AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -48,13 +49,11 @@ import {
   EstiloEtapa,
   ProximosAgendamentosCard,
   ProximoAgendamentoItem,
-  EstoqueBaixoCard,
-  EstoqueBaixoItem,
   TitleWithInfo,
   formatarDuracaoMinutos,
   media,
 } from "@/components/dashboard/DashboardShared";
-import { parseDateOnly, toDateOnlyISO } from "@/lib/utils";
+import { parseDateOnly, toDateOnlyISO, formatDateOnlyBR } from "@/lib/utils";
 
 // Normaliza uma data (string ISO ou DATE) para meia-noite local, para
 // comparações de "dias decorridos" sem interferência de fuso/horário.
@@ -153,6 +152,31 @@ interface CarregamentoAtrasadoItem {
   minutosDecorridos: number;
   limiteMinutos: number;
   toneladas: number;
+}
+
+interface EstoquePorArmazemItem {
+  id: string;
+  produtoId: string;
+  armazemId: string;
+  produto: string;
+  armazem: string;
+  unidade: string;
+  quantidadeFisica: number;
+  quantidadeDisponivel: number;
+  minimo: number | null;
+}
+
+interface TransferenciaPropriedadeItem {
+  id: string;
+  cliente: string;
+  pedido: string;
+  produto: string;
+  produtoId: string;
+  armazem: string;
+  armazemId: string;
+  quantidade: number;
+  unidade: string;
+  dataTransferencia: string;
 }
 
 // ---------- Controle de Pedidos ----------
@@ -357,6 +381,102 @@ function ColunaComDica({ label, dica }: { label: string; dica: string }) {
   );
 }
 
+// ---------- Estoque por Armazém (Físico + Disponível, indicador de estoque baixo) ----------
+
+function IndicadorEstoqueBaixo({ minimo, unidade }: { minimo: number; unidade: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <span
+          role="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen((o) => !o);
+          }}
+          className="inline-block h-2.5 w-2.5 rounded-full bg-red-500 cursor-pointer shrink-0"
+        />
+      </PopoverTrigger>
+      <PopoverContent className="w-auto max-w-[220px] p-2">
+        <p className="text-xs">
+          Estoque baixo — abaixo do mínimo configurado ({formatT(minimo)} {unidade}).
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Uma linha por combinação produto × armazém (respeitando os filtros globais
+// do dashboard), com físico e disponível lado a lado — substitui o antigo
+// card "Estoque Baixo" (que só listava quem já estava abaixo do mínimo) por
+// uma visão completa do estoque atual, com o mesmo alerta de mínimo agora
+// como um indicador discreto em vez de uma seção separada.
+function EstoquePorArmazemCard({
+  itens,
+  isLoading,
+}: {
+  itens: EstoquePorArmazemItem[] | undefined;
+  isLoading: boolean;
+}) {
+  const lista = itens ?? [];
+
+  return (
+    <Card className="overflow-hidden transition-all hover:shadow-md">
+      <CardHeader className="pb-3">
+        <TitleWithInfo
+          title="Estoque por Armazém"
+          tooltip="Estoque físico e disponível de cada produto, por armazém. O círculo vermelho indica estoque físico abaixo do mínimo configurado."
+        />
+      </CardHeader>
+      <CardContent className="pt-0">
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground">Carregando…</p>
+        ) : lista.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum estoque encontrado.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Armazém</TableHead>
+                  <TableHead className="text-right">Estoque Físico</TableHead>
+                  <TableHead className="text-right">Estoque Disponível</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lista.map((item) => {
+                  const baixo = item.minimo != null && item.quantidadeFisica < item.minimo;
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">
+                        <Link to={`/estoque/${item.produtoId}/${item.armazemId}`} className="hover:underline underline-offset-2">
+                          {item.produto}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{item.armazem}</TableCell>
+                      <TableCell className="text-right">
+                        <span className="inline-flex items-center justify-end gap-1.5">
+                          {formatT(item.quantidadeFisica)} {item.unidade}
+                          {baixo && <IndicadorEstoqueBaixo minimo={item.minimo!} unidade={item.unidade} />}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatT(item.quantidadeDisponivel)} {item.unidade}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // Médias dos últimos 30 dias, quebradas por armazém, para a logística
 // identificar rapidamente qual armazém está com gargalo em qual etapa.
 function PerformancePorArmazemCard({ dados, isLoading }: { dados: TemposArmazemRow[] | undefined; isLoading: boolean }) {
@@ -462,6 +582,7 @@ const DashboardLogistica = () => {
   const [filtroProdutos, setFiltroProdutos] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [modalAtrasadosOpen, setModalAtrasadosOpen] = useState(false);
+  const [modalTransferenciasOpen, setModalTransferenciasOpen] = useState(false);
 
   const toggleArmazem = (id: string) =>
     setFiltroArmazens((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
@@ -698,7 +819,12 @@ const DashboardLogistica = () => {
     queryFn: async () => {
       const [{ data: config, error: configError }, { data: emAndamento, error: carregamentosError }] =
         await Promise.all([
-          supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos"),
+          // etapa 1 (Aguardando Chegada) nunca entra aqui — é um estado de
+          // espera controlado pela data agendada, não um cronômetro desde a
+          // criação do registro (ver [[project_nexor_etapa_atual_semantics]]).
+          // Filtro defensivo: mesmo que uma linha etapa=1 volte a existir na
+          // tabela por engano, não deve aparecer na dica de prazos.
+          supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos").gte("etapa", 2),
           supabase
             .from("carregamentos")
             .select(
@@ -890,7 +1016,7 @@ const DashboardLogistica = () => {
           "id, data_retirada, quantidade, clientes(nome), armazens(nome), liberacoes(pedido_interno, produtos(nome, unidade))"
         )
         .gte("data_retirada", hojeDateOnly)
-        .neq("status", "cancelado")
+        .in("status", ["pendente", "em_andamento"])
         .order("data_retirada", { ascending: true })
         .limit(5);
       if (error) throw error;
@@ -909,63 +1035,94 @@ const DashboardLogistica = () => {
     refetchInterval: 60_000,
   });
 
-  const { data: estoqueBaixo, isLoading: loadingEstoqueBaixo } = useQuery({
-    queryKey: ["dash-estoque-baixo", filtroArmazens, filtroProdutos],
-    queryFn: async (): Promise<EstoqueBaixoItem[]> => {
+  const { data: estoquePorArmazem, isLoading: loadingEstoquePorArmazem } = useQuery({
+    queryKey: ["dash-estoque-por-armazem", filtroArmazens, filtroProdutos],
+    queryFn: async (): Promise<EstoquePorArmazemItem[]> => {
       let query = supabase
         .from("estoque")
-        .select("id, produto_id, armazem_id, quantidade, produtos(nome, unidade, estoque_minimo), armazens(nome)");
+        .select(
+          "id, produto_id, armazem_id, quantidade, quantidade_disponivel, produtos(nome, unidade, estoque_minimo), armazens(nome)"
+        );
       if (filtroArmazens.length) query = query.in("armazem_id", filtroArmazens);
       if (filtroProdutos.length) query = query.in("produto_id", filtroProdutos);
       const { data, error } = await query;
       if (error) throw error;
 
       return (data ?? [])
-        .filter((e: any) => e.produtos?.estoque_minimo != null && Number(e.quantidade) < Number(e.produtos.estoque_minimo))
         .map((e: any) => ({
           id: e.id as string,
           produtoId: e.produto_id as string,
           armazemId: e.armazem_id as string,
           produto: e.produtos?.nome ?? "Produto",
           armazem: e.armazens?.nome ?? "Armazém",
-          quantidade: Number(e.quantidade),
-          minimo: Number(e.produtos.estoque_minimo),
           unidade: e.produtos?.unidade ?? "",
-        }));
+          quantidadeFisica: Number(e.quantidade),
+          quantidadeDisponivel: Number(e.quantidade_disponivel ?? 0),
+          minimo: e.produtos?.estoque_minimo != null ? Number(e.produtos.estoque_minimo) : null,
+        }))
+        .sort((a, b) => a.armazem.localeCompare(b.armazem) || a.produto.localeCompare(b.produto));
     },
     refetchInterval: 120_000,
   });
 
-  const { data: transferenciasStats, isLoading: loadingTransferencias } = useQuery({
-    queryKey: ["dash-transferencias-propriedade", filtroArmazens, filtroProdutos],
-    queryFn: async () => {
-      const inicioMes = new Date();
-      inicioMes.setDate(1);
-      const inicioMesISO = inicioMes.toISOString().slice(0, 10);
+  // Data inicial do mês atual, formato "date" (não timestamptz) — ver
+  // toDateOnlyISO() em lib/utils, mesma razão do fix de "Agendados Hoje".
+  const inicioMesDateOnly = toDateOnlyISO(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
 
+  const { data: transferencias, isLoading: loadingTransferencias } = useQuery({
+    queryKey: ["dash-transferencias-propriedade", inicioMesDateOnly, filtroArmazens, filtroProdutos],
+    queryFn: async (): Promise<TransferenciaPropriedadeItem[]> => {
       let query = supabase
         .from("estoque_transferencias")
-        .select("quantidade, produto_id, armazem_id")
+        .select(
+          "id, quantidade, numero_pedido, data_transferencia, produto_id, armazem_id, cliente_razao_social_texto, produtos(nome, unidade), armazens(nome), clientes(nome)"
+        )
         .eq("status", "ativa")
-        .gte("data_transferencia", inicioMesISO);
+        .gte("data_transferencia", inicioMesDateOnly)
+        .order("data_transferencia", { ascending: false });
       if (filtroArmazens.length) query = query.in("armazem_id", filtroArmazens);
       if (filtroProdutos.length) query = query.in("produto_id", filtroProdutos);
 
       const { data, error } = await query;
       if (error) throw error;
 
-      return {
-        count: data?.length ?? 0,
-        totalQuantidade: (data ?? []).reduce((acc, t) => acc + Number(t.quantidade), 0),
-      };
+      return (data ?? []).map((t: any) => ({
+        id: t.id as string,
+        cliente: t.clientes?.nome ?? t.cliente_razao_social_texto ?? "Cliente",
+        pedido: t.numero_pedido as string,
+        produto: t.produtos?.nome ?? "Produto",
+        produtoId: t.produto_id as string,
+        armazem: t.armazens?.nome ?? "Armazém",
+        armazemId: t.armazem_id as string,
+        quantidade: Number(t.quantidade),
+        unidade: t.produtos?.unidade ?? "",
+        dataTransferencia: t.data_transferencia as string,
+      }));
     },
     refetchInterval: 120_000,
   });
 
+  const transferenciasStats = useMemo(() => {
+    const lista = transferencias ?? [];
+    return {
+      count: lista.length,
+      totalQuantidade: lista.reduce((acc, t) => acc + t.quantidade, 0),
+    };
+  }, [transferencias]);
+
   const dicaAtrasados =
-    !loadingCarregamentosAtrasados && atrasadosInfo?.limitesPorEtapa.length
-      ? `Prazo por etapa: ${atrasadosInfo.limitesPorEtapa.map((l) => `${l.label} ${l.minutos}min`).join(" • ")}`
-      : "Carregamentos parados na etapa atual além do limite configurado para essa etapa.";
+    !loadingCarregamentosAtrasados && atrasadosInfo?.limitesPorEtapa.length ? (
+      <div className="space-y-1">
+        <p className="font-medium">Prazo por etapa</p>
+        {atrasadosInfo.limitesPorEtapa.map((l) => (
+          <p key={l.label}>
+            {l.label}: {l.minutos}min
+          </p>
+        ))}
+      </div>
+    ) : (
+      "Carregamentos parados na etapa atual além do limite configurado para essa etapa."
+    );
 
   return (
     <div className="container mx-auto px-4 md:px-6 py-6">
@@ -1179,15 +1336,15 @@ const DashboardLogistica = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <StatCard
                 title="Transferências de Propriedade"
-                value={loadingTransferencias ? "…" : transferenciasStats?.count ?? 0}
-                subtitle={loadingTransferencias ? undefined : `${formatT(transferenciasStats?.totalQuantidade ?? 0)}t este mês`}
+                value={loadingTransferencias ? "…" : transferenciasStats.count}
+                subtitle={loadingTransferencias ? undefined : `${formatT(transferenciasStats.totalQuantidade)}t este mês`}
                 icon={ArrowRightLeft}
                 variant="primary"
-                tooltip="Saídas de estoque registradas por Transferência de Propriedade neste mês."
-                to="/estoque"
+                tooltip="Saídas de estoque registradas por Transferência de Propriedade neste mês. Clique pra ver a lista."
+                onClick={transferenciasStats.count ? () => setModalTransferenciasOpen(true) : undefined}
               />
             </div>
-            <EstoqueBaixoCard itens={estoqueBaixo} isLoading={loadingEstoqueBaixo} />
+            <EstoquePorArmazemCard itens={estoquePorArmazem} isLoading={loadingEstoquePorArmazem} />
           </section>
         </div>
       </div>
@@ -1218,6 +1375,44 @@ const DashboardLogistica = () => {
                     </Badge>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       {item.minutosDecorridos}min (limite {item.limiteMinutos}min)
+                    </p>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modalTransferenciasOpen} onOpenChange={setModalTransferenciasOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-lg max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Transferências de Propriedade (este mês)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {(transferencias?.length ?? 0) === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma transferência registrada neste mês.</p>
+            ) : (
+              transferencias!.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/estoque/${item.produtoId}/${item.armazemId}?transferenciaPedido=${encodeURIComponent(item.pedido)}`}
+                  onClick={() => setModalTransferenciasOpen(false)}
+                  className="flex items-center justify-between gap-3 rounded border p-2.5 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="text-sm min-w-0">
+                    <span className="font-medium">{item.cliente}</span>
+                    <span className="text-muted-foreground"> • {item.armazem}</span>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {item.produto} • Pedido {item.pedido}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-medium">
+                      {formatT(item.quantidade)} {item.unidade}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {formatDateOnlyBR(item.dataTransferencia)}
                     </p>
                   </div>
                 </Link>

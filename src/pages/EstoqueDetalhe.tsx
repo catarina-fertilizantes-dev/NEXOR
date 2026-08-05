@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -101,6 +101,7 @@ const EstoqueDetalhe = () => {
   
   const { produtoId, armazemId } = useParams<{ produtoId: string; armazemId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, userRole } = useAuth();
@@ -153,9 +154,15 @@ const EstoqueDetalhe = () => {
     enabled: canGerenciarTransferencias && !!user?.id,
   });
 
+  // Deep-link vindo do dashboard (card "Transferências de Propriedade"):
+  // ?transferenciaPedido=X abre a seção de transferências já expandida, com a
+  // busca pré-preenchida pelo número do pedido. Lido só uma vez (useState
+  // inicial) — o param some da URL logo a seguir (ver efeito abaixo).
+  const transferenciaPedidoParaAbrir = useRef(searchParams.get("transferenciaPedido"));
+
   // Estados das duas seções colapsáveis (fechadas por padrão)
   const [remessasExpandida, setRemessasExpandida] = useState(false);
-  const [transferenciasExpandida, setTransferenciasExpandida] = useState(false);
+  const [transferenciasExpandida, setTransferenciasExpandida] = useState(!!transferenciaPedidoParaAbrir.current);
 
   // Estados para filtros — Histórico de Remessas
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -175,7 +182,7 @@ const EstoqueDetalhe = () => {
 
   // Estados para filtros — Transferências de Propriedade
   const [transfFiltersOpen, setTransfFiltersOpen] = useState(false);
-  const [transfSearch, setTransfSearch] = useState("");
+  const [transfSearch, setTransfSearch] = useState(transferenciaPedidoParaAbrir.current ?? "");
   const [transfDateFrom, setTransfDateFrom] = useState("");
   const [transfDateTo, setTransfDateTo] = useState("");
   const [transfQuantidadeMin, setTransfQuantidadeMin] = useState("");
@@ -188,6 +195,20 @@ const EstoqueDetalhe = () => {
     setTransfQuantidadeMin("");
     setTransfQuantidadeMax("");
   };
+
+  // Limpa o param de deep-link da URL logo no mount, pra não sobreviver a um
+  // refresh nem interferir se o usuário decidir limpar os filtros depois.
+  useEffect(() => {
+    if (!transferenciaPedidoParaAbrir.current) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("transferenciaPedido");
+        return next;
+      },
+      { replace: true }
+    );
+  }, []);
 
   // Estado do dialog de estorno de transferência
   const [cancelandoTransferencia, setCancelandoTransferencia] = useState<TransferenciaItem | null>(null);

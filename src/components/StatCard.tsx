@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { LucideIcon, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,7 @@ interface StatCardProps {
     positive: boolean;
   };
   variant?: "default" | "primary" | "success" | "warning";
-  tooltip?: string;
+  tooltip?: ReactNode;
   to?: string;
   /** Fundo levemente colorido no card inteiro (não só no ícone), pra destacar cards de status/alerta. Só some visualmente pra variant success/warning. */
   highlightBg?: boolean;
@@ -76,7 +76,7 @@ export const StatCard = ({
                     />
                   </PopoverTrigger>
                   <PopoverContent className="w-auto max-w-[220px] p-2">
-                    <p className="text-sm">{tooltip}</p>
+                    <div className="text-sm">{tooltip}</div>
                   </PopoverContent>
                 </Popover>
               )}
