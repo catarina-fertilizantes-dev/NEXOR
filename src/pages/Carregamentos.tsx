@@ -339,7 +339,7 @@ const Carregamentos = () => {
     const filtered = carregamentos.filter((c) => {
       const term = search.trim().toLowerCase();
       if (term) {
-        const hay = `${c.cliente} ${c.motorista} ${c.placa} ${c.pedido} ${c.produto} ${c.transportadora}`.toLowerCase();
+        const hay = `${c.cliente} ${c.motorista} ${c.placa} ${c.pedido} ${c.produto} ${c.transportadora} ${c.armazem}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
       if (selectedStatus.length > 0 && !selectedStatus.includes(c.status_carregamento)) return false;
@@ -536,7 +536,7 @@ const Carregamentos = () => {
           <div className="flex items-center gap-3">
             <Input 
               className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-              placeholder="Buscar por cliente, produto, placa, motorista, transportadora ou pedido..." 
+              placeholder="Buscar por cliente, produto, armazém, placa, motorista, transportadora ou pedido..." 
               value={search} 
               onChange={(e) => setSearch(e.target.value)} 
             />
