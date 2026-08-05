@@ -24,7 +24,7 @@ import {
   startOfDayISO,
   endOfDayISO,
   addDays,
-  ENTRADA_ETAPA_FIELD,
+  JANELA_POR_ETAPA,
   DocumentacaoPendenteCard,
   DocumentacaoPendenteItem,
   SUB_ETAPAS_DOCUMENTACAO,
@@ -133,17 +133,17 @@ const DashboardArmazem = () => {
     refetchInterval: 60_000,
   });
 
-  // Etapa 1 (aguardando chegada) não entra nessa métrica: data_retirada do
-  // agendamento é um DATE (sem horário), então não dá para medir atraso em
-  // minutos com precisão — e a chegada em si não é uma ação do armazém que já
-  // tenha acontecido. Só etapas 2-5, que têm timestamp exato registrado em
-  // CarregamentoDetalhe.tsx, contam para "atrasado".
+  // Etapa 1 (aguardando chegada) não entra nessa métrica — é um estado de
+  // espera controlado pela data agendada, não um cronômetro desde a criação
+  // do registro. As demais caem em 3 janelas (Espera/Carregamento/
+  // Documentação), não uma por etapa_atual — ver JANELA_POR_ETAPA em
+  // DashboardShared.tsx e [[project_nexor_etapa_atual_semantics]] pro porquê.
   const { data: operacoesAtrasadas, isLoading: loadingOperacoesAtrasadas } = useQuery({
     queryKey: ["dash-arm-operacoes-atrasadas", armazemId],
     queryFn: async () => {
       const [{ data: config, error: configError }, { data: emAndamento, error: carregamentosError }] =
         await Promise.all([
-          supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos"),
+          supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos").in("etapa", [2, 3, 5]),
           supabase
             .from("carregamentos")
             .select("id,etapa_atual,data_chegada,data_inicio,data_carregando,data_finalizacao")
@@ -158,9 +158,11 @@ const DashboardArmazem = () => {
       const agora = Date.now();
 
       return (emAndamento ?? []).filter((c: any) => {
-        const limiteMinutos = limites.get(c.etapa_atual);
+        const janela = JANELA_POR_ETAPA[c.etapa_atual];
+        if (!janela) return false;
+        const limiteMinutos = limites.get(janela.etapaConfig);
         if (!limiteMinutos) return false;
-        const entradaISO = c[ENTRADA_ETAPA_FIELD[c.etapa_atual] as string];
+        const entradaISO = c[janela.entradaField];
         if (!entradaISO) return false;
         const minutosDecorridos = (agora - new Date(entradaISO).getTime()) / 60_000;
         return minutosDecorridos > limiteMinutos;

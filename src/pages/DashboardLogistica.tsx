@@ -38,7 +38,7 @@ import {
   startOfDayISO,
   endOfDayISO,
   addDays,
-  ENTRADA_ETAPA_FIELD,
+  JANELA_POR_ETAPA,
   EntityListCard,
   DocumentacaoPendenteCard,
   DocumentacaoPendenteItem,
@@ -809,22 +809,20 @@ const DashboardLogistica = () => {
     return { count, volume };
   }, [carregamentosAtivos]);
 
-  // Etapa 1 (Chegada, ainda não confirmada) não entra nessa métrica:
-  // data_retirada do agendamento é um DATE (sem horário), então não dá pra
-  // medir atraso em minutos com precisão — e a chegada em si não é uma ação
-  // já registrada nessa etapa. Só etapas 2-5, com timestamp exato (ver
-  // ENTRADA_ETAPA_FIELD), contam.
+  // Etapa 1 (Chegada, ainda não confirmada) não entra nessa métrica — é um
+  // estado de espera controlado pela data agendada, não um cronômetro desde
+  // a criação do registro. As demais caem em 3 janelas (Espera/Carregamento/
+  // Documentação), não uma por etapa_atual — ver JANELA_POR_ETAPA em
+  // DashboardShared.tsx e [[project_nexor_etapa_atual_semantics]] pro porquê.
   const { data: atrasadosInfo, isLoading: loadingCarregamentosAtrasados } = useQuery({
     queryKey: ["dash-carregamentos-atrasados"],
     queryFn: async () => {
       const [{ data: config, error: configError }, { data: emAndamento, error: carregamentosError }] =
         await Promise.all([
-          // etapa 1 (Aguardando Chegada) nunca entra aqui — é um estado de
-          // espera controlado pela data agendada, não um cronômetro desde a
-          // criação do registro (ver [[project_nexor_etapa_atual_semantics]]).
-          // Filtro defensivo: mesmo que uma linha etapa=1 volte a existir na
-          // tabela por engano, não deve aparecer na dica de prazos.
-          supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos").gte("etapa", 2),
+          // Defensivo: só as 3 etapas com janela própria (ver JANELA_POR_ETAPA)
+          // — mesmo que uma linha etapa=1/4 volte a existir por engano, não
+          // deve aparecer na dica de prazos.
+          supabase.from("config_tempo_etapas").select("etapa,tempo_maximo_minutos").in("etapa", [2, 3, 5]),
           supabase
             .from("carregamentos")
             .select(
@@ -841,9 +839,11 @@ const DashboardLogistica = () => {
 
       const itens: CarregamentoAtrasadoItem[] = (emAndamento ?? [])
         .map((c: any) => {
-          const limiteMinutos = limites.get(c.etapa_atual);
+          const janela = JANELA_POR_ETAPA[c.etapa_atual];
+          if (!janela) return null;
+          const limiteMinutos = limites.get(janela.etapaConfig);
           if (!limiteMinutos) return null;
-          const entradaISO = c[ENTRADA_ETAPA_FIELD[c.etapa_atual] as string];
+          const entradaISO = c[janela.entradaField];
           if (!entradaISO) return null;
           const minutosDecorridos = (agora - new Date(entradaISO).getTime()) / 60_000;
           if (minutosDecorridos <= limiteMinutos) return null;
@@ -851,7 +851,7 @@ const DashboardLogistica = () => {
             id: c.id as string,
             cliente: c.clientes?.nome ?? "Cliente",
             armazem: c.armazens?.nome ?? "Armazém",
-            etapaLabel: ETAPA_LABELS_CURTO[c.etapa_atual - 1] ?? `Etapa ${c.etapa_atual}`,
+            etapaLabel: janela.label,
             minutosDecorridos: Math.round(minutosDecorridos),
             limiteMinutos,
             toneladas: Number(c.agendamentos?.quantidade ?? 0),
@@ -859,10 +859,10 @@ const DashboardLogistica = () => {
         })
         .filter((x: CarregamentoAtrasadoItem | null): x is CarregamentoAtrasadoItem => x !== null);
 
-      const limitesPorEtapa = ETAPA_LABELS_CURTO.map((label, index) => ({
-        label,
-        minutos: limites.get(index + 1) ?? null,
-      })).filter((l): l is { label: string; minutos: number } => l.minutos != null);
+      const limitesPorEtapa = (config ?? []).map((c) => ({
+        label: JANELA_POR_ETAPA[c.etapa]?.label ?? `Etapa ${c.etapa}`,
+        minutos: c.tempo_maximo_minutos,
+      }));
 
       return { itens, limitesPorEtapa };
     },
@@ -1396,7 +1396,7 @@ const DashboardLogistica = () => {
               transferencias!.map((item) => (
                 <Link
                   key={item.id}
-                  to={`/estoque/${item.produtoId}/${item.armazemId}?transferenciaPedido=${encodeURIComponent(item.pedido)}`}
+                  to={`/estoque/${item.produtoId}/${item.armazemId}?transferenciaId=${item.id}&transferenciaPedido=${encodeURIComponent(item.pedido)}`}
                   onClick={() => setModalTransferenciasOpen(false)}
                   className="flex items-center justify-between gap-3 rounded border p-2.5 hover:bg-muted/50 transition-colors"
                 >

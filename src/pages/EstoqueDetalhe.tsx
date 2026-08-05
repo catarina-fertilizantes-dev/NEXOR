@@ -155,14 +155,21 @@ const EstoqueDetalhe = () => {
   });
 
   // Deep-link vindo do dashboard (card "Transferências de Propriedade"):
-  // ?transferenciaPedido=X abre a seção de transferências já expandida, com a
-  // busca pré-preenchida pelo número do pedido. Lido só uma vez (useState
-  // inicial) — o param some da URL logo a seguir (ver efeito abaixo).
+  // ?transferenciaId=X abre a seção de transferências já expandida e
+  // destaca/rola até a transferência específica — numero_pedido não é único
+  // (sem constraint na tabela), então não dá pra confiar só nele pra apontar
+  // pra UMA transferência; o id é usado pra isso, o pedido só pré-popula a
+  // busca (convenção, estreita a lista, mas não é a fonte da precisão).
+  // Lido só uma vez (useState/useRef inicial) — os params somem da URL logo
+  // a seguir (ver efeito abaixo).
+  const transferenciaIdParaAbrir = useRef(searchParams.get("transferenciaId"));
   const transferenciaPedidoParaAbrir = useRef(searchParams.get("transferenciaPedido"));
 
   // Estados das duas seções colapsáveis (fechadas por padrão)
   const [remessasExpandida, setRemessasExpandida] = useState(false);
-  const [transferenciasExpandida, setTransferenciasExpandida] = useState(!!transferenciaPedidoParaAbrir.current);
+  const [transferenciasExpandida, setTransferenciasExpandida] = useState(
+    !!(transferenciaIdParaAbrir.current || transferenciaPedidoParaAbrir.current)
+  );
 
   // Estados para filtros — Histórico de Remessas
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -196,13 +203,14 @@ const EstoqueDetalhe = () => {
     setTransfQuantidadeMax("");
   };
 
-  // Limpa o param de deep-link da URL logo no mount, pra não sobreviver a um
+  // Limpa os params de deep-link da URL logo no mount, pra não sobreviver a um
   // refresh nem interferir se o usuário decidir limpar os filtros depois.
   useEffect(() => {
-    if (!transferenciaPedidoParaAbrir.current) return;
+    if (!transferenciaIdParaAbrir.current && !transferenciaPedidoParaAbrir.current) return;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
+        next.delete("transferenciaId");
         next.delete("transferenciaPedido");
         return next;
       },
@@ -352,6 +360,15 @@ const EstoqueDetalhe = () => {
       return enabled;
     })(),
   });
+
+  // Rola até a transferência apontada pelo deep-link assim que a seção
+  // expandida renderiza o card correspondente (id só existe no DOM depois
+  // que os dados carregam e a seção está expandida).
+  useEffect(() => {
+    if (!transferenciaIdParaAbrir.current || !transferenciasExpandida) return;
+    const el = document.getElementById(`transferencia-${transferenciaIdParaAbrir.current}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [transferenciasExpandida, estoqueDetalhes]);
 
   useEffect(() => {
     console.log("🔍 [DEBUG] EstoqueDetalhe.jsx - useEffect permissão disparado");
@@ -792,7 +809,13 @@ const EstoqueDetalhe = () => {
   );
 
   const renderTransferenciaCard = (transf: TransferenciaItem) => (
-    <Card key={transf.id} className={`transition-all hover:shadow-md ${transf.status === "cancelada" ? "opacity-60" : ""}`}>
+    <Card
+      key={transf.id}
+      id={`transferencia-${transf.id}`}
+      className={`transition-all hover:shadow-md ${transf.status === "cancelada" ? "opacity-60" : ""} ${
+        transferenciaIdParaAbrir.current === transf.id ? "ring-2 ring-primary" : ""
+      }`}
+    >
       <CardContent className="p-4">
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">

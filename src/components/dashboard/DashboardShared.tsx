@@ -52,16 +52,37 @@ export const formatarDuracaoMinutos = (minutos: number | null) => {
 
 export const media = (valores: number[]) => (valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : null);
 
-// Timestamp de entrada nas etapas 2-5: o campo_data da etapa N-1 marca a
-// conclusão de N-1 e, portanto, a entrada em N. A etapa 1 (aguardando
-// chegada) não entra no cálculo de atraso — data_retirada do agendamento é
-// um DATE sem horário, sem precisão para medir atraso em minutos.
-export const ENTRADA_ETAPA_FIELD: Record<number, string | null> = {
-  1: null,
-  2: "data_chegada",
-  3: "data_inicio",
-  4: "data_carregando",
-  5: "data_finalizacao",
+// Janelas de "atraso" pra carregamentos em andamento — usado em
+// "Carregamentos Atrasados" (DashboardLogistica) e "Operações Atrasadas"
+// (DashboardArmazem). Só 3 janelas, cada uma ancorada numa ação única e
+// deliberada (ver [[project_nexor_etapa_atual_semantics]] memória):
+//
+//   Espera        chegada → início do carregamento     (etapa_atual = 2)
+//   Carregamento  início → carregamento finalizado      (etapa_atual = 3 ou 4)
+//   Documentação  carregamento finalizado → documentação (etapa_atual = 5)
+//
+// etapa_atual 3 e 4 caem na MESMA janela "Carregamento", ambas ancoradas em
+// data_inicio — nunca usar data_carregando como âncora de prazo: é o
+// timestamp de uma foto tirada em algum momento arbitrário durante o
+// carregamento físico (transição 3→4), sem corresponder a um marco real de
+// início ou fim de nada; usá-la fazia o "atraso" da etapa 4 depender de
+// quando a foto foi tirada, não de quanto tempo o carregamento realmente
+// levou. `etapaConfig` é a chave em `config_tempo_etapas` (2, 3 ou 5 — a
+// etapa 4 não tem linha própria, reaproveita o limite da 3).
+// Etapa 1 (aguardando chegada) não entra aqui: é um estado de espera
+// controlado pela data agendada, não um cronômetro desde a criação do
+// registro.
+export interface JanelaAtraso {
+  label: string;
+  etapaConfig: number;
+  entradaField: "data_chegada" | "data_inicio" | "data_finalizacao";
+}
+
+export const JANELA_POR_ETAPA: Record<number, JanelaAtraso> = {
+  2: { label: "Espera", etapaConfig: 2, entradaField: "data_chegada" },
+  3: { label: "Carregamento", etapaConfig: 3, entradaField: "data_inicio" },
+  4: { label: "Carregamento", etapaConfig: 3, entradaField: "data_inicio" },
+  5: { label: "Documentação", etapaConfig: 5, entradaField: "data_finalizacao" },
 };
 
 export const NOMES_VISIVEIS = 6;
