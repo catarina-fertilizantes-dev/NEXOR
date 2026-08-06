@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { validateFileForBucket, UploadBucket } from '@/lib/uploadValidation';
 
 interface UsePhotoUploadProps {
   bucket: string;
@@ -24,6 +25,16 @@ export const usePhotoUpload = ({ bucket, folder }: UsePhotoUploadProps) => {
     setIsUploading(true);
 
     try {
+      const validation = validateFileForBucket(file, bucket as UploadBucket);
+      if (!validation.valid) {
+        toast({
+          variant: 'destructive',
+          title: 'Arquivo inválido',
+          description: validation.error
+        });
+        return null;
+      }
+
       // Gerar nome do arquivo
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const fileExtension = file.name.split('.').pop() || 'jpg';

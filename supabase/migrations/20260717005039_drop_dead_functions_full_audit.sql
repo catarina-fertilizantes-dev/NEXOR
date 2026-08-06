@@ -1,0 +1,168 @@
+-- Auditoria completa de functions/triggers (2026-07-17): das 28 functions reais
+-- do schema public, confirmamos via grep exaustivo (src/, supabase/functions/,
+-- todas as migrations — policies, triggers, corpos de outras functions) que
+-- estas 5 não têm NENHUM chamador em lugar nenhum. Removidas.
+--
+-- Corpos originais preservados abaixo para rollback, caso necessário.
+--
+-- 1) has_role(p_role text) — overload duplicado nunca chamado (nem uma vez, em
+--    nenhuma policy/function/frontend). O único has_role realmente usado em todo
+--    o sistema é has_role(_user_id uuid, _role user_role), que NÃO é afetado por
+--    esta migration.
+--
+-- CREATE OR REPLACE FUNCTION "public"."has_role"("p_role" "text") RETURNS boolean
+--     LANGUAGE "sql" STABLE
+--     AS $$
+--   SELECT EXISTS (
+--     SELECT 1 FROM public.user_roles ur
+--     WHERE ur.user_id = auth.uid() AND ur.role::text = p_role
+--   );
+-- $$;
+DROP FUNCTION IF EXISTS "public"."has_role"("text");
+
+-- 2) can_upload_foto_for_carregamento — criada para a edge function
+--    safe-upload-foto (já removida por não ter uso real). Nenhuma policy ou
+--    código atual chama esta function.
+--
+-- CREATE OR REPLACE FUNCTION "public"."can_upload_foto_for_carregamento"("_user_id" "uuid", "_carregamento_id" "uuid") RETURNS boolean
+--     LANGUAGE "plpgsql"
+--     AS $$
+-- DECLARE
+--   tem_permissao boolean := false;
+-- BEGIN
+--   -- Admin ou logistica podem sempre
+--   SELECT EXISTS (
+--     SELECT 1 FROM user_roles
+--     WHERE user_id = _user_id AND role IN ('admin', 'logistica')
+--   ) INTO tem_permissao;
+--   IF tem_permissao THEN RETURN TRUE; END IF;
+--
+--   -- Usuário armazem responsável pelo carregamento
+--   SELECT EXISTS (
+--     SELECT 1
+--     FROM user_roles ur
+--     JOIN armazens a ON ur.user_id = a.user_id AND ur.role = 'armazem'
+--     JOIN carregamentos c ON c.armazem_id = a.id AND c.id = _carregamento_id
+--     WHERE ur.user_id = _user_id
+--   ) INTO tem_permissao;
+--   IF tem_permissao THEN RETURN TRUE; END IF;
+--
+--   -- Cliente responsável pelo carregamento
+--   SELECT EXISTS (
+--     SELECT 1
+--     FROM user_roles ur
+--     JOIN clientes cli ON ur.user_id = cli.user_id AND ur.role = 'cliente'
+--     JOIN carregamentos c ON c.cliente_id = cli.id AND c.id = _carregamento_id
+--     WHERE ur.user_id = _user_id
+--   ) INTO tem_permissao;
+--   IF tem_permissao THEN RETURN TRUE; END IF;
+--
+--   RETURN FALSE;
+-- END;
+-- $$;
+DROP FUNCTION IF EXISTS "public"."can_upload_foto_for_carregamento"("uuid", "uuid");
+
+-- 3) can_upload_documento_for_carregamento — mesma situação, criada para a
+--    edge function safe-upload-documento (já removida).
+--
+-- CREATE OR REPLACE FUNCTION "public"."can_upload_documento_for_carregamento"("_user_id" "uuid", "_carregamento_id" "uuid") RETURNS boolean
+--     LANGUAGE "plpgsql"
+--     AS $$
+-- DECLARE
+--   tem_permissao boolean := false;
+-- BEGIN
+--   SELECT EXISTS (
+--     SELECT 1 FROM user_roles
+--     WHERE user_id = _user_id AND role IN ('admin', 'logistica')
+--   ) INTO tem_permissao;
+--   IF tem_permissao THEN
+--     RETURN TRUE;
+--   END IF;
+--
+--   SELECT EXISTS (
+--     SELECT 1
+--     FROM user_roles ur
+--     JOIN armazens a ON ur.user_id = a.user_id AND ur.role = 'armazem'
+--     JOIN carregamentos c ON c.armazem_id = a.id AND c.id = _carregamento_id
+--     WHERE ur.user_id = _user_id
+--   ) INTO tem_permissao;
+--   IF tem_permissao THEN
+--     RETURN TRUE;
+--   END IF;
+--
+--   SELECT EXISTS (
+--     SELECT 1
+--     FROM user_roles ur
+--     JOIN clientes cli ON ur.user_id = cli.user_id AND ur.role = 'cliente'
+--     JOIN carregamentos c ON c.cliente_id = cli.id AND c.id = _carregamento_id
+--     WHERE ur.user_id = _user_id
+--   ) INTO tem_permissao;
+--   IF tem_permissao THEN
+--     RETURN TRUE;
+--   END IF;
+--
+--   RETURN FALSE;
+-- END;
+-- $$;
+DROP FUNCTION IF EXISTS "public"."can_upload_documento_for_carregamento"("uuid", "uuid");
+
+-- 4) is_representante_of_cliente — já identificada como não usada na auditoria
+--    de segurança original (2026-07-09); a lógica equivalente foi sempre
+--    escrita inline nas policies/RPCs em vez de chamar esta function.
+--
+-- CREATE OR REPLACE FUNCTION "public"."is_representante_of_cliente"("cliente_uuid" "uuid") RETURNS boolean
+--     LANGUAGE "plpgsql" SECURITY DEFINER
+--     AS $$
+-- BEGIN
+--     RETURN EXISTS (
+--         SELECT 1
+--         FROM representantes r
+--         JOIN clientes c ON c.representante_id = r.id
+--         WHERE c.id = cliente_uuid
+--         AND r.user_id = auth.uid()
+--     );
+-- END;
+-- $$;
+DROP FUNCTION IF EXISTS "public"."is_representante_of_cliente"("uuid");
+
+-- 5) sync_estoque_from_carregamento_backup — trigger function órfã: não está
+--    anexada a nenhum trigger ativo (confirmado contra a lista completa de
+--    triggers do banco) e não é chamada por nenhuma outra function.
+--
+-- CREATE OR REPLACE FUNCTION "public"."sync_estoque_from_carregamento_backup"() RETURNS "trigger"
+--     LANGUAGE "plpgsql"
+--     AS $$
+-- DECLARE
+--     produto_id_target UUID;
+--     armazem_id_target UUID;
+--     quantidade_agendamento NUMERIC;
+-- BEGIN
+--     IF NEW.etapa_atual = 6 AND (OLD.etapa_atual IS NULL OR OLD.etapa_atual != 6) THEN
+--         SELECT
+--             l.produto_id,
+--             l.armazem_id,
+--             a.quantidade
+--         INTO produto_id_target, armazem_id_target, quantidade_agendamento
+--         FROM agendamentos a
+--         JOIN liberacoes l ON a.liberacao_id = l.id
+--         WHERE a.id = NEW.agendamento_id;
+--
+--         IF produto_id_target IS NOT NULL THEN
+--             UPDATE estoque
+--             SET quantidade = quantidade - quantidade_agendamento,
+--                 updated_at = NOW(),
+--                 updated_by = NEW.atualizado_por
+--             WHERE produto_id = produto_id_target
+--             AND armazem_id = armazem_id_target;
+--
+--             RAISE NOTICE 'Estoque reduzido: produto_id=%, armazem_id=%, quantidade=%, carregamento_id=%',
+--                 produto_id_target, armazem_id_target, quantidade_agendamento, NEW.id;
+--         ELSE
+--             RAISE WARNING 'Não foi possível encontrar dados da liberação para carregamento_id=%', NEW.id;
+--         END IF;
+--     END IF;
+--
+--     RETURN NEW;
+-- END;
+-- $$;
+DROP FUNCTION IF EXISTS "public"."sync_estoque_from_carregamento_backup"();

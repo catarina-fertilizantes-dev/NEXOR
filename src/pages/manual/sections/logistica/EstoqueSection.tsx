@@ -14,7 +14,8 @@ export const EstoqueSection = () => {
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
             A funcionalidade de Estoque permite visualizar e controlar as quantidades físicas disponíveis em cada
-            armazém, registrar entradas de produtos (remessas) e acompanhar o histórico de movimentações.
+            armazém, registrar entradas de produtos (remessas), realizar transferências de propriedade e
+            acompanhar o histórico de movimentações.
           </p>
         </CardContent>
       </Card>
@@ -58,10 +59,10 @@ export const EstoqueSection = () => {
                 <h5 className="font-medium text-foreground mb-2">Entendendo a diferença — Exemplo prático:</h5>
                 <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
                   <p className="text-sm text-foreground">• Você tem <strong>1000t</strong> de fertilizante no armazém (Estoque Físico)</p>
-                  <p className="text-sm text-foreground">• Você liberou <strong>300t</strong> para um cliente que ainda não buscou</p>
-                  <p className="text-sm text-foreground">• O <strong>Estoque Disponível</strong> será <strong>700t</strong> (1000t - 300t)</p>
-                  <p className="text-sm text-foreground">• O <strong>Estoque Físico</strong> continua <strong>1000t</strong> (produto ainda está no armazém)</p>
-                  <p className="text-sm text-foreground">• Quando o caminhão carregar e sair, <strong>ambos os valores diminuirão</strong></p>
+                  <p className="text-sm text-foreground">• Ao criar uma liberação de <strong>300t</strong> para um cliente, só o <strong>Estoque Disponível</strong> cai — para <strong>700t</strong> (1000t - 300t)</p>
+                  <p className="text-sm text-foreground">• O <strong>Estoque Físico</strong> continua <strong>1000t</strong> (produto ainda está no armazém, nada saiu ainda)</p>
+                  <p className="text-sm text-foreground">• Só quando um caminhão retira parte da carga (carregamento finalizado) é que o <strong>Estoque Físico</strong> cai — na mesma proporção do que foi retirado</p>
+                  <p className="text-sm text-foreground">• Quando todas as retiradas dessa liberação forem concluídas, o Estoque Físico volta a ficar igual ao Estoque Disponível</p>
                 </div>
               </div>
             </CardContent>
@@ -119,10 +120,10 @@ export const EstoqueSection = () => {
         <div className="space-y-2 mb-4">
           {[
             'Acesse "Estoque"',
-            'Clique em "Registrar Remessa"',
+            'Clique em "Entrada de Estoque"',
             "Preencha os campos obrigatórios (descritos abaixo)",
-            'Clique em "Registrar Entrada"',
-            "Sistema atualiza: estoque_fisico += quantidade informada",
+            'Clique em "Salvar"',
+            "O sistema soma a quantidade informada tanto ao Estoque Físico quanto ao Estoque Disponível do produto neste armazém",
           ].map((step, i) => (
             <div key={i} className="flex items-start gap-3 text-sm">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0 text-xs mt-0.5">
@@ -146,10 +147,10 @@ export const EstoqueSection = () => {
                 { campo: "Produto *", desc: "Select de produtos ativos" },
                 { campo: "Armazém *", desc: "Select de armazéns ativos" },
                 { campo: "Quantidade *", desc: "Número positivo" },
-                { campo: "Unidade *", desc: "t (toneladas) ou kg (quilos)" },
-                { campo: "PDF Remessa", desc: "Upload opcional" },
-                { campo: "XML Remessa", desc: "Upload opcional" },
-                { campo: "Nº Remessa", desc: "Texto opcional" },
+                { campo: "Unidade", desc: "t (toneladas) ou kg (quilos)" },
+                { campo: "Número da Remessa *", desc: "Texto — obrigatório" },
+                { campo: "Nota de Remessa (PDF) *", desc: "Upload obrigatório" },
+                { campo: "Arquivo XML da Remessa *", desc: "Upload obrigatório" },
                 { campo: "Observações", desc: "Texto opcional" },
               ].map((row, i) => (
                 <tr key={i} className="border-b border-border">
@@ -160,6 +161,42 @@ export const EstoqueSection = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Transferência de Propriedade</h3>
+        <p className="text-sm text-muted-foreground mb-3">
+          Permite registrar a venda/transferência de um lote de estoque para um cliente <strong>sem que o produto
+          saia fisicamente do armazém</strong> — o produto continua guardado ali, mas passa a pertencer a outro
+          cliente. Disponível apenas para Admin e Logística, a partir da tela de <strong>Detalhe do Estoque</strong>
+          (clique no produto dentro de um armazém), já com produto e armazém fixados pelo contexto.
+        </p>
+        <div className="space-y-2 mb-4">
+          {[
+            'No Detalhe do Estoque, clique em "Transferência de Propriedade"',
+            "Informe quantidade e data da transferência",
+            "Selecione o cliente (ou informe CNPJ/razão social manualmente, se ainda não cadastrado)",
+            "Informe o número do pedido",
+            "Anexe a Nota Fiscal (PDF) e o XML correspondentes — ambos obrigatórios",
+            'Clique em "Registrar Transferência"',
+          ].map((step, i) => (
+            <div key={i} className="flex items-start gap-3 text-sm">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0 text-xs mt-0.5">
+                {i + 1}
+              </span>
+              <span className="text-foreground">{step}</span>
+            </div>
+          ))}
+        </div>
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              As transferências registradas ficam listadas na seção "Transferências de Propriedade" do Detalhe do
+              Estoque. Uma transferência ativa pode ser <strong>estornada</strong> por Admin/Logística, o que devolve
+              a quantidade ao estoque físico e disponível do produto/armazém.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div>
@@ -207,6 +244,7 @@ export const EstoqueSection = () => {
             { text: "Ver estoque de todos os armazéns", allowed: true },
             { text: "Ver detalhes completos de qualquer produto", allowed: true },
             { text: "Registrar entrada de estoque (remessa)", allowed: true },
+            { text: "Registrar e estornar Transferência de Propriedade", allowed: true },
             { text: "Editar/excluir registros antigos", allowed: false },
           ].map((item, i) => (
             <div key={i} className="flex items-center gap-2 text-sm">
@@ -236,7 +274,7 @@ export const EstoqueSection = () => {
           {[
             {
               pergunta: "Quando o Estoque Físico diminui?",
-              resposta: "Quando um carregamento é finalizado (Etapa 6). O produto sai fisicamente do armazém e o estoque é reduzido automaticamente.",
+              resposta: "Quando a Etapa 5 (Documentação) é concluída e o carregamento vira \"Processo Finalizado\". O produto sai fisicamente do armazém e o estoque é reduzido automaticamente.",
             },
             {
               pergunta: "Posso editar uma entrada de estoque já registrada?",

@@ -17,6 +17,7 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { formatFileSize, BUCKET_UPLOAD_LIMITS } from "@/lib/uploadValidation";
 
 type StockStatus = "normal" | "baixo";
 type Unidade = "t" | "kg";
@@ -51,6 +52,7 @@ interface SupabaseEstoqueItem {
     nome: string;
     unidade: string;
     ativo?: boolean;
+    estoque_minimo?: number | null;
   } | null;
   armazem: {
     id: string;
@@ -171,7 +173,7 @@ const Estoque = () => {
           id,
           quantidade,
           updated_at,
-          produto:produtos(id, nome, unidade, ativo),
+          produto:produtos(id, nome, unidade, ativo, estoque_minimo),
           armazem:armazens(id, nome, cidade, estado, capacidade_total, ativo)
         `)
         .order("updated_at", { ascending: false });
@@ -277,7 +279,11 @@ const Estoque = () => {
         produto: item.produto?.nome || "N/A",
         quantidade: item.quantidade,
         unidade: item.produto?.unidade || "t",
-        status: item.quantidade < 10 ? "baixo" : "normal",
+        // Mesma regra do card "Estoque Baixo" do Dashboard: só conta como baixo se o
+        // produto tiver estoque_minimo configurado e a quantidade física ficar abaixo dele.
+        status: item.produto?.estoque_minimo != null && item.quantidade < item.produto.estoque_minimo
+          ? "baixo"
+          : "normal",
         data: new Date(item.updated_at).toLocaleDateString("pt-BR"),
         produto_id: item.produto?.id,
         ativo: item.produto?.ativo,
@@ -457,10 +463,22 @@ const Estoque = () => {
     const isValidMimeType = allowedTypes.includes(file.type);
 
     if (!isValidExtension || !isValidMimeType) {
-      toast({ 
-        variant: "destructive", 
-        title: "Tipo de arquivo inválido", 
-        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.` 
+      toast({
+        variant: "destructive",
+        title: "Tipo de arquivo inválido",
+        description: `Selecione apenas arquivos ${allowedExtensions.join(' ou ')}.`
+      });
+      inputElement.value = '';
+      setterFunction(null);
+      return;
+    }
+
+    const maxSizeBytes = BUCKET_UPLOAD_LIMITS['estoque-documentos'].maxSizeBytes;
+    if (file.size > maxSizeBytes) {
+      toast({
+        variant: "destructive",
+        title: "Arquivo muito grande",
+        description: `O arquivo "${file.name}" tem ${formatFileSize(file.size)} — o limite é ${formatFileSize(maxSizeBytes)}.`
       });
       inputElement.value = '';
       setterFunction(null);
@@ -724,7 +742,7 @@ const Estoque = () => {
 
   const produtosAtivos = produtosCadastrados?.filter(p => p.ativo) || [];
   const armazensDisponiveis = armazensAtivos || [];
-  
+
   const temProdutosDisponiveis = produtosAtivos.length > 0;
   const temArmazensDisponiveis = armazensDisponiveis.length > 0;
 

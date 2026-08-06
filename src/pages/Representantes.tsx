@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserCheck, Plus, Filter as FilterIcon, Key, Loader2, X, Users, Eye } from "lucide-react";
+import { UserCheck, Plus, Filter as FilterIcon, Key, Loader2, X, Users, Eye, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,83 +26,25 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
+import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
+import { validarTelefone, formatPhone as formatPhoneShared, maskPhoneInput, normalizePhone } from "@/lib/contactValidation";
 
 type Representante = Database['public']['Tables']['representantes']['Row'] & {
   temp_password?: string | null;
   clientes_count?: number;
 };
 
-const formatCPF = (cpf: string) =>
-  cpf.replace(/\D/g, "")
-    .padStart(11, "0")
-    .slice(0, 11)
-    .replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-
-const formatCNPJ = (cnpj: string) =>
-  cnpj.replace(/\D/g, "")
-    .padStart(14, "0")
-    .slice(0, 14)
-    .replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-
+// Helpers de formatação de CPF/CNPJ vêm de src/lib/documentValidation.ts
 function formatCpfCnpj(v: string): string {
-  if (!v) return "—";
-  const onlyDigits = v.replace(/\D/g, "");
-  if (onlyDigits.length <= 11) {
-    return formatCPF(onlyDigits);
-  }
-  return formatCNPJ(onlyDigits);
+  return v ? formatarCpfCnpj(v) : "—";
 }
 
-function maskCpfCnpjInput(value: string): string {
-  if (!value) return "";
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    let cpf = digits.slice(0, 11);
-    if (cpf.length > 9)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, "$1.$2.$3-$4");
-    if (cpf.length > 6)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cpf.length > 3)
-      return cpf.replace(/^(\d{3})(\d{0,3})$/, "$1.$2");
-    return cpf;
-  } else {
-    let cnpj = digits.slice(0, 14);
-    if (cnpj.length > 12)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
-    if (cnpj.length > 8)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})$/, "$1.$2.$3/$4");
-    if (cnpj.length > 5)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cnpj.length > 2)
-      return cnpj.replace(/^(\d{2})(\d{0,3})$/, "$1.$2");
-    return cnpj;
-  }
-}
-
+// Telefone vem de src/lib/contactValidation.ts; mantém o guard de exibição
+// que já existia aqui ("—" quando vazio).
 function formatPhone(phone: string): string {
   if (!phone) return "—";
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  return phone;
-}
-
-function maskPhoneInput(value: string): string {
-  if (!value) return "";
-  const cleaned = value.replace(/\D/g, "").slice(0, 11);
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length > 6)
-    return cleaned.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, "($1) $2-$3");
-  if (cleaned.length > 2)
-    return cleaned.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
-  if (cleaned.length > 0)
-    return cleaned.replace(/^(\d{0,2})/, "($1");
-  return "";
+  return formatPhoneShared(phone);
 }
 
 const Representantes = () => {
@@ -169,6 +111,31 @@ const Representantes = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState<Record<string, boolean>>({});
 
+  const [cpfErro, setCpfErro] = useState<string | null>(null);
+  const [cpfDuplicado, setCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+  const [telefoneErro, setTelefoneErro] = useState<string | null>(null);
+
+  const handleCpfBlur = async () => {
+    const documento = normalizeDocumento(novoRepresentante.cpf);
+    setCpfDuplicado([]);
+    if (!documento) {
+      setCpfErro(null);
+      return;
+    }
+    if (!validarCpfOuCnpj(documento)) {
+      setCpfErro("CPF/CNPJ inválido — confira os números digitados.");
+      return;
+    }
+    setCpfErro(null);
+    const encontrados = await buscarDocumentoEmOutrosCadastros(documento, "representantes");
+    setCpfDuplicado(encontrados);
+  };
+
+  const handleTelefoneBlur = () => {
+    const digitos = normalizePhone(novoRepresentante.telefone);
+    setTelefoneErro(!digitos || validarTelefone(digitos) ? null : "Telefone inválido — informe DDD + número (10 ou 11 dígitos).");
+  };
+
   const resetForm = () => {
     setNovoRepresentante({
       nome: "",
@@ -177,6 +144,9 @@ const Representantes = () => {
       telefone: "",
       regiao_atuacao: "",
     });
+    setCpfErro(null);
+    setTelefoneErro(null);
+    setCpfDuplicado([]);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -299,6 +269,14 @@ const Representantes = () => {
         variant: "destructive",
         title: "Preencha os campos obrigatórios",
       });
+      return;
+    }
+    if (!validarCpfOuCnpj(cpf)) {
+      toast({ variant: "destructive", title: "CPF/CNPJ inválido", description: "Confira os números digitados." });
+      return;
+    }
+    if (telefone.trim() && !validarTelefone(telefone)) {
+      toast({ variant: "destructive", title: "Telefone inválido", description: "Informe DDD + número (10 ou 11 dígitos)." });
       return;
     }
 
@@ -596,14 +574,31 @@ const Representantes = () => {
                           id="cpf"
                           value={novoRepresentante.cpf}
                           onChange={(e) => {
-                            setNovoRepresentante({ ...novoRepresentante, cpf: maskCpfCnpjInput(e.target.value) });
+                            setNovoRepresentante({ ...novoRepresentante, cpf: maskCpfCnpj(e.target.value) });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCpfBlur}
                           placeholder="000.000.000-00 ou 00.000.000/0000-00"
                           maxLength={18}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cpfErro && (
+                          <p className="text-xs text-destructive mt-1">{cpfErro}</p>
+                        )}
+                        {cpfDuplicado.length > 0 && (
+                          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-amber-800">Documento já cadastrado</p>
+                                <p className="text-amber-700 text-xs mt-1">
+                                  Este CPF/CNPJ já está cadastrado como {cpfDuplicado.map(d => `${d.label} (${d.nome})`).join(", ")}. Confirme se deseja continuar mesmo assim.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="new-representante-email" className="text-sm font-medium">Email *</Label>
@@ -634,11 +629,15 @@ const Representantes = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleTelefoneBlur}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {telefoneErro && (
+                          <p className="text-xs text-destructive mt-1">{telefoneErro}</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="regiao_atuacao" className="text-sm font-medium">Região de Atuação</Label>
@@ -1004,21 +1003,36 @@ const Representantes = () => {
       
       {/* Estado vazio */}
       {filteredRepresentantes.length === 0 && (
-        <div className="text-center py-12">
-          <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            {hasActiveFilters
-              ? "Nenhum representante encontrado com os filtros aplicados"
-              : "Nenhum representante cadastrado ainda"}
-          </p>
-          {hasActiveFilters && (
-            <Button 
-              size="sm" 
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="rounded-full bg-muted p-4">
+            <UserCheck className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">
+              {hasActiveFilters ? "Nenhum representante encontrado" : "Nenhum representante cadastrado"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {hasActiveFilters
+                ? "Nenhum representante encontrado com os filtros aplicados."
+                : "Comece cadastrando o primeiro representante do sistema."}
+            </p>
+          </div>
+          {hasActiveFilters ? (
+            <Button
+              size="sm"
               onClick={handleClearFilters}
-              className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
             >
               <X className="h-4 w-4 mr-2" />
               Limpar Filtros
+            </Button>
+          ) : canCreate && (
+            <Button
+              className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Representante
             </Button>
           )}
         </div>

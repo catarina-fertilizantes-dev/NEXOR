@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Warehouse, Plus, Filter as FilterIcon, Key, Loader2, X } from "lucide-react";
+import { Warehouse, Plus, Filter as FilterIcon, Key, Loader2, X, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,74 +26,12 @@ import { ModalFooter } from "@/components/ui/modal-footer";
 import type { Database } from "@/integrations/supabase/types";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
+import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
+import { validarTelefone, formatPhone, maskPhoneInput, normalizePhone, validarCEP, formatCEP, maskCEPInput, normalizeCep } from "@/lib/contactValidation";
 
-// Helpers de máscara e formatação
-function maskPhoneInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 11);
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length > 6)
-    return cleaned.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, "($1) $2-$3");
-  if (cleaned.length > 2)
-    return cleaned.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
-  if (cleaned.length > 0)
-    return cleaned.replace(/^(\d{0,2})/, "($1");
-  return "";
-}
-function formatPhone(phone: string): string {
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  return phone;
-}
-function maskCEPInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length > 5)
-    return cleaned.replace(/^(\d{5})(\d{0,3})$/, "$1-$2");
-  return cleaned;
-}
-function formatCEP(cep: string): string {
-  const cleaned = cep.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length === 8)
-    return cleaned.replace(/^(\d{5})(\d{3})$/, "$1-$2");
-  return cep;
-}
-function maskCpfCnpjInput(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    // CPF
-    let cpf = digits.slice(0, 11);
-    if (cpf.length > 9)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, "$1.$2.$3-$4");
-    if (cpf.length > 6)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cpf.length > 3)
-      return cpf.replace(/^(\d{3})(\d{0,3})$/, "$1.$2");
-    return cpf;
-  } else {
-    // CNPJ
-    let cnpj = digits.slice(0, 14);
-    if (cnpj.length > 12)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
-    if (cnpj.length > 8)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})$/, "$1.$2.$3/$4");
-    if (cnpj.length > 5)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cnpj.length > 2)
-      return cnpj.replace(/^(\d{2})(\d{0,3})$/, "$1.$2");
-    return cnpj;
-  }
-}
 function formatCpfCnpj(v: string): string {
-  const onlyDigits = v.replace(/\D/g, "");
-  if (onlyDigits.length <= 11) {
-    return onlyDigits.padStart(11, "0").replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-  }
-  return onlyDigits.padStart(14, "0").replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  return v ? formatarCpfCnpj(v) : "—";
 }
 
 const estadosBrasil = [
@@ -176,6 +114,37 @@ const Armazens = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState<Record<string, boolean>>({});
 
+  const [cnpjCpfErro, setCnpjCpfErro] = useState<string | null>(null);
+  const [cnpjCpfDuplicado, setCnpjCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+  const [telefoneErro, setTelefoneErro] = useState<string | null>(null);
+  const [cepErro, setCepErro] = useState<string | null>(null);
+
+  const handleCnpjCpfBlur = async () => {
+    const documento = normalizeDocumento(novoArmazem.cnpj_cpf);
+    setCnpjCpfDuplicado([]);
+    if (!documento) {
+      setCnpjCpfErro(null);
+      return;
+    }
+    if (!validarCpfOuCnpj(documento)) {
+      setCnpjCpfErro("CNPJ/CPF inválido — confira os números digitados.");
+      return;
+    }
+    setCnpjCpfErro(null);
+    const encontrados = await buscarDocumentoEmOutrosCadastros(documento, "armazens");
+    setCnpjCpfDuplicado(encontrados);
+  };
+
+  const handleTelefoneBlur = () => {
+    const digitos = normalizePhone(novoArmazem.telefone);
+    setTelefoneErro(!digitos || validarTelefone(digitos) ? null : "Telefone inválido — informe DDD + número (10 ou 11 dígitos).");
+  };
+
+  const handleCepBlur = () => {
+    const digitos = normalizeCep(novoArmazem.cep);
+    setCepErro(!digitos || validarCEP(digitos) ? null : "CEP inválido — deve ter 8 dígitos.");
+  };
+
   const resetForm = () => {
     setNovoArmazem({
       nome: "",
@@ -188,6 +157,10 @@ const Armazens = () => {
       cep: "",
       cnpj_cpf: "",
     });
+    setCnpjCpfErro(null);
+    setCnpjCpfDuplicado([]);
+    setTelefoneErro(null);
+    setCepErro(null);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -270,7 +243,19 @@ const Armazens = () => {
       });
       return;
     }
-  
+    if (!validarCpfOuCnpj(cnpj_cpf)) {
+      toast({ variant: "destructive", title: "CNPJ/CPF inválido", description: "Confira os números digitados." });
+      return;
+    }
+    if (telefone.trim() && !validarTelefone(telefone)) {
+      toast({ variant: "destructive", title: "Telefone inválido", description: "Informe DDD + número (10 ou 11 dígitos)." });
+      return;
+    }
+    if (cep.trim() && !validarCEP(cep)) {
+      toast({ variant: "destructive", title: "CEP inválido", description: "O CEP deve ter 8 dígitos." });
+      return;
+    }
+
     setIsCreating(true);
   
     try {
@@ -510,7 +495,8 @@ const Armazens = () => {
           armazem.cidade?.toLowerCase().includes(term) ||
           armazem.estado?.toLowerCase().includes(term) ||
           armazem.email?.toLowerCase().includes(term) ||
-          (armazem.cnpj_cpf && armazem.cnpj_cpf.toLowerCase().includes(term));
+          (armazem.cnpj_cpf && armazem.cnpj_cpf.toLowerCase().includes(term)) ||
+          (armazem.telefone && armazem.telefone.toLowerCase().includes(term));
         if (!matches) return false;
       }
       return true;
@@ -660,14 +646,31 @@ const Armazens = () => {
                           id="cnpj_cpf"
                           value={novoArmazem.cnpj_cpf}
                           onChange={(e) => {
-                            setNovoArmazem({ ...novoArmazem, cnpj_cpf: maskCpfCnpjInput(e.target.value) });
+                            setNovoArmazem({ ...novoArmazem, cnpj_cpf: maskCpfCnpj(e.target.value) });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCnpjCpfBlur}
                           placeholder="00.000.000/0000-00 ou 000.000.000-00"
                           maxLength={18}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cnpjCpfErro && (
+                          <p className="text-xs text-destructive mt-1">{cnpjCpfErro}</p>
+                        )}
+                        {cnpjCpfDuplicado.length > 0 && (
+                          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-amber-800">Documento já cadastrado</p>
+                                <p className="text-amber-700 text-xs mt-1">
+                                  Este CNPJ/CPF já está cadastrado como {cnpjCpfDuplicado.map(d => `${d.label} (${d.nome})`).join(", ")}. Confirme se deseja continuar mesmo assim.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="telefone" className="text-sm font-medium">Telefone</Label>
@@ -681,11 +684,15 @@ const Armazens = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleTelefoneBlur}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {telefoneErro && (
+                          <p className="text-xs text-destructive mt-1">{telefoneErro}</p>
+                        )}
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="endereco" className="text-sm font-medium">Endereço</Label>
@@ -713,11 +720,15 @@ const Armazens = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCepBlur}
                           placeholder="00000-000"
                           maxLength={9}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cepErro && (
+                          <p className="text-xs text-destructive mt-1">{cepErro}</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="capacidade_total" className="text-sm font-medium">Capacidade Total (toneladas)</Label>
@@ -773,7 +784,7 @@ const Armazens = () => {
             </Select>
           </div>
           <Input
-            placeholder="Buscar por nome, cidade, estado, email ou CNPJ/CPF..."
+            placeholder="Buscar por nome, cidade, estado, email, telefone ou CNPJ/CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full md:max-w-md min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
@@ -851,9 +862,9 @@ const Armazens = () => {
               >
                 📋 Copiar credenciais
               </Button>
-              <Button 
+              <Button
                 onClick={() => setCredenciaisModal({ show: false, email: "", senha: "", nome: "" })}
-                className="w-full md:w-auto min-h-[44px] max-md:min-h-[44px] btn-primary"
+                className="w-full md:w-auto min-h-[44px] max-md:min-h-[44px] btn-secondary"
               >
                 Fechar
               </Button>
@@ -952,9 +963,9 @@ const Armazens = () => {
                   Ver Credenciais
                 </Button>
               )}
-              <Button 
+              <Button
                 onClick={() => setDetalhesArmazem(null)}
-                className="w-full md:w-auto min-h-[44px] max-md:min-h-[44px] btn-primary"
+                className="w-full md:w-auto min-h-[44px] max-md:min-h-[44px] btn-secondary"
               >
                 Fechar
               </Button>
@@ -1041,21 +1052,36 @@ const Armazens = () => {
 
       {/* Estado vazio */}
       {filteredArmazens.length === 0 && (
-        <div className="text-center py-12">
-          <Warehouse className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            {hasActiveFilters
-              ? "Nenhum armazém encontrado com os filtros aplicados"
-              : "Nenhum armazém cadastrado ainda"}
-          </p>
-          {hasActiveFilters && (
-            <Button 
-              size="sm" 
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="rounded-full bg-muted p-4">
+            <Warehouse className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">
+              {hasActiveFilters ? "Nenhum armazém encontrado" : "Nenhum armazém cadastrado"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {hasActiveFilters
+                ? "Nenhum armazém encontrado com os filtros aplicados."
+                : "Comece cadastrando o primeiro armazém do sistema."}
+            </p>
+          </div>
+          {hasActiveFilters ? (
+            <Button
+              size="sm"
               onClick={handleClearFilters}
-              className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
             >
               <X className="h-4 w-4 mr-2" />
               Limpar Filtros
+            </Button>
+          ) : canCreate && (
+            <Button
+              className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Armazém
             </Button>
           )}
         </div>

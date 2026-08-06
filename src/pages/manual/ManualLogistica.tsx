@@ -10,7 +10,7 @@ import { AgendamentosSection } from "./sections/logistica/AgendamentosSection";
 import { CarregamentosSection } from "./sections/logistica/CarregamentosSection";
 import { EstoqueSection } from "./sections/logistica/EstoqueSection";
 import { CadastrosSection } from "./sections/logistica/CadastrosSection";
-import { PrimeiroAcessoSection } from "./sections/usuarios/PrimeiroAcessoSection";
+import { PrimeiroAcessoSection } from "./sections/logistica/PrimeiroAcessoSection";
 import { LoginRecuperacaoSection } from "./sections/shared/LoginRecuperacaoSection";
 import { AcessoMobileSection } from "./sections/shared/AcessoMobileSection";
 import { DicasSuporteSection } from "./sections/shared/DicasSuporteSection";

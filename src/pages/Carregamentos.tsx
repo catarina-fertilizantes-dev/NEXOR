@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -8,11 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, Calendar, User, ChevronRight, Building2, CheckCircle } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Truck, X, Filter as FilterIcon, ChevronDown, ChevronUp, Info, ChevronRight, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
+import { formatDateOnlyBR } from "@/lib/utils";
 
 const getStatusCarregamento = (etapaAtual: number) => {
   if (etapaAtual === 1) {
@@ -51,7 +53,7 @@ const getStatusCarregamento = (etapaAtual: number) => {
     };
   } else {
     return {
-      status: "Finalizado",
+      status: "Processo Finalizado",
       percentual: 100,
       cor: "bg-green-100 text-green-800",
       tooltip: "Documentação anexada e processo concluído"
@@ -102,17 +104,19 @@ interface CarregamentoItem {
   tooltip_carregamento: string;
   percentual_carregamento: number;
   finalizado: boolean;
+  data_documentacao: string | null;
 }
 
 const STATUS_CARREGAMENTO = [
   { id: "Aguardando", nome: "Aguardando", cor: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
   { id: "Em Andamento", nome: "Em Andamento", cor: "bg-blue-100 text-blue-800 hover:bg-blue-200" },
-  { id: "Finalizado", nome: "Finalizado", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
+  { id: "Processo Finalizado", nome: "Processo Finalizado", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
 ];
 
 const Carregamentos = () => {
   useScrollToTop();
-  
+  const navigate = useNavigate();
+
   const { userRole, user } = useAuth();
   const { clienteId, armazemId, representanteId } = usePermissions();
   
@@ -216,6 +220,7 @@ const Carregamentos = () => {
           tooltip_carregamento: statusInfo.tooltip,
           percentual_carregamento: statusInfo.percentual,
           finalizado,
+          data_documentacao: item.data_documentacao ?? null,
         };
       } else {
         // ❌ Fallback para dados da query tradicional (não deveria acontecer)
@@ -254,35 +259,93 @@ const Carregamentos = () => {
           tooltip_carregamento: statusInfo.tooltip,
           percentual_carregamento: statusInfo.percentual,
           finalizado,
+          data_documentacao: item.data_documentacao ?? null,
         };
       }
     });
   }, [carregamentosData]);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Deep-links vindos do dashboard:
+  // - ?status=finalizado: pré-seleciona o filtro de status.
+  // - ?finalizadoHoje=1: filtra pela data REAL de finalização (data_documentacao)
+  //   sendo hoje — separado do filtro de período existente (dateFrom/dateTo),
+  //   que filtra por data_retirada (agendada), não pela finalização.
+  // - ?armazemId= / ?clienteId=: filtra pelo armazém/cliente específico (ex:
+  //   clique num item de "Armazéns/Clientes com Operação Hoje" no dashboard).
+  // Todos lidos só uma vez (useState inicial) — os params somem da URL logo
+  // a seguir. Sem isso, "Limpar Filtros" não tinha o que limpar (o valor
+  // seria relido da URL a cada render) e o filtro ficava travado mesmo após
+  // limpar ou dar refresh.
+  const filtroInicialStatus = searchParams.get("status") === "finalizado" ? ["Processo Finalizado"] : [];
+  const filtroInicialFinalizadoHoje = searchParams.get("finalizadoHoje") === "1";
+  const filtroInicialArmazemId = searchParams.get("armazemId");
+  const filtroInicialClienteId = searchParams.get("clienteId");
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(filtroInicialStatus);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [finalizadoHoje, setFinalizadoHoje] = useState(filtroInicialFinalizadoHoje);
+  const [filtroArmazemId, setFiltroArmazemId] = useState(filtroInicialArmazemId);
+  const [filtroClienteId, setFiltroClienteId] = useState(filtroInicialClienteId);
+
+  useEffect(() => {
+    if (
+      searchParams.has("status") ||
+      searchParams.has("finalizadoHoje") ||
+      searchParams.has("armazemId") ||
+      searchParams.has("clienteId")
+    ) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("status");
+          next.delete("finalizadoHoje");
+          next.delete("armazemId");
+          next.delete("clienteId");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleStatus = (status: string) =>
     setSelectedStatus((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
-  
+
   const clearFilters = () => {
     setSearch("");
     setSelectedStatus([]);
     setDateFrom("");
     setDateTo("");
+    setFinalizadoHoje(false);
+    setFiltroArmazemId(null);
+    setFiltroClienteId(null);
   };
 
   const { carregamentosAtivos, carregamentosFinalizados } = useMemo(() => {
+    const agora = new Date();
+    const mesmoDiaLocal = (isoString: string) => {
+      const d = new Date(isoString);
+      return (
+        d.getFullYear() === agora.getFullYear() &&
+        d.getMonth() === agora.getMonth() &&
+        d.getDate() === agora.getDate()
+      );
+    };
     const filtered = carregamentos.filter((c) => {
       const term = search.trim().toLowerCase();
       if (term) {
-        const hay = `${c.cliente} ${c.motorista} ${c.placa} ${c.pedido}`.toLowerCase();
+        const hay = `${c.cliente} ${c.motorista} ${c.placa} ${c.pedido} ${c.produto} ${c.transportadora} ${c.armazem}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
       if (selectedStatus.length > 0 && !selectedStatus.includes(c.status_carregamento)) return false;
+      if (finalizadoHoje && (!c.data_documentacao || !mesmoDiaLocal(c.data_documentacao))) return false;
+      if (filtroArmazemId && c.armazem_id !== filtroArmazemId) return false;
+      if (filtroClienteId && c.cliente_id !== filtroClienteId) return false;
       if (dateFrom) {
         const from = new Date(dateFrom);
         if (new Date(c.data_retirada) < from) return false;
@@ -299,154 +362,121 @@ const Carregamentos = () => {
     const finalizados = filtered.filter(c => c.finalizado);
 
     return { carregamentosAtivos: ativos, carregamentosFinalizados: finalizados };
-  }, [carregamentos, search, selectedStatus, dateFrom, dateTo]);
+  }, [carregamentos, search, selectedStatus, dateFrom, dateTo, finalizadoHoje, filtroArmazemId, filtroClienteId]);
 
   useEffect(() => {
-    if (search.trim() && carregamentosFinalizados.length > 0 && !secaoFinalizadosExpandida) {
+    if (
+      (search.trim() || selectedStatus.includes("Processo Finalizado")) &&
+      carregamentosFinalizados.length > 0 &&
+      !secaoFinalizadosExpandida
+    ) {
       setSecaoFinalizadosExpandida(true);
     }
-  }, [search, carregamentosFinalizados.length, secaoFinalizadosExpandida]);
+  }, [search, selectedStatus, carregamentosFinalizados.length, secaoFinalizadosExpandida]);
 
   const showingCount = carregamentosAtivos.length + carregamentosFinalizados.length;
   const totalCount = carregamentos.length;
   const activeAdvancedCount =
-    (selectedStatus.length ? 1 : 0) + 
-    ((dateFrom || dateTo) ? 1 : 0);
-  
-  const hasActiveFilters = search.trim() || selectedStatus.length > 0 || dateFrom || dateTo;
+    (selectedStatus.length ? 1 : 0) +
+    ((dateFrom || dateTo) ? 1 : 0) +
+    (finalizadoHoje ? 1 : 0) +
+    (filtroArmazemId ? 1 : 0) +
+    (filtroClienteId ? 1 : 0);
+
+  const hasActiveFilters =
+    search.trim() ||
+    selectedStatus.length > 0 ||
+    dateFrom ||
+    dateTo ||
+    finalizadoHoje ||
+    filtroArmazemId ||
+    filtroClienteId;
 
   const renderCarregamentoCard = (carr: CarregamentoItem) => (
-    <Card key={carr.id} className="transition-all hover:shadow-md cursor-pointer">
+    <Card
+      key={carr.id}
+      className="border-l-4 border-l-amber-500 dark:border-l-amber-400 transition-all hover:shadow-md cursor-pointer"
+      onClick={() => navigate(`/carregamentos/${carr.id}`)}
+    >
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          {/* Layout Mobile-First: Badge e fotos lado a lado no topo em mobile, empilhados à direita em desktop */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            {/* Badge e Fotos - Lado a lado em mobile, empilhados à direita em desktop */}
-            <div className="flex justify-between items-center sm:order-2 sm:flex-col sm:items-end sm:gap-2">
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+          {/* Cabeçalho: ícone + pedido + status + fotos */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 shrink-0">
+                <Truck className="h-4 w-4 md:h-5 md:w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {carr.pedido}</h3>
+                <p className="text-xs text-muted-foreground font-mono">{formatPlaca(carr.placa)}</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                     <Badge className={`${carr.cor_carregamento} border-0 font-medium text-xs px-2 py-1 text-center`}>
                       {carr.status_carregamento}
                     </Badge>
                     <Info className="h-3 w-3 text-muted-foreground" />
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{carr.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
               <div className="text-xs text-muted-foreground">Fotos: <span className="font-semibold">{carr.fotosTotal}</span></div>
             </div>
-  
-            {/* Conteúdo principal - Segundo em mobile, à esquerda em desktop */}
-            <Link 
-              to={`/carregamentos/${carr.id}`} 
-              className="flex items-start gap-3 md:gap-4 flex-1 w-full text-inherit no-underline sm:order-1"
-              style={{ textDecoration: "none", color: "inherit" }}
-            >
-              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary shrink-0">
-                <Truck className="h-4 w-4 md:h-5 md:w-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {carr.pedido}</h3>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{carr.cliente}</span>
-                  </p>
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{carr.produto}</span>
-                  </p>
-                  <p className="whitespace-nowrap break-words">
-                    <span className="font-medium text-foreground">Armazém:</span> {carr.armazem}
-                  </p>
-                </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Quantidade:</span> {carr.quantidade.toLocaleString('pt-BR')}t
-                  </p>
-                  {carr.numero_nf && (
-                    <p className="whitespace-nowrap mt-1">
-                      <span className="font-medium text-foreground">Nº NF:</span> {carr.numero_nf}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Link>
           </div>
-  
-          {/* Grid de informações - Igual ao Agendamentos */}
-          <Link 
-            to={`/carregamentos/${carr.id}`} 
-            className="block text-inherit no-underline"
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate">{carr.data_retirada !== "N/A" ? new Date(carr.data_retirada).toLocaleDateString("pt-BR") : "N/A"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate">{formatPlaca(carr.placa)}</span>
-              </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate" title={carr.motorista}>{carr.motorista}</span>
-              </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate" title={carr.transportadora}>{carr.transportadora || "N/A"}</span>
-              </div>
-            </div>
-          </Link>
-  
+
+          {/* Informações em 2 colunas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <p className="truncate" title={carr.cliente}><span className="font-medium text-foreground">Cliente:</span> {carr.cliente}</p>
+            <p className="truncate" title={carr.produto}><span className="font-medium text-foreground">Produto:</span> {carr.produto}</p>
+            <p className="truncate" title={carr.armazem}><span className="font-medium text-foreground">Armazém:</span> {carr.armazem}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Quantidade:</span> {carr.quantidade.toLocaleString('pt-BR')}t</p>
+            <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {carr.data_retirada !== "N/A" ? formatDateOnlyBR(carr.data_retirada) : "N/A"}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(carr.placa)}</p>
+            <p className="truncate" title={carr.motorista}><span className="font-medium text-foreground">Motorista:</span> {carr.motorista}</p>
+            <p className="truncate" title={carr.transportadora}><span className="font-medium text-foreground">Transportadora:</span> {carr.transportadora || "N/A"}</p>
+            {carr.numero_nf && (
+              <p className="truncate sm:col-span-2"><span className="font-medium text-foreground">Nº NF:</span> {carr.numero_nf}</p>
+            )}
+          </div>
+
           {/* Barra de progresso - Sempre na parte inferior */}
-          <div 
-            className="pt-2 border-t"
-            onClick={() => window.location.href = `/carregamentos/${carr.id}`}
-          >
+          <div className="pt-2 border-t">
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-purple-600 shrink-0" />
               <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div 
-                      className="bg-purple-500 h-2 rounded-full transition-all duration-300" 
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-pointer min-w-0" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="bg-purple-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${carr.percentual_carregamento}%` }}
                     ></div>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{carr.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Info className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground font-medium w-8 text-right">
                       {carr.percentual_carregamento}%
                     </span>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
                   <p className="text-sm">{carr.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -506,7 +536,7 @@ const Carregamentos = () => {
           <div className="flex items-center gap-3">
             <Input 
               className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-              placeholder="Buscar por cliente, placa, motorista ou pedido..." 
+              placeholder="Buscar por cliente, produto, armazém, placa, motorista, transportadora ou pedido..." 
               value={search} 
               onChange={(e) => setSearch(e.target.value)} 
             />
@@ -594,24 +624,16 @@ const Carregamentos = () => {
           
           <div className="grid gap-3">
             {carregamentosAtivos.map(renderCarregamentoCard)}
-            {carregamentosAtivos.length === 0 && (
-              <div className="text-center py-8">
-                <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground text-sm md:text-base">
+            {carregamentosAtivos.length === 0 && carregamentosFinalizados.length > 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
+                <div className="rounded-full bg-muted p-3">
+                  <Truck className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
                   {hasActiveFilters
-                    ? "Nenhum carregamento ativo encontrado com os filtros aplicados"
-                    : "Nenhum carregamento ativo no momento"}
+                    ? "Nenhum carregamento ativo encontrado com os filtros aplicados."
+                    : "Nenhum carregamento ativo no momento."}
                 </p>
-                {hasActiveFilters && (
-                  <Button 
-                    size="sm" 
-                    onClick={clearFilters}
-                    className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Limpar Filtros
-                  </Button>
-                )}
               </div>
             )}
           </div>
@@ -622,7 +644,7 @@ const Carregamentos = () => {
           <div className="space-y-4">
             <Button
               onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
-              className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
+              className="w-full justify-between bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 min-h-[44px] max-md:min-h-[44px] dark:bg-green-950/20 dark:hover:bg-green-950/30 dark:border-green-800 dark:text-green-400"
             >
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5" />
@@ -630,14 +652,14 @@ const Carregamentos = () => {
                   Carregamentos Finalizados ({carregamentosFinalizados.length})
                 </span>
               </div>
-              {secaoFinalizadosExpandida ? 
-                <ChevronUp className="h-4 w-4" /> : 
+              {secaoFinalizadosExpandida ?
+                <ChevronUp className="h-4 w-4" /> :
                 <ChevronDown className="h-4 w-4" />
               }
             </Button>
-            
+
             {secaoFinalizadosExpandida && (
-              <div className="grid gap-4">
+              <div className="grid gap-4 rounded-lg bg-green-50/50 dark:bg-green-950/10 p-3">
                 {carregamentosFinalizados.map(renderCarregamentoCard)}
               </div>
             )}
@@ -646,22 +668,29 @@ const Carregamentos = () => {
 
         {/* Estado vazio geral - Mobile Otimizado */}
         {carregamentosAtivos.length === 0 && carregamentosFinalizados.length === 0 && (
-          <div className="text-center py-12">
-            <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground text-sm md:text-base">
-              {hasActiveFilters
-                ? "Nenhum carregamento encontrado com os filtros aplicados"
-                : "Nenhum carregamento cadastrado ainda"}
-            </p>
+          <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+            <div className="rounded-full bg-muted p-4">
+              <Truck className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-foreground">
+                {hasActiveFilters ? "Nenhum carregamento encontrado" : "Nenhum carregamento registrado"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? "Nenhum carregamento encontrado com os filtros aplicados"
+                  : "Os carregamentos são criados automaticamente quando um agendamento é registrado."}
+              </p>
+            </div>
             {hasActiveFilters && (
-                <Button 
-                  size="sm" 
-                  onClick={clearFilters}
-                  className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Limpar Filtros
-                </Button>
+              <Button
+                size="sm"
+                onClick={clearFilters}
+                className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Limpar Filtros
+              </Button>
             )}
           </div>
         )}

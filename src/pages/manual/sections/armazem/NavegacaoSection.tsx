@@ -15,7 +15,7 @@ export const NavegacaoSection = () => {
             { title: "Barra Superior", desc: "Contém o logo do sistema e o menu do seu perfil (avatar) no canto direito." },
             { title: "Menu Lateral", desc: "Localizado à esquerda, contém as opções de navegação disponíveis para o seu perfil." },
             { title: "Área de Conteúdo", desc: "Parte central da tela onde as informações e funcionalidades são exibidas." },
-            { title: "Menu do Avatar", desc: "Clique no seu nome/foto no canto superior direito para acessar opções de perfil e sair." },
+            { title: "Menu do Avatar", desc: "Clique no seu nome/foto no canto superior direito para acessar o manual, sair do sistema e ver a versão atual do NEXOR e as novidades (changelog)." },
           ].map((item, i) => (
             <Card key={i}>
               <CardContent className="p-4">
@@ -39,6 +39,7 @@ export const NavegacaoSection = () => {
             </thead>
             <tbody>
               {[
+                { menu: "🏠 Dashboard", func: "Visão geral do seu armazém: estoque, agendamentos e carregamentos" },
                 { menu: "📅 Agendamentos", func: "Visualizar agendamentos de carregamento" },
                 { menu: "🚚 Carregamentos", func: "Gerenciar carregamentos do armazém" },
                 { menu: "📦 Estoque", func: "Consultar estoque do seu armazém" },
@@ -114,7 +115,7 @@ export const NavegacaoSection = () => {
                 { term: "Modal", meaning: "Janela que abre sobre a tela atual para entrada de dados ou confirmação" },
                 { term: "Filtro", meaning: "Ferramenta para selecionar e exibir apenas os registros desejados" },
                 { term: "Paginação", meaning: "Divisão de uma lista em páginas para facilitar a visualização" },
-                { term: "Status", meaning: "Situação atual de um registro (ex: Pendente, Confirmado, Cancelado)" },
+                { term: "Status", meaning: "Situação atual de um registro (ex: Pendente, Em Andamento, Concluído, Cancelado)" },
                 { term: "Timestamp", meaning: "Data e hora em que uma ação foi registrada no sistema" },
                 { term: "Anexo", meaning: "Arquivo (imagem, PDF) vinculado a um registro" },
                 { term: "Placeholder", meaning: "Texto de exemplo exibido em campos de entrada antes de digitar" },

@@ -36,6 +36,9 @@ import { Navigate } from "react-router-dom";
 import type { Database } from "@/integrations/supabase/types";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validarCpfOuCnpj, maskCpfCnpj, formatarCpfCnpj, normalizeDocumento } from "@/lib/documentValidation";
+import { buscarDocumentoEmOutrosCadastros, type DocumentoEncontrado } from "@/lib/documentCrossRoleCheck";
+import { validarTelefone, formatPhone, maskPhoneInput, normalizePhone, validarCEP, formatCEP, maskCEPInput, normalizeCep } from "@/lib/contactValidation";
 
 const estadosBrasil = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
@@ -59,86 +62,8 @@ type Representante = {
   ativo: boolean;
 };
 
-// Helpers de formatação
-const formatCPF = (cpf: string) =>
-  cpf.replace(/\D/g, "")
-    .padStart(11, "0")
-    .slice(0, 11)
-    .replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-
-const formatCNPJ = (cnpj: string) =>
-  cnpj.replace(/\D/g, "")
-    .padStart(14, "0")
-    .slice(0, 14)
-    .replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-
-function formatCpfCnpj(v: string): string {
-  const onlyDigits = v.replace(/\D/g, "");
-  if (onlyDigits.length <= 11) {
-    return formatCPF(onlyDigits);
-  }
-  return formatCNPJ(onlyDigits);
-}
-function maskCpfCnpjInput(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    // CPF
-    let cpf = digits.slice(0, 11);
-    if (cpf.length > 9)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, "$1.$2.$3-$4");
-    if (cpf.length > 6)
-      return cpf.replace(/^(\d{3})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cpf.length > 3)
-      return cpf.replace(/^(\d{3})(\d{0,3})$/, "$1.$2");
-    return cpf;
-  } else {
-    // CNPJ
-    let cnpj = digits.slice(0, 14);
-    if (cnpj.length > 12)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
-    if (cnpj.length > 8)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})$/, "$1.$2.$3/$4");
-    if (cnpj.length > 5)
-      return cnpj.replace(/^(\d{2})(\d{3})(\d{0,3})$/, "$1.$2.$3");
-    if (cnpj.length > 2)
-      return cnpj.replace(/^(\d{2})(\d{0,3})$/, "$1.$2");
-    return cnpj;
-  }
-}
-function formatPhone(phone: string): string {
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  return phone;
-}
-function maskPhoneInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 11);
-  if (cleaned.length === 11)
-    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length === 10)
-    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  if (cleaned.length > 6)
-    return cleaned.replace(/^(\d{2})(\d{0,5})(\d{0,4})$/, "($1) $2-$3");
-  if (cleaned.length > 2)
-    return cleaned.replace(/^(\d{2})(\d{0,5})/, "($1) $2");
-  if (cleaned.length > 0)
-    return cleaned.replace(/^(\d{0,2})/, "($1");
-  return "";
-}
-function formatCEP(cep: string): string {
-  const cleaned = cep.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length === 8)
-    return cleaned.replace(/^(\d{5})(\d{3})$/, "$1-$2");
-  return cep;
-}
-function maskCEPInput(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 8);
-  if (cleaned.length > 5)
-    return cleaned.replace(/^(\d{5})(\d{0,3})$/, "$1-$2");
-  return cleaned;
-}
+// Helpers de formatação de CPF/CNPJ vêm de src/lib/documentValidation.ts,
+// telefone/CEP vêm de src/lib/contactValidation.ts.
 
 const Clientes = () => {
   useScrollToTop();
@@ -209,6 +134,38 @@ const Clientes = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState<Record<string, boolean>>({});
 
+  // Validação de CPF/CNPJ (dígito verificador + aviso cross-papel, não bloqueia)
+  const [cnpjCpfErro, setCnpjCpfErro] = useState<string | null>(null);
+  const [cnpjCpfDuplicado, setCnpjCpfDuplicado] = useState<DocumentoEncontrado[]>([]);
+  const [telefoneErro, setTelefoneErro] = useState<string | null>(null);
+  const [cepErro, setCepErro] = useState<string | null>(null);
+
+  const handleCnpjCpfBlur = async () => {
+    const documento = normalizeDocumento(novoCliente.cnpj_cpf);
+    setCnpjCpfDuplicado([]);
+    if (!documento) {
+      setCnpjCpfErro(null);
+      return;
+    }
+    if (!validarCpfOuCnpj(documento)) {
+      setCnpjCpfErro("CNPJ/CPF inválido — confira os números digitados.");
+      return;
+    }
+    setCnpjCpfErro(null);
+    const encontrados = await buscarDocumentoEmOutrosCadastros(documento, "clientes");
+    setCnpjCpfDuplicado(encontrados);
+  };
+
+  const handleTelefoneBlur = () => {
+    const digitos = normalizePhone(novoCliente.telefone);
+    setTelefoneErro(!digitos || validarTelefone(digitos) ? null : "Telefone inválido — informe DDD + número (10 ou 11 dígitos).");
+  };
+
+  const handleCepBlur = () => {
+    const digitos = normalizeCep(novoCliente.cep);
+    setCepErro(!digitos || validarCEP(digitos) ? null : "CEP inválido — deve ter 8 dígitos.");
+  };
+
   const resetForm = () => {
     setNovoCliente({
       nome: "",
@@ -221,6 +178,10 @@ const Clientes = () => {
       cep: "",
       representante_id: "",
     });
+    setCnpjCpfErro(null);
+    setCnpjCpfDuplicado([]);
+    setTelefoneErro(null);
+    setCepErro(null);
     resetUnsavedChanges(); // ✅ Limpar estado de mudanças
   };
 
@@ -422,6 +383,18 @@ const Clientes = () => {
         variant: "destructive",
         title: "Preencha os campos obrigatórios",
       });
+      return;
+    }
+    if (!validarCpfOuCnpj(cnpj_cpf)) {
+      toast({ variant: "destructive", title: "CNPJ/CPF inválido", description: "Confira os números digitados." });
+      return;
+    }
+    if (telefone.trim() && !validarTelefone(telefone)) {
+      toast({ variant: "destructive", title: "Telefone inválido", description: "Informe DDD + número (10 ou 11 dígitos)." });
+      return;
+    }
+    if (cep.trim() && !validarCEP(cep)) {
+      toast({ variant: "destructive", title: "CEP inválido", description: "O CEP deve ter 8 dígitos." });
       return;
     }
 
@@ -778,14 +751,31 @@ const Clientes = () => {
                           id="cnpj_cpf"
                           value={novoCliente.cnpj_cpf}
                           onChange={(e) => {
-                            setNovoCliente({ ...novoCliente, cnpj_cpf: maskCpfCnpjInput(e.target.value) });
+                            setNovoCliente({ ...novoCliente, cnpj_cpf: maskCpfCnpj(e.target.value) });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCnpjCpfBlur}
                           placeholder="00.000.000/0000-00 ou 000.000.000-00"
                           maxLength={18}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cnpjCpfErro && (
+                          <p className="text-xs text-destructive mt-1">{cnpjCpfErro}</p>
+                        )}
+                        {cnpjCpfDuplicado.length > 0 && (
+                          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-amber-800">Documento já cadastrado</p>
+                                <p className="text-amber-700 text-xs mt-1">
+                                  Este CNPJ/CPF já está cadastrado como {cnpjCpfDuplicado.map(d => `${d.label} (${d.nome})`).join(", ")}. Confirme se deseja continuar mesmo assim.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="new-client-email" className="text-sm font-medium">Email *</Label>
@@ -859,11 +849,15 @@ const Clientes = () => {
                             });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleTelefoneBlur}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {telefoneErro && (
+                          <p className="text-xs text-destructive mt-1">{telefoneErro}</p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="cep" className="text-sm font-medium">CEP</Label>
@@ -874,11 +868,15 @@ const Clientes = () => {
                             setNovoCliente({ ...novoCliente, cep: maskCEPInput(e.target.value) });
                             markAsChanged(); // ✅ Marcar como alterado
                           }}
+                          onBlur={handleCepBlur}
                           placeholder="00000-000"
                           maxLength={9}
                           disabled={isCreating}
                           className="min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base"
                         />
+                        {cepErro && (
+                          <p className="text-xs text-destructive mt-1">{cepErro}</p>
+                        )}
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="endereco" className="text-sm font-medium">Endereço</Label>
@@ -1157,7 +1155,7 @@ const Clientes = () => {
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">CNPJ/CPF:</Label>
-                      <p className="font-semibold text-sm break-all">{detalhesCliente.cnpj_cpf ? formatCpfCnpj(detalhesCliente.cnpj_cpf) : "—"}</p>
+                      <p className="font-semibold text-sm break-all">{detalhesCliente.cnpj_cpf ? formatarCpfCnpj(detalhesCliente.cnpj_cpf) : "—"}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Telefone:</Label>
@@ -1318,7 +1316,7 @@ const Clientes = () => {
                 <p className="text-sm text-muted-foreground break-all">{cliente.email}</p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">CNPJ/CPF:</span> 
-                  <span className="ml-1 break-all">{formatCpfCnpj(cliente.cnpj_cpf)}</span>
+                  <span className="ml-1 break-all">{formatarCpfCnpj(cliente.cnpj_cpf)}</span>
                 </p>
                 
                 {/* Espaço reservado para representante - altura fixa */}
@@ -1366,21 +1364,36 @@ const Clientes = () => {
       
       {/* Estado vazio */}
       {filteredClientes.length === 0 && (
-        <div className="text-center py-12">
-          <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            {hasActiveFilters
-              ? "Nenhum cliente encontrado com os filtros aplicados"
-              : "Nenhum cliente cadastrado ainda"}
-          </p>
-          {hasActiveFilters && (
-            <Button 
-              size="sm" 
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="rounded-full bg-muted p-4">
+            <Users className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">
+              {hasActiveFilters ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {hasActiveFilters
+                ? "Nenhum cliente encontrado com os filtros aplicados."
+                : "Comece cadastrando o primeiro cliente do sistema."}
+            </p>
+          </div>
+          {hasActiveFilters ? (
+            <Button
+              size="sm"
               onClick={handleClearFilters}
-              className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+              className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
             >
               <X className="h-4 w-4 mr-2" />
               Limpar Filtros
+            </Button>
+          ) : canCreate && (
+            <Button
+              className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Cliente
             </Button>
           )}
         </div>

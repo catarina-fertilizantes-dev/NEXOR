@@ -16,10 +16,24 @@ interface AuthContextType {
   needsPasswordChange: boolean;
   recoveryMode: boolean;
   clearRecoveryMode: () => void;
-  getDefaultRouteForRole: (role: string | null) => string; // 🆕 FUNÇÃO TEMPORÁRIA
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// 🔒 Remove a sessão persistida do supabase-js do localStorage/sessionStorage,
+// sem depender de sucesso de rede. A chave real é `sb-<project-ref>-auth-token`
+// (gerada a partir do hostname da URL do Supabase, ver SupabaseClient.js do supabase-js),
+// por isso removemos por padrão em vez de uma chave fixa — cobre Dev e Prod.
+const clearLocalSupabaseSession = () => {
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('sb-') && key.endsWith('-auth-token'))
+      .forEach((key) => localStorage.removeItem(key));
+    sessionStorage.clear();
+  } catch (storageError) {
+    console.warn('⚠️ [WARN] Erro ao limpar storage:', storageError);
+  }
+};
 
 // 🔒 Função para verificar status ativo do usuário
 const checkUserActiveStatus = async (userId: string): Promise<{ active: boolean; role: string | null; message: string }> => {
@@ -37,7 +51,7 @@ const checkUserActiveStatus = async (userId: string): Promise<{ active: boolean;
     }
 
     console.log('✅ [DEBUG] Status check resultado:', data);
-    return data || { active: true, role: null, message: 'Sem dados - acesso permitido' };
+    return (data as { active: boolean; role: string | null; message: string } | null) || { active: true, role: null, message: 'Sem dados - acesso permitido' };
   } catch (err) {
     console.error('❌ [ERROR] Erro inesperado na verificação de status:', err);
     // 🛡️ FALLBACK SEGURO: Em caso de erro, permitir acesso
@@ -73,35 +87,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('❌ [ERROR] Erro inesperado ao buscar role:', err);
       setUserRole(null);
-    }
-  };
-
-  // 🚧 FUNÇÃO TEMPORÁRIA: Redirecionamento por role enquanto Dashboard não está implementado
-  // TODO: REMOVER esta função quando os dashboards personalizados forem implementados
-  // Após implementação dos dashboards, todos os perfis devem ser redirecionados para "/" (Dashboard)
-  const getDefaultRouteForRole = (role: string | null): string => {
-    console.log('🚧 [TEMP] Redirecionamento temporário para role:', role);
-    
-    if (!role) {
-      console.log('🚧 [TEMP] Role não definida, redirecionando para /agendamentos');
-      return "/agendamentos"; // Fallback padrão
-    }
-    
-    switch (role) {
-      case "admin":
-      case "logistica":
-      case "cliente":        // 🆕 CORRIGIDO: Cliente tem acesso a Liberações
-      case "representante":  // �� CORRIGIDO: Representante tem acesso a Liberações
-        console.log('🚧 [TEMP] Admin/Logística/Cliente/Representante → /liberacoes');
-        return "/liberacoes"; // Primeira página disponível para estes perfis
-      
-      case "armazem":
-        console.log('🚧 [TEMP] Armazém → /agendamentos');
-        return "/agendamentos"; // Primeira página disponível para armazém (excluído de liberações)
-      
-      default:
-        console.log('🚧 [TEMP] Role desconhecida, redirecionando para /agendamentos');
-        return "/agendamentos"; // Fallback padrão
     }
   };
 
@@ -298,48 +283,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       console.log('🚪 [DEBUG] Iniciando logout...');
-      
-      // 1. Logout do Supabase
+
+      // 1. Logout do Supabase (chamada de rede para invalidar o token no servidor)
+      // Se essa chamada falhar (rede instável, timeout), o supabase-js NÃO limpa
+      // a sessão local sozinho — por isso a limpeza local abaixo é feita
+      // incondicionalmente, sem depender do resultado dessa chamada.
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('❌ [ERROR] Erro no logout do Supabase:', error);
+        console.error('❌ [ERROR] Erro no logout do Supabase (sessão local será limpa mesmo assim):', error);
       }
-      
+
       // 2. Limpar estados locais FORÇADAMENTE
       setUser(null);
       setSession(null);
       setUserRole(null);
       setNeedsPasswordChange(false);
       setRecoveryMode(false);
-      
-      // 3. Limpar localStorage/sessionStorage (se houver cache customizado)
-      try {
-        localStorage.removeItem('supabase.auth.token');
-        sessionStorage.clear();
-      } catch (storageError) {
-        console.warn('⚠️ [WARN] Erro ao limpar storage:', storageError);
-      }
-      
+
+      // 3. Limpar a sessão persistida no localStorage independente do passo 1.
+      // Chave real usada pelo supabase-js é `sb-<project-ref>-auth-token`
+      // (não `supabase.auth.token`, que nunca foi a chave usada nesta app).
+      clearLocalSupabaseSession();
+
       // 4. Forçar redirecionamento
       window.location.href = '/auth';
-      
+
       console.log('✅ [SUCCESS] Logout concluído');
-      
+
       toast({
         title: "Logout realizado",
         description: "Até logo!"
       });
-      
+
     } catch (err) {
       console.error('❌ [ERROR] Erro inesperado no logout:', err);
-      
+
       // 5. FALLBACK: Forçar limpeza mesmo com erro
       setUser(null);
       setSession(null);
       setUserRole(null);
       setNeedsPasswordChange(false);
       setRecoveryMode(false);
-      
+      clearLocalSupabaseSession();
+
       // Forçar redirecionamento mesmo com erro
       window.location.href = '/auth';
     }
@@ -364,8 +350,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       hasRole,
       needsPasswordChange,
       recoveryMode,
-      clearRecoveryMode,
-      getDefaultRouteForRole // 🆕 FUNÇÃO TEMPORÁRIA
+      clearRecoveryMode
     }}>
       {children}
     </AuthContext.Provider>

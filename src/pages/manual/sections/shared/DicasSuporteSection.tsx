@@ -8,6 +8,7 @@ interface DicasSuporteSectionProps {
 export const DicasSuporteSection = ({ userProfile }: DicasSuporteSectionProps) => {
   const canUpload = ['armazem', 'admin', 'logistica'].includes(userProfile);
   const hasEstoqueAccess = ['armazem', 'admin', 'logistica'].includes(userProfile);
+  const isLogisticaOuAdmin = ['admin', 'logistica'].includes(userProfile);
 
   return (
     <section id="dicas-suporte" className="space-y-6">
@@ -121,7 +122,7 @@ export const DicasSuporteSection = ({ userProfile }: DicasSuporteSectionProps) =
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-2 font-medium text-foreground">Problema</th>
-                    <th className="text-left p-2 font-medium text-foreground">Solu��ão</th>
+                    <th className="text-left p-2 font-medium text-foreground">Solução</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,8 +184,12 @@ export const DicasSuporteSection = ({ userProfile }: DicasSuporteSectionProps) =
                 {[
                   { q: "Posso editar um carregamento após finalizar?", a: "Não. Carregamentos finalizados não podem ser editados. Entre em contato com a Logística se necessário." },
                   { q: "Por que não consigo avançar para a próxima etapa?", a: "Verifique se a foto obrigatória foi anexada. Todas as etapas exigem foto para prosseguir." },
-                  { q: "O que acontece na etapa 5B?", a: "A subetapa 5B é exclusiva da Logística. Você verá a mensagem de aguardando e não pode fazer upload. Aguarde a Logística concluir para liberar a 5C." },
-                  { q: "Posso criar ou cancelar carregamentos?", a: "Não. A criação e cancelamento são realizados pela equipe de Logística." },
+                  { q: "O que acontece na etapa 5B?", a: isLogisticaOuAdmin
+                      ? "A subetapa 5B é sua responsabilidade: você anexa a Nota Fiscal de Venda + XML depois que o Armazém concluir a 5A (Docs. Retorno). Ao enviar, a 5C é liberada para o Armazém."
+                      : "A subetapa 5B é exclusiva da Logística. Você verá a mensagem de aguardando e não pode fazer upload. Aguarde a Logística concluir para liberar a 5C." },
+                  { q: "Posso criar ou cancelar carregamentos?", a: isLogisticaOuAdmin
+                      ? "Não existe uma ação de criar ou cancelar carregamento diretamente. O carregamento é criado automaticamente ao registrar um agendamento. Para removê-lo, cancele o agendamento vinculado — só é possível enquanto o carregamento ainda não foi iniciado."
+                      : "Não diretamente. O carregamento é criado automaticamente quando um agendamento é feito, e só deixa de existir se a Logística cancelar esse agendamento (somente antes de ele ser iniciado)." },
                 ].map((item, i) => (
                   <div key={i} className="border-b border-border pb-3 last:border-0 last:pb-0">
                     <p className="text-sm font-medium text-foreground mb-1"><strong>P: {item.q}</strong></p>
@@ -205,7 +210,9 @@ export const DicasSuporteSection = ({ userProfile }: DicasSuporteSectionProps) =
                 </h4>
                 <div className="space-y-3">
                   {[
-                    { q: "Vejo outros armazéns?", a: "Não, apenas o seu." },
+                    { q: "Vejo outros armazéns?", a: isLogisticaOuAdmin
+                        ? "Sim, você vê o estoque de todos os armazéns cadastrados no sistema."
+                        : "Não, apenas o seu." },
                     { q: 'O que significa "Estoque Baixo"?', a: "Indica que a quantidade em estoque está abaixo do nível mínimo e requer atenção." },
                     { q: 'Qual a diferença entre "Estoque Físico" e "Estoque Disponível"?', a: "Estoque Físico é a quantidade real presente no armazém neste momento. Estoque Disponível é a quantidade livre para novas liberações, descontando valores já liberados (mesmo que ainda não retirados)." },
                     { q: "Por que o Estoque Disponível é menor que o Estoque Físico?", a: "Porque existem liberações aprovadas pela Logística que ainda não foram retiradas fisicamente do armazém. O produto está lá, mas já está comprometido para um cliente." },

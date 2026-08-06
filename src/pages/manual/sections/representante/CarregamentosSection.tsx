@@ -43,7 +43,7 @@ export const CarregamentosSection = () => {
       </Card>
 
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">As 6 Etapas do Carregamento</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-3">As 5 Etapas do Carregamento</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
@@ -86,14 +86,15 @@ export const CarregamentosSection = () => {
                   </ul>
                 </td>
               </tr>
-              <tr className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-2 text-center">6️⃣</td>
-                <td className="p-2 font-medium text-foreground">Finalizado</td>
-                <td className="p-2 text-muted-foreground">Processo completo encerrado</td>
-                <td className="p-2 text-foreground">✅ Tudo concluído</td>
-              </tr>
             </tbody>
           </table>
+        </div>
+        <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 p-3 mt-3">
+          <p className="text-sm text-green-800 dark:text-green-200">
+            ✅ <strong>Processo Finalizado:</strong> assim que a Etapa 5 é concluída (5A + 5B + 5C), o sistema encerra
+            o carregamento automaticamente e mostra um painel de "Processo Finalizado" no lugar da timeline. Não é
+            mais um passo com ação — é só um resumo.
+          </p>
         </div>
       </div>
 
@@ -250,7 +251,7 @@ export const CarregamentosSection = () => {
             <tbody>
               {[
                 { action: "Visualizar todos os carregamentos dos clientes que representa", allowed: true },
-                { action: "Acompanhar progresso em tempo real (6 etapas)", allowed: true },
+                { action: "Acompanhar progresso em tempo real (5 etapas + painel de conclusão)", allowed: true },
                 { action: "Visualizar e baixar fotos das Etapas 1-4 (após conclusão pelo armazém)", allowed: true },
                 { action: "Visualizar e baixar documentos da Etapa 5 (3 PDFs + 3 XMLs)", allowed: true },
                 { action: "Filtrar por período, status ou busca", allowed: true },
@@ -287,7 +288,7 @@ export const CarregamentosSection = () => {
           <p>4. Carregando → Etapa 3 (60%)</p>
           <p>5. Finaliza carregamento → Etapa 4 (80%)</p>
           <p>6. Docs. Retorno / Venda / Remessa → Etapa 5 (5A, 5B, 5C)</p>
-          <p>7. Processo finalizado → Etapa 6 (100%) ✅</p>
+          <p>7. Processo finalizado → painel automático "Processo Finalizado" (100%) ✅</p>
         </div>
       </div>
 

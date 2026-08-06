@@ -89,7 +89,7 @@ export const IntroducaoSection = () => {
           {[
             { icon: ClipboardList, text: "Visualizar liberações de todos os clientes que você representa e acompanhar a disponibilidade para retirada" },
             { icon: Calendar, text: "Criar agendamentos de retirada em nome dos clientes, informando dados do veículo, motorista e transportadora" },
-            { icon: Truck, text: "Acompanhar carregamentos em tempo real de todos os seus clientes, visualizar as 6 etapas e baixar fotos e documentos" },
+            { icon: Truck, text: "Acompanhar carregamentos em tempo real de todos os seus clientes, visualizar as 5 etapas do processo e baixar fotos e documentos" },
           ].map((item, i) => (
             <Card key={i}>
               <CardContent className="p-3 flex items-center gap-3">

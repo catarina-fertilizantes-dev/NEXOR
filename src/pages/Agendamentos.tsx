@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -9,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar, Clock, User, Truck, Plus, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Info, Loader2, ChevronRight, Building2, FileText, Package, CheckCircle, Edit3, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +20,8 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validarCPF, validarCNPJ } from "@/lib/documentValidation";
+import { parseDateOnly, formatDateOnlyBR } from "@/lib/utils";
 
 const getStatusCarregamento = (etapaAtual: number) => {
   if (etapaAtual === 1) {
@@ -56,7 +60,7 @@ const getStatusCarregamento = (etapaAtual: number) => {
     };
   } else {
     return {
-      status: "Finalizado",
+      status: "Processo Finalizado",
       percentual: 100,
       cor: "bg-green-100 text-green-800",
       tooltip: "Documentação anexada e processo concluído"
@@ -72,6 +76,8 @@ const getAgendamentoStatusTooltip = (status: string) => {
       return "O carregamento referente à este agendamento está sendo realizado";
     case "concluido":
       return "O carregamento referente à este agendamento foi finalizado e o caminhão liberado";
+    case "cancelado":
+      return "Este agendamento foi cancelado e não ocupa mais saldo da liberação";
     default:
       return "";
   }
@@ -81,6 +87,7 @@ const STATUS_AGENDAMENTO = [
   { id: "pendente", nome: "Pendente", cor: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
   { id: "em_andamento", nome: "Em Andamento", cor: "bg-blue-100 text-blue-800 hover:bg-blue-200" },
   { id: "concluido", nome: "Concluído", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
+  { id: "cancelado", nome: "Cancelado", cor: "bg-red-100 text-red-800 hover:bg-red-200" },
 ];
 
 const EmptyStateCardWithAction = ({ 
@@ -188,12 +195,12 @@ function formatCNPJ(cnpj: string): string {
   return cleaned.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
 
-const parseDate = (d: string) => {
-  const [dd, mm, yyyy] = d.split("/");
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+const formatCanceladoEm = (iso: string | null) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("pt-BR");
 };
 
-type AgendamentoStatus = "pendente" | "em_andamento" | "concluido";
+type AgendamentoStatus = "pendente" | "em_andamento" | "concluido" | "cancelado";
 
 interface AgendamentoItem {
   id: string;
@@ -201,6 +208,7 @@ interface AgendamentoItem {
   produto: string;
   quantidade: number;
   data: string;
+  data_retirada_raw: string;
   placa: string;
   motorista: string;
   documento: string;
@@ -221,7 +229,9 @@ interface AgendamentoItem {
   percentual_carregamento: number;
   cor_carregamento: string;
   tooltip_carregamento: string;
+  carregamento_id: string | null;
   finalizado: boolean;
+  cancelado_em: string | null;
 }
 
 const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
@@ -251,13 +261,16 @@ const validateAgendamento = (ag: any, quantidadeDisponivel: number) => {
   }
   
   if (!ag.motorista || ag.motorista.trim().length < 3) errors.push("Nome do motorista");
-  if (!ag.documento || ag.documento.replace(/\D/g, "").length !== 11) errors.push("Documento (CPF) do motorista");
-  
+  const documentoLimpo = (ag.documento ?? "").replace(/\D/g, "");
+  if (!documentoLimpo || documentoLimpo.length !== 11) errors.push("Documento (CPF) do motorista");
+  else if (!validarCPF(documentoLimpo)) errors.push("CPF do motorista inválido");
+
   if (!ag.transportadora || ag.transportadora.trim().length < 3) errors.push("Nome da transportadora");
-  
+
   const cnpjLimpo = (ag.cnpjTransportadora ?? "").replace(/\D/g, "");
   if (cnpjLimpo.length !== 14) errors.push("CNPJ da transportadora");
-  
+  else if (!validarCNPJ(cnpjLimpo)) errors.push("CNPJ da transportadora inválido");
+
   return errors;
 };
 
@@ -269,6 +282,7 @@ function validatePlaca(placa: string) {
 
 const Agendamentos = () => {
   useScrollToTop();
+  const navigate = useNavigate();
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -290,6 +304,26 @@ const Agendamentos = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [detalhesAgendamento, setDetalhesAgendamento] = useState<AgendamentoItem | null>(null);
   const [secaoFinalizadosExpandida, setSecaoFinalizadosExpandida] = useState(false);
+  const [secaoCanceladosExpandida, setSecaoCanceladosExpandida] = useState(false);
+
+  const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
+  const [formEditarAgendamento, setFormEditarAgendamento] = useState({
+    quantidade: "",
+    data: "",
+    placa: "",
+    placaCarreta1: "",
+    placaCarreta2: "",
+    motorista: "",
+    documento: "",
+    transportadora: "",
+    cnpjTransportadora: "",
+  });
+  const [isEditandoAgendamento, setIsEditandoAgendamento] = useState(false);
+  const [isLoadingMaxQuantidadeEditar, setIsLoadingMaxQuantidadeEditar] = useState(false);
+  const [maxQuantidadeEditar, setMaxQuantidadeEditar] = useState<number | null>(null);
+
+  const [showCancelarAgendamento, setShowCancelarAgendamento] = useState(false);
+  const [isCancelandoAgendamento, setIsCancelandoAgendamento] = useState(false);
 
   const { data: agendamentosData, isLoading, error } = useQuery({
     queryKey: ["agendamentos", clienteId, armazemId, representanteId, userRole],
@@ -431,7 +465,8 @@ const Agendamentos = () => {
           cliente: item.cliente_nome,
           produto: item.produto_nome,
           quantidade: item.quantidade,
-          data: new Date(item.data_retirada).toLocaleDateString("pt-BR"),
+          data: formatDateOnlyBR(item.data_retirada),
+          data_retirada_raw: item.data_retirada,
           placa: item.placa_caminhao || "N/A",
           motorista: item.motorista_nome || "N/A",
           documento: item.motorista_documento || "N/A",
@@ -452,7 +487,9 @@ const Agendamentos = () => {
           percentual_carregamento: statusInfo.percentual,
           cor_carregamento: statusInfo.cor,
           tooltip_carregamento: statusInfo.tooltip,
+          carregamento_id: item.carregamento_id ?? null,
           finalizado,
+          cancelado_em: item.cancelado_em ?? null,
         };
       } else {
         let etapaAtual = 1;
@@ -467,9 +504,8 @@ const Agendamentos = () => {
           cliente: item.liberacao?.clientes?.nome || "N/A",
           produto: item.liberacao?.produto?.nome || "N/A",
           quantidade: item.quantidade,
-          data: item.data_retirada
-            ? new Date(item.data_retirada).toLocaleDateString("pt-BR")
-            : "",
+          data: item.data_retirada ? formatDateOnlyBR(item.data_retirada) : "",
+          data_retirada_raw: item.data_retirada || "",
           placa: item.placa_caminhao || "N/A",
           motorista: item.motorista_nome || "N/A",
           documento: item.motorista_documento || "N/A",
@@ -490,7 +526,9 @@ const Agendamentos = () => {
           percentual_carregamento: statusInfo.percentual,
           cor_carregamento: statusInfo.cor,
           tooltip_carregamento: statusInfo.tooltip,
+          carregamento_id: carregamento?.id ?? null,
           finalizado,
+          cancelado_em: item.cancelado_em ?? null,
         };
       }
     });
@@ -736,6 +774,12 @@ const Agendamentos = () => {
             title: "Quantidade inválida",
             description: "A quantidade solicitada excede o disponível para esta liberação.",
           });
+        } else if (errAgend.code === "23514" && errAgend.message?.includes("motorista_documento_checksum")) {
+          setFormError("CPF do motorista inválido. Confira os números digitados.");
+          toast({ variant: "destructive", title: "CPF do motorista inválido", description: "Confira os números digitados." });
+        } else if (errAgend.code === "23514" && errAgend.message?.includes("cnpj_transportadora_checksum")) {
+          setFormError("CNPJ da transportadora inválido. Confira os números digitados.");
+          toast({ variant: "destructive", title: "CNPJ da transportadora inválido", description: "Confira os números digitados." });
         } else {
           setFormError(errAgend.message || "Erro desconhecido");
           toast({ variant: "destructive", title: "Erro ao criar agendamento", description: errAgend.message });
@@ -747,7 +791,7 @@ const Agendamentos = () => {
 
       toast({
         title: "Agendamento criado com sucesso!",
-        description: `${(agendData.liberacao as any)?.clientes?.nome ?? ""} - ${new Date(agendData.data_retirada).toLocaleDateString("pt-BR")} - ${qtdNum}t`
+        description: `${(agendData.liberacao as any)?.clientes?.nome ?? ""} - ${formatDateOnlyBR(agendData.data_retirada)} - ${qtdNum}t`
       });
       resetFormNovoAgendamento();
       setDialogOpen(false);
@@ -777,38 +821,77 @@ const Agendamentos = () => {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  // Deep-link vindo do dashboard (ex: card "Agendados Hoje"): ?data=hoje
+  // pré-seleciona o filtro de período pro dia de hoje. Lido só uma vez
+  // (useState inicial) — o param some da URL logo a seguir.
+  const filtroInicialData = searchParams.get("data") === "hoje" ? hojeISO : "";
+
   const [selectedStatuses, setSelectedStatuses] = useState<AgendamentoStatus[]>([]);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(filtroInicialData);
+  const [dateTo, setDateTo] = useState(filtroInicialData);
 
   const allStatuses: AgendamentoStatus[] = ["pendente", "em_andamento", "concluido"];
   const toggleStatus = (st: AgendamentoStatus) => setSelectedStatuses((prev) => (prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]));
   const clearFilters = () => { setSearch(""); setSelectedStatuses([]); setDateFrom(""); setDateTo(""); };
 
-  const { agendamentosAtivos, agendamentosFinalizados } = useMemo(() => {
+  // Deep-link vindo do dashboard (ex: item de "Próximos Agendamentos"):
+  // ?agendamentoId= abre automaticamente o modal de detalhe daquele
+  // agendamento assim que a lista carrega. Tira os params (?data e
+  // ?agendamentoId) da URL logo no mount, guardando o id numa ref — senão,
+  // fechar o modal zera detalhesAgendamento, o que reexecutava o efeito
+  // (com o param ainda na URL) e reabria o modal na hora, travando o
+  // fechamento em loop.
+  const agendamentoIdParaAbrir = useRef(searchParams.get("agendamentoId"));
+  useEffect(() => {
+    if (searchParams.has("data") || searchParams.has("agendamentoId")) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("data");
+          next.delete("agendamentoId");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!agendamentoIdParaAbrir.current) return;
+    const match = agendamentos.find((a) => a.id === agendamentoIdParaAbrir.current);
+    if (match) {
+      setDetalhesAgendamento(match);
+      agendamentoIdParaAbrir.current = null;
+    }
+  }, [agendamentos]);
+
+  const { agendamentosAtivos, agendamentosFinalizados, agendamentosCancelados } = useMemo(() => {
     const filtered = agendamentos.filter((a) => {
       const term = search.trim().toLowerCase();
       if (term) {
-        const hay = `${a.cliente} ${a.produto} ${a.pedido} ${a.motorista}`.toLowerCase();
+        const hay = `${a.cliente} ${a.produto} ${a.pedido} ${a.motorista} ${a.armazem} ${a.placa}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(a.status)) return false;
       if (dateFrom) {
-        const from = new Date(dateFrom);
-        if (parseDate(a.data) < from) return false;
+        const from = parseDateOnly(dateFrom);
+        if (parseDateOnly(a.data_retirada_raw) < from) return false;
       }
       if (dateTo) {
-        const to = new Date(dateTo);
+        const to = parseDateOnly(dateTo);
         to.setHours(23, 59, 59, 999);
-        if (parseDate(a.data) > to) return false;
+        if (parseDateOnly(a.data_retirada_raw) > to) return false;
       }
       return true;
     });
 
-    const ativos = filtered.filter(a => !a.finalizado);
-    const finalizados = filtered.filter(a => a.finalizado);
+    const cancelados = filtered.filter(a => a.status === 'cancelado');
+    const ativos = filtered.filter(a => !a.finalizado && a.status !== 'cancelado');
+    const finalizados = filtered.filter(a => a.finalizado && a.status !== 'cancelado');
 
-    return { agendamentosAtivos: ativos, agendamentosFinalizados: finalizados };
+    return { agendamentosAtivos: ativos, agendamentosFinalizados: finalizados, agendamentosCancelados: cancelados };
   }, [agendamentos, search, selectedStatuses, dateFrom, dateTo]);
 
   useEffect(() => {
@@ -817,7 +900,13 @@ const Agendamentos = () => {
     }
   }, [search, agendamentosFinalizados.length, secaoFinalizadosExpandida]);
 
-  const showingCount = agendamentosAtivos.length + agendamentosFinalizados.length;
+  useEffect(() => {
+    if (search.trim() && agendamentosCancelados.length > 0 && !secaoCanceladosExpandida) {
+      setSecaoCanceladosExpandida(true);
+    }
+  }, [search, agendamentosCancelados.length, secaoCanceladosExpandida]);
+
+  const showingCount = agendamentosAtivos.length + agendamentosFinalizados.length + agendamentosCancelados.length;
   const totalCount = agendamentos.length;
   const activeAdvancedCount = (selectedStatuses.length ? 1 : 0) + ((dateFrom || dateTo) ? 1 : 0);
   const hasActiveFilters = search.trim() || selectedStatuses.length > 0 || dateFrom || dateTo;
@@ -856,6 +945,8 @@ const Agendamentos = () => {
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
       case "concluido":
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+      case "cancelado":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
     }
@@ -869,129 +960,287 @@ const Agendamentos = () => {
         return "Em Andamento";
       case "concluido":
         return "Concluído";
+      case "cancelado":
+        return "Cancelado";
       default:
         return status;
     }
   };
 
+  const handleAbrirEditarAgendamento = async () => {
+    if (!detalhesAgendamento || !detalhesAgendamento.liberacao_id) return;
+    setShowEditarAgendamento(true);
+    setMaxQuantidadeEditar(null);
+    setFormEditarAgendamento({
+      quantidade: String(detalhesAgendamento.quantidade),
+      data: detalhesAgendamento.data_retirada_raw,
+      placa: maskPlaca(detalhesAgendamento.placa),
+      placaCarreta1: maskPlaca(detalhesAgendamento.placa_carreta_1),
+      placaCarreta2: detalhesAgendamento.placa_carreta_2 ? maskPlaca(detalhesAgendamento.placa_carreta_2) : "",
+      motorista: detalhesAgendamento.motorista,
+      documento: maskCPF(detalhesAgendamento.documento),
+      transportadora: detalhesAgendamento.transportadora,
+      cnpjTransportadora: maskCNPJ(detalhesAgendamento.cnpj_transportadora),
+    });
+    setIsLoadingMaxQuantidadeEditar(true);
+    try {
+      const { data, error } = await supabase.rpc('get_quantidade_disponivel_liberacao', {
+        liberacao_uuid: detalhesAgendamento.liberacao_id,
+      });
+      if (error) throw error;
+      setMaxQuantidadeEditar(Number(data) + detalhesAgendamento.quantidade);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar saldo disponível",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsLoadingMaxQuantidadeEditar(false);
+    }
+  };
+
+  const handleCloseEditarAgendamento = () => {
+    setShowEditarAgendamento(false);
+    setFormEditarAgendamento({
+      quantidade: "",
+      data: "",
+      placa: "",
+      placaCarreta1: "",
+      placaCarreta2: "",
+      motorista: "",
+      documento: "",
+      transportadora: "",
+      cnpjTransportadora: "",
+    });
+    setMaxQuantidadeEditar(null);
+  };
+
+  const handleEditarAgendamento = async () => {
+    if (!detalhesAgendamento) return;
+
+    const qtdNum = Number(formEditarAgendamento.quantidade);
+    if (Number.isNaN(qtdNum) || qtdNum <= 0) {
+      toast({ variant: "destructive", title: "Quantidade inválida" });
+      return;
+    }
+    if (maxQuantidadeEditar !== null && qtdNum > maxQuantidadeEditar) {
+      toast({
+        variant: "destructive",
+        title: "Saldo insuficiente na liberação",
+        description: `Máximo permitido: ${maxQuantidadeEditar.toLocaleString('pt-BR')}t.`,
+      });
+      return;
+    }
+    if (!formEditarAgendamento.data) {
+      toast({ variant: "destructive", title: "Data de retirada é obrigatória" });
+      return;
+    }
+    const placaSemMascara = formEditarAgendamento.placa.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    if (!validatePlaca(placaSemMascara)) {
+      toast({ variant: "destructive", title: "Placa do veículo inválida" });
+      return;
+    }
+    const placaCarreta1SemMascara = formEditarAgendamento.placaCarreta1.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    if (!validatePlaca(placaCarreta1SemMascara)) {
+      toast({ variant: "destructive", title: "Placa da Carreta 1 inválida" });
+      return;
+    }
+    let placaCarreta2SemMascara = "";
+    if (formEditarAgendamento.placaCarreta2.trim()) {
+      placaCarreta2SemMascara = formEditarAgendamento.placaCarreta2.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+      if (!validatePlaca(placaCarreta2SemMascara)) {
+        toast({ variant: "destructive", title: "Placa da Carreta 2 inválida" });
+        return;
+      }
+    }
+    if (!formEditarAgendamento.motorista.trim() || formEditarAgendamento.motorista.trim().length < 3) {
+      toast({ variant: "destructive", title: "Nome do motorista inválido" });
+      return;
+    }
+    const cpfLimpo = formEditarAgendamento.documento.replace(/\D/g, "");
+    if (cpfLimpo.length !== 11) {
+      toast({ variant: "destructive", title: "CPF do motorista inválido" });
+      return;
+    }
+    if (!validarCPF(cpfLimpo)) {
+      toast({ variant: "destructive", title: "CPF do motorista inválido", description: "Confira os números digitados." });
+      return;
+    }
+    if (!formEditarAgendamento.transportadora.trim() || formEditarAgendamento.transportadora.trim().length < 3) {
+      toast({ variant: "destructive", title: "Nome da transportadora inválido" });
+      return;
+    }
+    const cnpjLimpo = formEditarAgendamento.cnpjTransportadora.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) {
+      toast({ variant: "destructive", title: "CNPJ da transportadora inválido" });
+      return;
+    }
+    if (!validarCNPJ(cnpjLimpo)) {
+      toast({ variant: "destructive", title: "CNPJ da transportadora inválido", description: "Confira os números digitados." });
+      return;
+    }
+
+    setIsEditandoAgendamento(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc('editar_agendamento', {
+        p_agendamento_id: detalhesAgendamento.id,
+        p_quantidade: qtdNum,
+        p_data_retirada: formEditarAgendamento.data,
+        p_placa_caminhao: placaSemMascara,
+        p_placa_carreta_1: placaCarreta1SemMascara,
+        p_placa_carreta_2: placaCarreta2SemMascara || null,
+        p_motorista_nome: formEditarAgendamento.motorista.trim(),
+        p_motorista_documento: cpfLimpo,
+        p_transportadora: formEditarAgendamento.transportadora.trim(),
+        p_cnpj_transportadora: cnpjLimpo,
+        p_user_id: userData.user?.id ?? '',
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) throw new Error(result.error);
+      toast({ title: "Agendamento atualizado" });
+      handleCloseEditarAgendamento();
+      setDetalhesAgendamento(null);
+      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["agendamentos-totais"] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      if (msg.includes("motorista_documento_checksum")) {
+        toast({ variant: "destructive", title: "CPF do motorista inválido", description: "Confira os números digitados." });
+      } else if (msg.includes("cnpj_transportadora_checksum")) {
+        toast({ variant: "destructive", title: "CNPJ da transportadora inválido", description: "Confira os números digitados." });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao editar agendamento",
+          description: msg,
+        });
+      }
+    } finally {
+      setIsEditandoAgendamento(false);
+    }
+  };
+
+  const handleAbrirCancelarAgendamento = () => {
+    setShowCancelarAgendamento(true);
+  };
+
+  const handleCancelarAgendamento = async () => {
+    if (!detalhesAgendamento) return;
+    setIsCancelandoAgendamento(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc('cancelar_agendamento', {
+        p_agendamento_id: detalhesAgendamento.id,
+        p_user_id: userData.user?.id ?? '',
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) throw new Error(result.error);
+      toast({
+        title: "Agendamento cancelado",
+        description: "O saldo foi liberado de volta para a liberação.",
+      });
+      setShowCancelarAgendamento(false);
+      setDetalhesAgendamento(null);
+      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["agendamentos-totais"] });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao cancelar agendamento",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsCancelandoAgendamento(false);
+    }
+  };
+
   const renderAgendamentoCard = (ag: AgendamentoItem) => (
-    <Card key={ag.id} className="transition-all hover:shadow-md cursor-pointer">
+    <Card
+      key={ag.id}
+      className="border-l-4 border-l-violet-500 dark:border-l-violet-400 transition-all hover:shadow-md cursor-pointer"
+      onClick={() => setDetalhesAgendamento(ag)}
+    >
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="flex justify-start sm:order-2 sm:justify-end">
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Badge className={`${getStatusColor(ag.status)} text-xs px-2 py-1 text-center`}>
-                      {getStatusLabel(ag.status)}
-                    </Badge>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{getAgendamentoStatusTooltip(ag.status)}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-  
-            <div 
-              className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
-              onClick={() => setDetalhesAgendamento(ag)}
-            >
-              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary shrink-0">
-                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-white" />
+          {/* Cabeçalho: ícone + pedido + status */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30 shrink-0">
+                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-violet-600 dark:text-violet-400" />
               </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {ag.pedido}</h3>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{ag.cliente}</span>
-                  </p>
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{ag.produto}</span>
-                  </p>
-                  <p className="whitespace-nowrap break-words">
-                    <span className="font-medium text-foreground">Armazém:</span> {ag.armazem}
-                  </p>
+              <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {ag.pedido}</h3>
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Badge className={`${getStatusColor(ag.status)} text-xs px-2 py-1 text-center`}>
+                    {getStatusLabel(ag.status)}
+                  </Badge>
+                  <Info className="h-3 w-3 text-muted-foreground" />
                 </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Quantidade:</span> {ag.quantidade.toLocaleString('pt-BR')}t
-                  </p>
-                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
+                <p className="text-sm">{getAgendamentoStatusTooltip(ag.status)}</p>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Informações em 2 colunas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <p className="truncate" title={ag.cliente}><span className="font-medium text-foreground">Cliente:</span> {ag.cliente}</p>
+            <p className="truncate" title={ag.produto}><span className="font-medium text-foreground">Produto:</span> {ag.produto}</p>
+            <p className="truncate" title={ag.armazem}><span className="font-medium text-foreground">Armazém:</span> {ag.armazem}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Quantidade:</span> {ag.quantidade.toLocaleString('pt-BR')}t</p>
+            <p className="truncate"><span className="font-medium text-foreground">Retirada:</span> {ag.data || "—"}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Caminhão:</span> {formatPlaca(ag.placa)}</p>
+          </div>
+
+          {/* Rodapé: etapa do carregamento + atalho, ou data de cancelamento */}
+          <div className="pt-3 border-t flex items-center justify-between gap-2">
+            {ag.status === 'cancelado' ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+                <span className="text-xs text-red-600 font-medium whitespace-nowrap">
+                  Cancelado em {formatCanceladoEm(ag.cancelado_em) ?? "—"}
+                </span>
               </div>
-            </div>
-          </div>
-  
-          <div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm pt-2"
-            onClick={() => setDetalhesAgendamento(ag)}
-          >
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{ag.data}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{formatPlaca(ag.placa)}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate" title={ag.motorista}>{ag.motorista}</span>
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="truncate" title={ag.transportadora}>{ag.transportadora || "N/A"}</span>
-            </div>
-          </div>
-  
-          <div 
-            className="pt-2 border-t"
-            onClick={() => setDetalhesAgendamento(ag)}
-          >
-            <div className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-purple-600 shrink-0" />
-              <span className="text-xs text-purple-600 font-medium shrink-0">Carregamento:</span>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0"
-                    onClick={(e) => e.stopPropagation()}
+            ) : (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <Truck className="h-4 w-4 text-purple-600 shrink-0" />
+                      <span className="text-xs text-purple-600 font-medium shrink-0 hidden sm:inline">Carregamento:</span>
+                      <Badge variant="secondary" className={`${ag.cor_carregamento} text-xs font-normal whitespace-nowrap`}>
+                        Etapa {ag.etapa_carregamento}/6 · {ag.status_carregamento}
+                      </Badge>
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[260px] p-2" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-sm">{ag.tooltip_carregamento}. As etapas do carregamento são acompanhadas na página Carregamentos.</p>
+                  </PopoverContent>
+                </Popover>
+
+                {ag.carregamento_id && (
+                  <Button
+                    size="sm"
+                    className="h-8 shrink-0 gap-1 px-2.5 text-xs min-h-[32px] btn-secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/carregamentos/${ag.carregamento_id}`);
+                    }}
                   >
-                    <div 
-                      className="bg-purple-500 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${ag.percentual_carregamento}%` }}
-                    ></div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{ag.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium w-8 text-right">
-                      {ag.percentual_carregamento}%
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{ag.tooltip_carregamento}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+                    <span className="hidden sm:inline">Ver carregamento</span>
+                    <span className="sm:hidden">Ver</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         </div>
       </CardContent>
@@ -1051,7 +1300,7 @@ const Agendamentos = () => {
           subtitle="Gerencie os agendamentos de retirada"
           icon={Calendar}
           actions={
-            canCreate && (
+            canCreate && temLiberacoesDisponiveis && (
               <Dialog open={dialogOpen} onOpenChange={(open) => {
                 if (!open && isCreating) return;
                 if (!open) {
@@ -1377,14 +1626,14 @@ const Agendamentos = () => {
                       </div>
                     )}
 
-                    <ModalFooter 
+                    <ModalFooter
                       variant="double"
                       onClose={() => handleCloseModal()}
                       onConfirm={handleCreateAgendamento}
                       confirmText="Criar Agendamento"
                       confirmIcon={<Plus className="h-4 w-4" />}
                       isLoading={isCreating}
-                      confirmDisabled={!temLiberacoesDisponiveis}
+                      disabled={!temLiberacoesDisponiveis}
                     />
                   </div>
                 </DialogContent>
@@ -1397,7 +1646,7 @@ const Agendamentos = () => {
           <div className="flex items-center gap-3">
             <Input 
               className="h-9 flex-1 min-h-[44px] max-md:min-h-[44px] text-base max-md:text-base" 
-              placeholder="Buscar por cliente, produto, pedido ou motorista..." 
+              placeholder="Buscar por cliente, produto, armazém, placa, pedido ou motorista..."
               value={search} 
               onChange={(e) => setSearch(e.target.value)} 
             />
@@ -1476,25 +1725,35 @@ const Agendamentos = () => {
         )}
 
         <div className="space-y-6">
-          {agendamentosAtivos.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">
-                  Agendamentos Ativos ({agendamentosAtivos.length})
-                </h2>
-              </div>
-              <div className="grid gap-4">
-                {agendamentosAtivos.map(renderAgendamentoCard)}
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">
+                Agendamentos Ativos ({agendamentosAtivos.length})
+              </h2>
             </div>
-          )}
-          
+            <div className="grid gap-4">
+              {agendamentosAtivos.map(renderAgendamentoCard)}
+              {agendamentosAtivos.length === 0 && (agendamentosFinalizados.length > 0 || agendamentosCancelados.length > 0) && (
+                <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
+                  <div className="rounded-full bg-muted p-3">
+                    <Calendar className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {hasActiveFilters
+                      ? "Nenhum agendamento ativo encontrado com os filtros aplicados."
+                      : "Nenhum agendamento ativo no momento."}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {agendamentosFinalizados.length > 0 && (
             <div className="space-y-4">
               <Button
                 onClick={() => setSecaoFinalizadosExpandida(!secaoFinalizadosExpandida)}
-                className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
+                className="w-full justify-between bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 min-h-[44px] max-md:min-h-[44px] dark:bg-green-950/20 dark:hover:bg-green-950/30 dark:border-green-800 dark:text-green-400"
               >
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5" />
@@ -1502,61 +1761,82 @@ const Agendamentos = () => {
                     Agendamentos Finalizados ({agendamentosFinalizados.length})
                   </span>
                 </div>
-                {secaoFinalizadosExpandida ? 
-                  <ChevronUp className="h-4 w-4" /> : 
+                {secaoFinalizadosExpandida ?
+                  <ChevronUp className="h-4 w-4" /> :
                   <ChevronDown className="h-4 w-4" />
                 }
               </Button>
-              
+
               {secaoFinalizadosExpandida && (
-                <div className="grid gap-4">
+                <div className="grid gap-4 rounded-lg bg-green-50/50 dark:bg-green-950/10 p-3">
                   {agendamentosFinalizados.map(renderAgendamentoCard)}
                 </div>
               )}
             </div>
           )}
 
-          {agendamentos.length === 0 && (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum agendamento encontrado</h3>
-                <p className="text-muted-foreground mb-4">
-                  {canCreate 
-                    ? "Comece criando seu primeiro agendamento de retirada."
-                    : "Aguarde a criação de agendamentos pela equipe responsável."
-                  }
-                </p>
-                {canCreate && (
-                  <Button 
-                    onClick={() => setDialogOpen(true)} 
-                    className="btn-primary min-h-[44px] max-md:min-h-[44px]"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Novo Agendamento
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+          {agendamentosCancelados.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                onClick={() => setSecaoCanceladosExpandida(!secaoCanceladosExpandida)}
+                className="w-full justify-between bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 min-h-[44px] max-md:min-h-[44px] dark:bg-red-950/20 dark:hover:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+              >
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-5 w-5" />
+                  <span className="text-sm font-medium">
+                    Agendamentos Cancelados ({agendamentosCancelados.length})
+                  </span>
+                </div>
+                {secaoCanceladosExpandida ?
+                  <ChevronUp className="h-4 w-4" /> :
+                  <ChevronDown className="h-4 w-4" />
+                }
+              </Button>
+
+              {secaoCanceladosExpandida && (
+                <div className="grid gap-3 rounded-lg bg-red-50/50 dark:bg-red-950/10 p-3">
+                  {agendamentosCancelados.map(renderAgendamentoCard)}
+                </div>
+              )}
+            </div>
           )}
 
-          {agendamentos.length > 0 && showingCount === 0 && (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <FilterIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum resultado encontrado</h3>
-                <p className="text-muted-foreground mb-4">
-                  Ajuste os filtros para encontrar os agendamentos desejados.
+          {agendamentosAtivos.length === 0 && agendamentosFinalizados.length === 0 && agendamentosCancelados.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+              <div className="rounded-full bg-muted p-4">
+                <Calendar className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-foreground">
+                  {hasActiveFilters ? "Nenhum agendamento encontrado" : "Nenhum agendamento cadastrado"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {hasActiveFilters
+                    ? "Nenhum agendamento encontrado com os filtros aplicados."
+                    : canCreate
+                      ? "Comece criando seu primeiro agendamento de retirada."
+                      : "Aguarde a criação de agendamentos pela equipe responsável."}
                 </p>
-                <Button 
-                  onClick={clearFilters} 
+              </div>
+              {hasActiveFilters ? (
+                <Button
+                  size="sm"
+                  onClick={clearFilters}
                   className="btn-secondary min-h-[44px] max-md:min-h-[44px]"
                 >
-                  <X className="mr-2 h-4 w-4" />
+                  <X className="h-4 w-4 mr-2" />
                   Limpar Filtros
                 </Button>
-              </CardContent>
-            </Card>
+              ) : canCreate && temLiberacoesDisponiveis && (
+                <Button
+                  onClick={() => setDialogOpen(true)}
+                  className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Agendamento
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
@@ -1692,38 +1972,333 @@ const Agendamentos = () => {
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 border-b pb-2">
-                    <Package className="h-4 w-4 text-indigo-600" />
-                    <h3 className="text-base font-semibold text-foreground">Status do Carregamento</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Progresso</span>
-                      <span className="text-sm font-medium">{detalhesAgendamento.percentual_carregamento}%</span>
+                {detalhesAgendamento.status === 'cancelado' ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                      <h3 className="text-base font-semibold text-foreground">Cancelamento</h3>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
-                      <div 
-                        className="bg-purple-500 h-3 rounded-full transition-all duration-300" 
-                        style={{ width: `${detalhesAgendamento.percentual_carregamento}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{detalhesAgendamento.tooltip_carregamento}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Cancelado em <span className="font-medium text-foreground">{formatCanceladoEm(detalhesAgendamento.cancelado_em) ?? "—"}</span>
+                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Package className="h-4 w-4 text-indigo-600" />
+                      <h3 className="text-base font-semibold text-foreground">Status do Carregamento</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Progresso</span>
+                        <span className="text-sm font-medium">{detalhesAgendamento.percentual_carregamento}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
+                        <div
+                          className="bg-purple-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${detalhesAgendamento.percentual_carregamento}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{detalhesAgendamento.tooltip_carregamento}</p>
+                    </div>
+                  </div>
+                )}
               </div>
               
-              <div className="pt-4 border-t border-border bg-background flex justify-end">
-                <Button
-                  onClick={() => setDetalhesAgendamento(null)}
-                  className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-secondary"
-                >
-                  Fechar
-                </Button>
+              <div className="pt-4 border-t border-border bg-background flex flex-wrap gap-2 justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {(hasRole("admin") || hasRole("logistica")) &&
+                   detalhesAgendamento.etapa_carregamento === 1 &&
+                   detalhesAgendamento.status !== 'cancelado' && (
+                    <>
+                      <Button
+                        variant="destructive"
+                        onClick={handleAbrirCancelarAgendamento}
+                        className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancelar Agendamento
+                      </Button>
+                      <Button
+                        onClick={handleAbrirEditarAgendamento}
+                        className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-secondary"
+                      >
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Editar Agendamento
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {detalhesAgendamento.carregamento_id && (
+                    <Button
+                      onClick={() => navigate(`/carregamentos/${detalhesAgendamento.carregamento_id}`)}
+                      className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-primary gap-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Ver carregamento
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => setDetalhesAgendamento(null)}
+                    className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-secondary"
+                  >
+                    Fechar
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Modal de Edição do Agendamento */}
+        <Dialog open={showEditarAgendamento} onOpenChange={(open) => {
+          if (!open) {
+            handleCloseEditarAgendamento();
+          } else {
+            setShowEditarAgendamento(open);
+          }
+        }}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-2xl max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)] overflow-y-auto my-4 md:my-8">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Editar Agendamento</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesAgendamento?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-6">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950/20 dark:border-amber-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Só é possível editar o agendamento enquanto a chegada do caminhão ainda não foi registrada no carregamento.
+                  </p>
+                </div>
+              </div>
+
+              {isLoadingMaxQuantidadeEditar ? (
+                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando saldo disponível...
+                </div>
+              ) : maxQuantidadeEditar !== null && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="editar-quantidade" className="text-sm font-medium">Quantidade (t) *</Label>
+                      <Input
+                        id="editar-quantidade"
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={maxQuantidadeEditar}
+                        value={formEditarAgendamento.quantidade}
+                        onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, quantidade: e.target.value })}
+                        disabled={isEditandoAgendamento}
+                        className="min-h-[44px] mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Saldo máximo disponível na liberação: <span className="font-semibold">{maxQuantidadeEditar.toLocaleString('pt-BR')}t</span>
+                      </p>
+                      {(() => {
+                        const qtdNum = Number(formEditarAgendamento.quantidade);
+                        if (!formEditarAgendamento.quantidade || Number.isNaN(qtdNum) || qtdNum <= 0) return null;
+                        if (qtdNum > maxQuantidadeEditar) {
+                          return <p className="text-xs text-red-600 mt-1">⚠️ Excede o saldo disponível na liberação</p>;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    <div>
+                      <Label htmlFor="editar-data" className="text-sm font-medium">Data de Retirada *</Label>
+                      <Input
+                        id="editar-data"
+                        type="date"
+                        value={formEditarAgendamento.data}
+                        onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, data: e.target.value })}
+                        disabled={isEditandoAgendamento}
+                        className="min-h-[44px] mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Truck className="h-4 w-4 text-green-600" />
+                      <h3 className="text-base font-semibold text-foreground">Veículo e Carretas</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="editar-placa" className="text-sm font-medium">Placa do Veículo *</Label>
+                        <Input
+                          id="editar-placa"
+                          value={formEditarAgendamento.placa}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, placa: maskPlaca(e.target.value) })}
+                          placeholder="ABC-1234"
+                          maxLength={8}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-placaCarreta1" className="text-sm font-medium">Placa da Carreta 1 *</Label>
+                        <Input
+                          id="editar-placaCarreta1"
+                          value={formEditarAgendamento.placaCarreta1}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, placaCarreta1: maskPlaca(e.target.value) })}
+                          placeholder="ABC-1234"
+                          maxLength={8}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-placaCarreta2" className="text-sm font-medium">Placa da Carreta 2 (opcional)</Label>
+                        <Input
+                          id="editar-placaCarreta2"
+                          value={formEditarAgendamento.placaCarreta2}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, placaCarreta2: maskPlaca(e.target.value) })}
+                          placeholder="ABC-1234"
+                          maxLength={8}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <User className="h-4 w-4 text-purple-600" />
+                      <h3 className="text-base font-semibold text-foreground">Motorista</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="editar-motorista" className="text-sm font-medium">Nome do Motorista *</Label>
+                        <Input
+                          id="editar-motorista"
+                          value={formEditarAgendamento.motorista}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, motorista: e.target.value })}
+                          placeholder="Nome completo"
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-documento" className="text-sm font-medium">CPF do Motorista *</Label>
+                        <Input
+                          id="editar-documento"
+                          value={formEditarAgendamento.documento}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, documento: maskCPF(e.target.value) })}
+                          placeholder="000.000.000-00"
+                          maxLength={14}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <Building2 className="h-4 w-4 text-orange-600" />
+                      <h3 className="text-base font-semibold text-foreground">Transportadora</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="editar-transportadora" className="text-sm font-medium">Nome da Transportadora *</Label>
+                        <Input
+                          id="editar-transportadora"
+                          value={formEditarAgendamento.transportadora}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, transportadora: e.target.value })}
+                          placeholder="Nome da empresa transportadora"
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="editar-cnpjTransportadora" className="text-sm font-medium">CNPJ da Transportadora *</Label>
+                        <Input
+                          id="editar-cnpjTransportadora"
+                          value={formEditarAgendamento.cnpjTransportadora}
+                          onChange={(e) => setFormEditarAgendamento({ ...formEditarAgendamento, cnpjTransportadora: maskCNPJ(e.target.value) })}
+                          placeholder="00.000.000/0000-00"
+                          maxLength={18}
+                          disabled={isEditandoAgendamento}
+                          className="min-h-[44px] mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <ModalFooter
+              variant="double"
+              onClose={handleCloseEditarAgendamento}
+              onConfirm={handleEditarAgendamento}
+              confirmText="Salvar Alterações"
+              isLoading={isEditandoAgendamento}
+              disabled={
+                maxQuantidadeEditar === null ||
+                isEditandoAgendamento ||
+                isLoadingMaxQuantidadeEditar ||
+                !formEditarAgendamento.quantidade ||
+                Number.isNaN(Number(formEditarAgendamento.quantidade)) ||
+                Number(formEditarAgendamento.quantidade) <= 0 ||
+                Number(formEditarAgendamento.quantidade) > maxQuantidadeEditar ||
+                !formEditarAgendamento.data ||
+                formEditarAgendamento.placa.replace(/[^A-Z0-9]/gi, "").length < 7 ||
+                formEditarAgendamento.placaCarreta1.replace(/[^A-Z0-9]/gi, "").length < 7 ||
+                (formEditarAgendamento.placaCarreta2.trim() !== "" && formEditarAgendamento.placaCarreta2.replace(/[^A-Z0-9]/gi, "").length < 7) ||
+                formEditarAgendamento.motorista.trim().length < 3 ||
+                formEditarAgendamento.documento.replace(/\D/g, "").length !== 11 ||
+                !validarCPF(formEditarAgendamento.documento) ||
+                formEditarAgendamento.transportadora.trim().length < 3 ||
+                formEditarAgendamento.cnpjTransportadora.replace(/\D/g, "").length !== 14 ||
+                !validarCNPJ(formEditarAgendamento.cnpjTransportadora)
+              }
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Confirmação de Cancelamento do Agendamento */}
+        <Dialog open={showCancelarAgendamento} onOpenChange={setShowCancelarAgendamento}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Cancelar Agendamento?</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesAgendamento?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-4">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-800">
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="text-sm space-y-1">
+                    <p className="font-medium text-red-800 dark:text-red-300">Esta ação é irreversível.</p>
+                    <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
+                      <li>O carregamento vinculado será removido</li>
+                      <li>A quantidade agendada volta a ficar disponível na liberação</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <ModalFooter
+              variant="double"
+              onClose={() => setShowCancelarAgendamento(false)}
+              onConfirm={handleCancelarAgendamento}
+              confirmText="Confirmar Cancelamento"
+              confirmVariant="destructive"
+              isLoading={isCancelandoAgendamento}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

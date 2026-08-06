@@ -1,0 +1,72 @@
+name: Backend — RLS & Business Logic
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  rls-tests:
+    name: RLS & Security Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run RLS full suite
+        run: node tests/backend/rls-full.mjs
+        env:
+          TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}
+          TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD }}
+          TEST_COLABORADOR_EMAIL: ${{ secrets.TEST_COLABORADOR_EMAIL }}
+          TEST_COLABORADOR_PASSWORD: ${{ secrets.TEST_COLABORADOR_PASSWORD }}
+          TEST_CLIENTE1_EMAIL: ${{ secrets.TEST_CLIENTE1_EMAIL }}
+          TEST_CLIENTE1_PASSWORD: ${{ secrets.TEST_CLIENTE1_PASSWORD }}
+          TEST_CLIENTE_FAZENDA_SJ_EMAIL: ${{ secrets.TEST_CLIENTE_FAZENDA_SJ_EMAIL }}
+          TEST_CLIENTE_FAZENDA_SJ_PASSWORD: ${{ secrets.TEST_CLIENTE_FAZENDA_SJ_PASSWORD }}
+          TEST_CLIENTE_AGRO_EMAIL: ${{ secrets.TEST_CLIENTE_AGRO_EMAIL }}
+          TEST_CLIENTE_AGRO_PASSWORD: ${{ secrets.TEST_CLIENTE_AGRO_PASSWORD }}
+          TEST_REPRESENTANTE1_EMAIL: ${{ secrets.TEST_REPRESENTANTE1_EMAIL }}
+          TEST_REPRESENTANTE1_PASSWORD: ${{ secrets.TEST_REPRESENTANTE1_PASSWORD }}
+          TEST_REPRESENTANTE2_EMAIL: ${{ secrets.TEST_REPRESENTANTE2_EMAIL }}
+          TEST_REPRESENTANTE2_PASSWORD: ${{ secrets.TEST_REPRESENTANTE2_PASSWORD }}
+          TEST_ARMAZEM1_EMAIL: ${{ secrets.TEST_ARMAZEM1_EMAIL }}
+          TEST_ARMAZEM1_PASSWORD: ${{ secrets.TEST_ARMAZEM1_PASSWORD }}
+          TEST_ARMAZEM2_EMAIL: ${{ secrets.TEST_ARMAZEM2_EMAIL }}
+          TEST_ARMAZEM2_PASSWORD: ${{ secrets.TEST_ARMAZEM2_PASSWORD }}
+
+      - name: Run RLS security suite
+        run: node tests/backend/rls-security.mjs
+        env:
+          TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}
+          TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD }}
+          TEST_COLABORADOR_EMAIL: ${{ secrets.TEST_COLABORADOR_EMAIL }}
+          TEST_COLABORADOR_PASSWORD: ${{ secrets.TEST_COLABORADOR_PASSWORD }}
+          TEST_CLIENTE1_EMAIL: ${{ secrets.TEST_CLIENTE1_EMAIL }}
+          TEST_CLIENTE1_PASSWORD: ${{ secrets.TEST_CLIENTE1_PASSWORD }}
+          TEST_CLIENTE_FAZENDA_SJ_EMAIL: ${{ secrets.TEST_CLIENTE_FAZENDA_SJ_EMAIL }}
+          TEST_CLIENTE_FAZENDA_SJ_PASSWORD: ${{ secrets.TEST_CLIENTE_FAZENDA_SJ_PASSWORD }}
+          TEST_CLIENTE_SEMREP_EMAIL: ${{ secrets.TEST_CLIENTE_SEMREP_EMAIL }}
+          TEST_CLIENTE_SEMREP_PASSWORD: ${{ secrets.TEST_CLIENTE_SEMREP_PASSWORD }}
+          TEST_CLIENTE_AGRO_EMAIL: ${{ secrets.TEST_CLIENTE_AGRO_EMAIL }}
+          TEST_CLIENTE_AGRO_PASSWORD: ${{ secrets.TEST_CLIENTE_AGRO_PASSWORD }}
+          TEST_REPRESENTANTE1_EMAIL: ${{ secrets.TEST_REPRESENTANTE1_EMAIL }}
+          TEST_REPRESENTANTE1_PASSWORD: ${{ secrets.TEST_REPRESENTANTE1_PASSWORD }}
+          TEST_REPRESENTANTE2_EMAIL: ${{ secrets.TEST_REPRESENTANTE2_EMAIL }}
+          TEST_REPRESENTANTE2_PASSWORD: ${{ secrets.TEST_REPRESENTANTE2_PASSWORD }}
+          TEST_ARMAZEM1_EMAIL: ${{ secrets.TEST_ARMAZEM1_EMAIL }}
+          TEST_ARMAZEM1_PASSWORD: ${{ secrets.TEST_ARMAZEM1_PASSWORD }}
+          TEST_ARMAZEM2_EMAIL: ${{ secrets.TEST_ARMAZEM2_EMAIL }}
+          TEST_ARMAZEM2_PASSWORD: ${{ secrets.TEST_ARMAZEM2_PASSWORD }}

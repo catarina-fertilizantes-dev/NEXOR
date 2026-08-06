@@ -45,7 +45,7 @@ export const CarregamentosSection = () => {
       </Card>
 
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">As 6 Etapas do Carregamento</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-3">As 5 Etapas do Carregamento</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
@@ -88,14 +88,15 @@ export const CarregamentosSection = () => {
                   </ul>
                 </td>
               </tr>
-              <tr className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-2 text-center">6️⃣</td>
-                <td className="p-2 font-medium text-foreground">Finalizado</td>
-                <td className="p-2 text-muted-foreground">Processo completo encerrado</td>
-                <td className="p-2 text-foreground">✅ Tudo concluído</td>
-              </tr>
             </tbody>
           </table>
+        </div>
+        <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 p-3 mt-3">
+          <p className="text-sm text-green-800 dark:text-green-200">
+            ✅ <strong>Processo Finalizado:</strong> assim que a Etapa 5 é concluída (5A + 5B + 5C), o sistema encerra
+            o carregamento automaticamente e mostra um painel de "Processo Finalizado" no lugar da timeline. Essa
+            etapa final não é mais um passo clicável — é um resumo automático, sem nenhuma ação a executar.
+          </p>
         </div>
       </div>
 
@@ -237,7 +238,10 @@ export const CarregamentosSection = () => {
         <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 mb-4">
           <AlertCircle className="h-5 w-5 text-orange-600" />
           <AlertDescription className="text-orange-800 dark:text-orange-200 ml-2">
-            <strong>Importante:</strong> Os documentos só ficam disponíveis para download após cada responsável concluir a sub-etapa correspondente. Aguarde todas as 3 sub-etapas (5A, 5B e 5C) com badge verde antes de baixar.
+            <strong>Importante:</strong> cada sub-etapa fica disponível para visualizar e baixar assim que o
+            responsável por ela a concluir — não é preciso esperar as 3 (5A, 5B e 5C) ficarem prontas. Inclusive,
+            você vai precisar baixar a Nota de Retorno da 5A (concluída pelo Armazém) antes de conseguir emitir e
+            anexar a Nota de Venda na 5B.
           </AlertDescription>
         </Alert>
       </div>
@@ -248,7 +252,7 @@ export const CarregamentosSection = () => {
           {[
             "Acesse o carregamento (clique no card na lista)",
             "Vá até a Etapa 5 – Documentação",
-            "Aguarde as 3 sub-etapas serem concluídas (5A, 5B e 5C com badge verde)",
+            "Cada sub-etapa já concluída (badge verde) mostra seus próprios botões de download, mesmo que as outras ainda não tenham sido feitas",
             'Clique nos botões "Nota Fiscal (PDF)" ou "Arquivo XML"',
             "O documento será baixado automaticamente",
           ].map((step, i) => (
@@ -275,7 +279,7 @@ export const CarregamentosSection = () => {
             <tbody>
               {[
                 { action: "Visualizar TODOS os carregamentos do sistema", allowed: true },
-                { action: "Acompanhar progresso em tempo real (6 etapas)", allowed: true },
+                { action: "Acompanhar progresso em tempo real (5 etapas + painel de conclusão)", allowed: true },
                 { action: "Visualizar e baixar fotos das Etapas 1-4 (após conclusão pelo armazém)", allowed: true },
                 { action: "Visualizar e baixar documentos da Etapa 5 (3 PDFs + 3 XMLs)", allowed: true },
                 { action: "Executar Etapa 5B (exclusivo da Logística)", allowed: true },
@@ -311,7 +315,7 @@ export const CarregamentosSection = () => {
           <p>4. Carregando → Etapa 3 (60%)</p>
           <p>5. Finaliza carregamento → Etapa 4 (80%)</p>
           <p>6. Docs. Retorno (5A – Armazém) → Docs. Venda (<strong>5B – VOCÊ</strong>) → Docs. Remessa (5C – Armazém)</p>
-          <p>7. Processo finalizado → Etapa 6 (100%) ✅</p>
+          <p>7. Processo finalizado → painel automático "Processo Finalizado" (100%) ✅</p>
         </div>
       </div>
 

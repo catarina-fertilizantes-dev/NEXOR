@@ -1,11 +1,12 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, ExternalLink, Calendar, Info, Loader2, CheckCircle, Package, Building2, User, FileText, Edit3 } from "lucide-react";
+import { Plus, ClipboardList, X, Filter as FilterIcon, ChevronDown, ChevronUp, AlertCircle, AlertTriangle, ExternalLink, Calendar, Info, Loader2, CheckCircle, Package, Building2, User, FileText, Edit3, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,18 +14,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { parseDateOnly, formatDateOnlyBR } from "@/lib/utils";
 
-type StatusLiberacao = "disponivel" | "parcialmente_agendada" | "totalmente_agendada";
+type StatusLiberacao = "disponivel" | "parcialmente_agendada" | "totalmente_agendada" | "finalizada" | "cancelada";
 
 const STATUS_LIBERACAO = [
   { id: "disponivel", nome: "Disponível", cor: "bg-green-100 text-green-800 hover:bg-green-200" },
   { id: "parcialmente_agendada", nome: "Parcialmente Agendada", cor: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" },
   { id: "totalmente_agendada", nome: "Totalmente Agendada", cor: "bg-blue-100 text-blue-800 hover:bg-blue-200" },
+  { id: "finalizada", nome: "Finalizada", cor: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" },
+  { id: "cancelada", nome: "Cancelada", cor: "bg-red-100 text-red-800 hover:bg-red-200" },
 ];
 
 interface LiberacaoItem {
@@ -35,16 +40,31 @@ interface LiberacaoItem {
   quantidadeRetirada: number;
   pedido: string;
   data: string;
+  data_liberacao_raw: string;
   status: StatusLiberacao;
   armazem?: string;
   produto_id?: string;
   armazem_id?: string;
   created_at?: string;
   quantidadeAgendada: number;
+  saldo: number;
   percentualRetirado: number;
   percentualAgendado: number;
   finalizada: boolean;
+  cancelado_em: string | null;
 }
+
+const formatCanceladoEm = (iso: string | null) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("pt-BR");
+};
+
+const QUANTIDADE_TOOLTIPS = {
+  liberada: "Quantidade total autorizada nesta liberação para retirada.",
+  agendada: "Quantidade com agendamento em aberto (pendente ou em andamento) e ainda não retirada.",
+  retirada: "Quantidade já retirada do armazém — carregamentos finalizados.",
+  saldo: "Quantidade ainda disponível para agendar. Saldo = Liberada − Agendada − Retirada.",
+} as const;
 
 const getLiberacaoStatusTooltip = (status: StatusLiberacao) => {
   switch (status) {
@@ -54,6 +74,10 @@ const getLiberacaoStatusTooltip = (status: StatusLiberacao) => {
       return "Esta liberação possui agendamentos, mas ainda há quantidade disponível";
     case "totalmente_agendada":
       return "Toda a quantidade desta liberação já foi agendada para retirada";
+    case "finalizada":
+      return "Toda a quantidade desta liberação já foi retirada";
+    case "cancelada":
+      return "Esta liberação foi cancelada";
     default:
       return "";
   }
@@ -99,11 +123,6 @@ const EmptyStateCard = ({
     </Button>
   </div>
 );
-
-const parseDate = (d: string) => {
-  const [dd, mm, yyyy] = d.split("/");
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-};
 
 const Liberacoes = () => {
   useScrollToTop();
@@ -158,11 +177,37 @@ const Liberacoes = () => {
   const [detalhesLiberacao, setDetalhesLiberacao] = useState<LiberacaoItem | null>(null);
   const [secaoFinalizadasExpandida, setSecaoFinalizadasExpandida] = useState(false);
 
+  const [showCancelarDialog, setShowCancelarDialog] = useState(false);
+  const [isCancelando, setIsCancelando] = useState(false);
+  const [isLoadingPreviewCancelamento, setIsLoadingPreviewCancelamento] = useState(false);
+  const [previewCancelamento, setPreviewCancelamento] = useState<{
+    pode_cancelar: boolean;
+    motivo_bloqueio: string | null;
+    quantidade_a_devolver: number;
+    quantidade_em_andamento: number;
+    quantidade_retirada: number;
+    quantidade_liberada: number;
+  } | null>(null);
+  const [secaoCanceladasExpandida, setSecaoCanceladasExpandida] = useState(false);
+
   const [showAlterarArmazem, setShowAlterarArmazem] = useState(false);
   const [novoArmazemId, setNovoArmazemId] = useState("");
   const [isAlterandoArmazem, setIsAlterandoArmazem] = useState(false);
   const [estoqueNovoArmazem, setEstoqueNovoArmazem] = useState<number>(0);
   const [validandoEstoqueNovoArmazem, setValidandoEstoqueNovoArmazem] = useState(false);
+
+  const [showAlterarQuantidade, setShowAlterarQuantidade] = useState(false);
+  const [novaQuantidade, setNovaQuantidade] = useState("");
+  const [isAlterandoQuantidade, setIsAlterandoQuantidade] = useState(false);
+  const [isLoadingPreviewAlteracao, setIsLoadingPreviewAlteracao] = useState(false);
+  const [previewAlteracao, setPreviewAlteracao] = useState<{
+    quantidade_liberada: number;
+    quantidade_retirada: number;
+    quantidade_em_andamento: number;
+    quantidade_comprometida: number;
+    estoque_disponivel: number;
+    quantidade_maxima: number;
+  } | null>(null);
 
   const { data: currentCliente } = useQuery({
     queryKey: ["current-cliente", user?.id],
@@ -221,29 +266,6 @@ const Liberacoes = () => {
     })(),
   });
 
-  const { data: agendamentosData } = useQuery({
-    queryKey: ["agendamentos-totais"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agendamentos")
-        .select(`
-          liberacao_id,
-          quantidade,
-          status
-        `)
-        .in("status", ["pendente", "em_andamento", "concluido"]);
-      if (error) throw error;
-      
-      const agrupados = (data || []).reduce((acc: Record<string, number>, item) => {
-        acc[item.liberacao_id] = (acc[item.liberacao_id] || 0) + Number(item.quantidade);
-        return acc;
-      }, {});
-      
-      return agrupados;
-    },
-    refetchInterval: 30000,
-  });
-
   const { data: armazensDisponiveis } = useQuery({
     queryKey: ["armazens-list"],
     queryFn: async () => {
@@ -292,61 +314,29 @@ const Liberacoes = () => {
 
   const liberacoes = useMemo(() => {
     if (!liberacoesData) return [];
-    
-  return liberacoesData.map((item: any) => {
-    const isFromFunction = !!item.produto_nome;
-    
-    if (isFromFunction) {
-      return {
-        id: item.id,
-        produto: item.produto_nome,
-        cliente: item.cliente_nome,
-        quantidade: item.quantidade_liberada,
-        quantidadeRetirada: item.quantidade_retirada,
-        quantidadeAgendada: item.quantidade_agendada,
-        percentualRetirado: item.percentual_retirado,
-        percentualAgendado: item.percentual_agendado,
-        pedido: item.pedido_interno,
-        data: new Date(item.data_liberacao).toLocaleDateString("pt-BR"),
-        status: item.status,
-        armazem: `${item.armazem_nome} - ${item.armazem_cidade}/${item.armazem_estado}`,
-        produto_id: item.produto_id,
-        armazem_id: item.armazem_id,
-        created_at: item.created_at,
-        finalizada: item.finalizada || false,
-      };
-    } else {
-      const quantidadeRetirada = item.quantidade_retirada || 0;
-      const quantidadeAgendada = agendamentosData?.[item.id] || 0;
-      
-      const percentualRetirado = item.quantidade_liberada > 0 
-        ? Math.round((quantidadeRetirada / item.quantidade_liberada) * 100) 
-        : 0;
-      const percentualAgendado = item.quantidade_liberada > 0 
-        ? Math.round((quantidadeAgendada / item.quantidade_liberada) * 100) 
-        : 0;
-      const finalizada = quantidadeRetirada >= item.quantidade_liberada;
-      return {
-        id: item.id,
-        produto: item.produtos?.nome || "N/A",
-        cliente: item.clientes?.nome || "N/A",
-        quantidade: item.quantidade_liberada,
-        quantidadeRetirada,
-        quantidadeAgendada,
-        percentualRetirado,
-        percentualAgendado,
-        pedido: item.pedido_interno,
-        data: new Date(item.data_liberacao || item.created_at).toLocaleDateString("pt-BR"),
-        status: item.status as StatusLiberacao,
-        armazem: item.armazens ? `${item.armazens.nome} - ${item.armazens.cidade}/${item.armazens.estado}` : "N/A",
-        produto_id: item.produto_id,
-        armazem_id: item.armazem_id,
-        created_at: item.created_at,
-        finalizada,
-      };
-    }
-  });
-  }, [liberacoesData, agendamentosData]);
+
+    return liberacoesData.map((item: any) => ({
+      id: item.id,
+      produto: item.produto_nome,
+      cliente: item.cliente_nome,
+      quantidade: item.quantidade_liberada,
+      quantidadeRetirada: item.quantidade_retirada,
+      quantidadeAgendada: item.quantidade_agendada,
+      saldo: item.quantidade_disponivel,
+      percentualRetirado: item.percentual_retirado,
+      percentualAgendado: item.percentual_agendado,
+      pedido: item.pedido_interno,
+      data: formatDateOnlyBR(item.data_liberacao),
+      data_liberacao_raw: item.data_liberacao,
+      status: item.status,
+      armazem: `${item.armazem_nome} - ${item.armazem_cidade}/${item.armazem_estado}`,
+      produto_id: item.produto_id,
+      armazem_id: item.armazem_id,
+      created_at: item.created_at,
+      finalizada: item.status === 'finalizada',
+      cancelado_em: item.cancelado_em ?? null,
+    }));
+  }, [liberacoesData]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [novaLiberacao, setNovaLiberacao] = useState({
@@ -454,17 +444,61 @@ const Liberacoes = () => {
     }
   }, [novaLiberacao.produto, novaLiberacao.armazem]);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Deep-link vindo do dashboard (ex: card "Sem Agendamento"): ?status=disponivel
+  // pré-seleciona o status, ?antesDe=YYYY-MM-DD pré-preenche o filtro de
+  // período (dateTo), já calculado pelo dashboard usando o prazo configurado
+  // — junto, os dois filtros reproduzem exatamente o critério "liberação sem
+  // agendamento há mais de N dias". Lidos só uma vez (useState inicial); os
+  // params somem da URL logo em seguida (ver useEffect abaixo), senão
+  // "Limpar Filtros" nunca conseguiria de fato limpar — o valor voltaria a
+  // ser lido da URL a cada render.
+  const statusParam = searchParams.get("status");
+  const filtroInicialStatus: StatusLiberacao[] =
+    statusParam === "disponivel" ? ["disponivel"] : [];
+  const filtroInicialAntesDe = searchParams.get("antesDe") ?? "";
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedStatuses, setSelectedStatuses] = useState<StatusLiberacao[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<StatusLiberacao[]>(filtroInicialStatus);
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateTo, setDateTo] = useState(filtroInicialAntesDe);
   const [selectedArmazens, setSelectedArmazens] = useState<string[]>([]);
-  const allStatuses: StatusLiberacao[] = ["disponivel", "parcialmente_agendada", "totalmente_agendada"];
+  const allStatuses: StatusLiberacao[] = ["disponivel", "parcialmente_agendada", "totalmente_agendada", "finalizada", "cancelada"];
   const allArmazens = useMemo(
     () => Array.from(new Set(liberacoes.map((l) => l.armazem).filter(Boolean))) as string[],
     [liberacoes]
   );
+
+  // Deep-link vindo do dashboard (ex: linha do "Controle de Pedidos"):
+  // ?liberacaoId= abre automaticamente o modal de detalhe daquela liberação
+  // assim que a lista carrega. Tira o param da URL logo no mount (não espera
+  // a lista carregar) — só guarda o valor original numa ref, pra não
+  // depender do param continuar na URL. Sem isso, fechar o modal zera
+  // detalhesLiberacao, o efeito reexecutava (liberacaoIdParam ainda na URL)
+  // e reabria o modal na hora, travando o fechamento em loop.
+  const liberacaoIdParaAbrir = useRef(searchParams.get("liberacaoId"));
+  useEffect(() => {
+    if (searchParams.has("liberacaoId")) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("liberacaoId");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!liberacaoIdParaAbrir.current) return;
+    const match = liberacoes.find((l) => l.id === liberacaoIdParaAbrir.current);
+    if (match) {
+      setDetalhesLiberacao(match);
+      liberacaoIdParaAbrir.current = null;
+    }
+  }, [liberacoes]);
 
   const toggleStatus = (st: StatusLiberacao) =>
     setSelectedStatuses((prev) => (prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]));
@@ -480,7 +514,7 @@ const Liberacoes = () => {
     setSelectedArmazens([]);
   };
 
-  const { liberacoesAtivas, liberacoesFinalizadas } = useMemo(() => {
+  const { liberacoesAtivas, liberacoesFinalizadas, liberacoesCanceladas } = useMemo(() => {
     const filtered = liberacoes.filter((l) => {
       const term = search.trim().toLowerCase();
       if (term) {
@@ -490,19 +524,20 @@ const Liberacoes = () => {
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(l.status)) return false;
       if (selectedArmazens.length > 0 && l.armazem && !selectedArmazens.includes(l.armazem)) return false;
       if (dateFrom) {
-        const from = new Date(dateFrom);
-        if (parseDate(l.data) < from) return false;
+        const from = parseDateOnly(dateFrom);
+        if (parseDateOnly(l.data_liberacao_raw) < from) return false;
       }
       if (dateTo) {
-        const to = new Date(dateTo);
+        const to = parseDateOnly(dateTo);
         to.setHours(23, 59, 59, 999);
-        if (parseDate(l.data) > to) return false;
+        if (parseDateOnly(l.data_liberacao_raw) > to) return false;
       }
       return true;
     });
-    const ativas = filtered.filter(l => !l.finalizada);
-    const finalizadas = filtered.filter(l => l.finalizada);
-    return { liberacoesAtivas: ativas, liberacoesFinalizadas: finalizadas };
+    const ativas = filtered.filter(l => !l.finalizada && l.status !== 'cancelada');
+    const finalizadas = filtered.filter(l => l.finalizada && l.status !== 'cancelada');
+    const canceladas = filtered.filter(l => l.status === 'cancelada');
+    return { liberacoesAtivas: ativas, liberacoesFinalizadas: finalizadas, liberacoesCanceladas: canceladas };
   }, [liberacoes, search, selectedStatuses, selectedArmazens, dateFrom, dateTo]);
 
   useEffect(() => {
@@ -511,7 +546,13 @@ const Liberacoes = () => {
     }
   }, [search, liberacoesFinalizadas.length, secaoFinalizadasExpandida]);
 
-  const showingCount = liberacoesAtivas.length + liberacoesFinalizadas.length;
+  useEffect(() => {
+    if (search.trim() && liberacoesCanceladas.length > 0 && !secaoCanceladasExpandida) {
+      setSecaoCanceladasExpandida(true);
+    }
+  }, [search, liberacoesCanceladas.length, secaoCanceladasExpandida]);
+
+  const showingCount = liberacoesAtivas.length + liberacoesFinalizadas.length + liberacoesCanceladas.length;
   const totalCount = liberacoes.length;
   const activeAdvancedCount =
     (selectedStatuses.length ? 1 : 0) +
@@ -698,6 +739,10 @@ const Liberacoes = () => {
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
       case "totalmente_agendada":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
+      case "finalizada":
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400";
+      case "cancelada":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
     }
@@ -711,8 +756,157 @@ const Liberacoes = () => {
         return "Parcialmente Agendada";
       case "totalmente_agendada":
         return "Totalmente Agendada";
+      case "finalizada":
+        return "Finalizada";
+      case "cancelada":
+        return "Cancelada";
       default:
         return status;
+    }
+  };
+
+  const handleAbrirCancelarDialog = async () => {
+    if (!detalhesLiberacao) return;
+    setShowCancelarDialog(true);
+    setPreviewCancelamento(null);
+    setIsLoadingPreviewCancelamento(true);
+    try {
+      const { data, error } = await supabase.rpc('calcular_cancelamento_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+      });
+      if (error) throw error;
+      const result = data as {
+        success: boolean; error?: string; pode_cancelar: boolean; motivo_bloqueio: string | null;
+        quantidade_a_devolver: number; quantidade_em_andamento: number; quantidade_retirada: number; quantidade_liberada: number
+      };
+      if (!result.success) throw new Error(result.error);
+      setPreviewCancelamento(result);
+    } catch {
+      // Se o preview falhar, o dialog ainda abre — só não mostra o valor calculado
+    } finally {
+      setIsLoadingPreviewCancelamento(false);
+    }
+  };
+
+  const handleCancelarLiberacao = async () => {
+    if (!detalhesLiberacao) return;
+    setIsCancelando(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc('cancelar_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+        p_user_id: userData.user?.id ?? '',
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string; quantidade_devolvida: number };
+      if (!result.success) throw new Error(result.error);
+      toast({
+        title: "Liberação cancelada",
+        description: `${Number(result.quantidade_devolvida).toLocaleString('pt-BR')}t devolvidas ao estoque do armazém.`,
+      });
+      setShowCancelarDialog(false);
+      setPreviewCancelamento(null);
+      setDetalhesLiberacao(null);
+      queryClient.invalidateQueries({ queryKey: ["liberacoes"] });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao cancelar liberação",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsCancelando(false);
+    }
+  };
+
+  const handleAbrirAlterarQuantidade = async () => {
+    if (!detalhesLiberacao) return;
+    setShowAlterarQuantidade(true);
+    setPreviewAlteracao(null);
+    setNovaQuantidade("");
+    setIsLoadingPreviewAlteracao(true);
+    try {
+      const { data, error } = await supabase.rpc('calcular_alteracao_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+      });
+      if (error) throw error;
+      const result = data as {
+        success: boolean; error?: string;
+        quantidade_liberada: number; quantidade_retirada: number;
+        quantidade_em_andamento: number; quantidade_comprometida: number;
+        estoque_disponivel: number; quantidade_maxima: number;
+      };
+      if (!result.success) throw new Error(result.error);
+      setPreviewAlteracao(result);
+      setNovaQuantidade(String(result.quantidade_liberada));
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar dados da liberação",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsLoadingPreviewAlteracao(false);
+    }
+  };
+
+  const handleCloseModalAlterarQuantidade = () => {
+    setShowAlterarQuantidade(false);
+    setPreviewAlteracao(null);
+    setNovaQuantidade("");
+  };
+
+  const handleAlterarQuantidade = async () => {
+    if (!detalhesLiberacao || !previewAlteracao) return;
+
+    const qtdNum = Number(novaQuantidade);
+    if (Number.isNaN(qtdNum) || qtdNum <= 0) {
+      toast({ variant: "destructive", title: "Quantidade inválida" });
+      return;
+    }
+    if (qtdNum < previewAlteracao.quantidade_comprometida) {
+      toast({
+        variant: "destructive",
+        title: "Quantidade abaixo do comprometido",
+        description: `A nova quantidade não pode ser menor que ${previewAlteracao.quantidade_comprometida.toLocaleString('pt-BR')}t, já comprometidos em carregamentos.`,
+      });
+      return;
+    }
+    if (qtdNum > previewAlteracao.quantidade_maxima) {
+      toast({
+        variant: "destructive",
+        title: "Estoque insuficiente",
+        description: `O aumento solicitado excede o estoque disponível. Máximo permitido: ${previewAlteracao.quantidade_maxima.toLocaleString('pt-BR')}t.`,
+      });
+      return;
+    }
+
+    setIsAlterandoQuantidade(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.rpc('alterar_quantidade_liberacao', {
+        p_liberacao_id: detalhesLiberacao.id,
+        p_nova_quantidade: qtdNum,
+        p_user_id: userData.user?.id ?? '',
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string; quantidade_anterior: number; quantidade_nova: number };
+      if (!result.success) throw new Error(result.error);
+      toast({
+        title: "Quantidade da liberação alterada",
+        description: `De ${Number(result.quantidade_anterior).toLocaleString('pt-BR')}t para ${Number(result.quantidade_nova).toLocaleString('pt-BR')}t.`,
+      });
+      handleCloseModalAlterarQuantidade();
+      setDetalhesLiberacao(null);
+      queryClient.invalidateQueries({ queryKey: ["liberacoes"] });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao alterar quantidade",
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    } finally {
+      setIsAlterandoQuantidade(false);
     }
   };
 
@@ -721,110 +915,133 @@ const Liberacoes = () => {
   const temClientesDisponiveis = clientesData && clientesData.length > 0;
 
   const renderLiberacaoCard = (lib: LiberacaoItem) => (
-    <Card key={lib.id} className="transition-all hover:shadow-md cursor-pointer">
+    <Card
+      key={lib.id}
+      className="border-l-4 border-l-blue-500 dark:border-l-blue-400 transition-all hover:shadow-md cursor-pointer"
+      onClick={() => setDetalhesLiberacao(lib)}
+    >
       <CardContent className="p-4 md:p-5">
         <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="flex justify-start sm:order-2 sm:justify-end">
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Badge className={`${getStatusColor(lib.status)} text-xs px-2 py-1 text-center`}>
-                      {getStatusLabel(lib.status)}
-                    </Badge>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{getLiberacaoStatusTooltip(lib.status)}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div 
-              className="flex items-start gap-3 md:gap-4 flex-1 min-w-0 sm:order-1"
-              onClick={() => setDetalhesLiberacao(lib)}
-            >
-              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-gradient-primary shrink-0">
-                <ClipboardList className="h-4 w-4 md:h-5 md:w-5 text-white" />
+          {/* Cabeçalho: ícone + pedido + status */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                <ClipboardList className="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <h3 className="font-semibold text-foreground text-sm md:text-base break-words">Pedido: {lib.pedido}</h3>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Cliente:</span> <span className="break-words">{lib.cliente}</span>
-                  </p>
-                  <p className="whitespace-nowrap">
-                    <span className="font-medium text-foreground">Produto:</span> <span className="break-words">{lib.produto}</span>
-                  </p>
-                  <p className="whitespace-nowrap break-words">
-                    <span className="font-medium text-foreground">Armazém:</span> {lib.armazem}
-                  </p>
-                </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2">
-                    <span className="whitespace-nowrap">
-                      <span className="font-medium text-foreground">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
-                    </span>
-                    <span className="whitespace-nowrap">
-                      <span className="font-medium text-blue-600">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
-                    </span>
-                    <span className="whitespace-nowrap">
-                      <span className="font-medium text-orange-600">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <h3 className="font-semibold text-foreground text-sm md:text-base break-words min-w-0">Pedido: {lib.pedido}</h3>
             </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Badge className={`${getStatusColor(lib.status)} text-xs px-2 py-1 text-center`}>
+                    {getStatusLabel(lib.status)}
+                  </Badge>
+                  <Info className="h-3 w-3 text-muted-foreground" />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
+                <p className="text-sm">{getLiberacaoStatusTooltip(lib.status)}</p>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          <div 
-            className="pt-2 border-t"
-            onClick={() => setDetalhesLiberacao(lib)}
-          >
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
-              <span className="text-xs text-blue-600 font-medium shrink-0">Agendamento:</span>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-help min-w-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div 
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${lib.percentualAgendado}%` }}
-                    ></div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
-                </TooltipContent>
-              </Tooltip>
-              
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="flex items-center gap-1 cursor-help shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium w-8 text-right">
-                      {lib.percentualAgendado}%
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+          {/* Informações em 2 colunas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <p className="truncate" title={lib.cliente}><span className="font-medium text-foreground">Cliente:</span> {lib.cliente}</p>
+            <p className="truncate" title={lib.produto}><span className="font-medium text-foreground">Produto:</span> {lib.produto}</p>
+            <p className="truncate" title={lib.armazem}><span className="font-medium text-foreground">Armazém:</span> {lib.armazem}</p>
+            <p className="truncate"><span className="font-medium text-foreground">Data:</span> {lib.data}</p>
           </div>
+
+          {lib.status === 'cancelada' ? (
+            <div className="pt-2 border-t flex items-center justify-between gap-2 text-xs">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <span className="whitespace-nowrap cursor-pointer text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                    <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
+                  </span>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
+              </Popover>
+              <div className="flex items-center gap-2 text-red-600 font-medium whitespace-nowrap">
+                <XCircle className="h-4 w-4 shrink-0" />
+                Cancelado em {formatCanceladoEm(lib.cancelado_em) ?? "—"}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Métricas: Liberada / Agendada / Retirada / Saldo */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-medium text-foreground underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">Liberada:</span> {lib.quantidade.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-medium text-blue-600 underline decoration-dotted decoration-blue-600/40 underline-offset-2">Agendada:</span> {lib.quantidadeAgendada.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-medium text-orange-600 underline decoration-dotted decoration-orange-600/40 underline-offset-2">Retirada:</span> {lib.quantidadeRetirada.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span className="whitespace-nowrap cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-semibold text-green-600 underline decoration-dotted decoration-green-600/40 underline-offset-2">Saldo:</span> {lib.saldo.toLocaleString('pt-BR')}t
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
+                  <span className="text-xs text-blue-600 font-medium shrink-0">Agendamento:</span>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="flex-1 bg-gray-200 rounded-full h-2 dark:bg-gray-700 cursor-pointer min-w-0" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${lib.percentualAgendado}%` }}
+                        ></div>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground font-medium w-8 text-right">
+                          {lib.percentualAgendado}%
+                        </span>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto max-w-[240px] p-2" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-sm">{getAgendamentoBarTooltip(lib.percentualAgendado, lib.quantidadeAgendada, lib.quantidade)}</p>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -1334,8 +1551,9 @@ const Liberacoes = () => {
                         <p className="text-sm font-medium break-words">{detalhesLiberacao.armazem}</p>
                       </div>
 
-                      {(hasRole("admin") || hasRole("logistica")) && 
-                       detalhesLiberacao.status !== 'totalmente_agendada' && 
+                      {(hasRole("admin") || hasRole("logistica")) &&
+                       detalhesLiberacao.status !== 'totalmente_agendada' &&
+                       detalhesLiberacao.status !== 'cancelada' &&
                        !detalhesLiberacao.finalizada && (
                         <Button
                           size="sm"
@@ -1344,7 +1562,7 @@ const Liberacoes = () => {
                           disabled={isAlterandoArmazem}
                         >
                           <Edit3 className="h-3 w-3 mr-1" />
-                          Alterar
+                          Alterar Armazém
                         </Button>
                       )}
                     </div>
@@ -1372,57 +1590,231 @@ const Liberacoes = () => {
                       <Package className="h-4 w-4 text-green-600" />
                       <h3 className="text-base font-semibold text-foreground">Quantidades</h3>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Liberada</Label>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Liberada</Label>
+                          <Popover>
+                            <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                            <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.liberada}</p></PopoverContent>
+                          </Popover>
+                        </div>
                         <p className="text-base md:text-lg font-semibold">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
                       </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Agendada</Label>
-                        <p className="text-base md:text-lg font-semibold text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Quantidade Retirada</Label>
-                        <p className="text-base md:text-lg font-semibold text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
-                      </div>
+
+                      {(hasRole("admin") || hasRole("logistica")) &&
+                       detalhesLiberacao.status !== 'cancelada' &&
+                       !detalhesLiberacao.finalizada && (
+                        <Button
+                          size="sm"
+                          onClick={handleAbrirAlterarQuantidade}
+                          className="h-8 px-2 text-xs min-h-[32px] btn-secondary shrink-0 ml-3"
+                        >
+                          <Edit3 className="h-3 w-3 mr-1" />
+                          Alterar Quantidade
+                        </Button>
+                      )}
                     </div>
+                    {detalhesLiberacao.status !== 'cancelada' && (
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <Label className="text-sm font-medium text-muted-foreground">Agendada</Label>
+                            <Popover>
+                              <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                              <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.agendada}</p></PopoverContent>
+                            </Popover>
+                          </div>
+                          <p className="text-base md:text-lg font-semibold text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <Label className="text-sm font-medium text-muted-foreground">Retirada</Label>
+                            <Popover>
+                              <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                              <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.retirada}</p></PopoverContent>
+                            </Popover>
+                          </div>
+                          <p className="text-base md:text-lg font-semibold text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <Label className="text-sm font-medium text-muted-foreground">Saldo</Label>
+                            <Popover>
+                              <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                              <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">{QUANTIDADE_TOOLTIPS.saldo}</p></PopoverContent>
+                            </Popover>
+                          </div>
+                          <p className="text-base md:text-lg font-semibold text-green-600">{detalhesLiberacao.saldo.toLocaleString('pt-BR')}t</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t"></div>
 
-                  {/* Seção 5: Status de Agendamentos */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 border-b pb-2">
-                      <Calendar className="h-4 w-4 text-indigo-600" />
-                      <h3 className="text-base font-semibold text-foreground">Status de Agendamentos</h3>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Progresso</span>
-                        <span className="text-sm font-medium">{detalhesLiberacao.percentualAgendado}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
-                        <div 
-                          className="bg-blue-500 h-3 rounded-full transition-all duration-300" 
-                          style={{ width: `${detalhesLiberacao.percentualAgendado}%` }}
-                        ></div>
+                  {detalhesLiberacao.status === 'cancelada' ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b pb-2">
+                        <XCircle className="h-4 w-4 text-red-600" />
+                        <h3 className="text-base font-semibold text-foreground">Cancelamento</h3>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {getAgendamentoBarTooltip(detalhesLiberacao.percentualAgendado, detalhesLiberacao.quantidadeAgendada, detalhesLiberacao.quantidade)}
+                        Cancelado em <span className="font-medium text-foreground">{formatCanceladoEm(detalhesLiberacao.cancelado_em) ?? "—"}</span>
                       </p>
                     </div>
-                  </div>
+                  ) : (
+                    /* Seção 5: Status de Agendamentos */
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b pb-2">
+                        <Calendar className="h-4 w-4 text-indigo-600" />
+                        <h3 className="text-base font-semibold text-foreground">Status de Agendamentos</h3>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Progresso</span>
+                          <span className="text-sm font-medium">{detalhesLiberacao.percentualAgendado}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700">
+                          <div
+                            className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                            style={{ width: `${detalhesLiberacao.percentualAgendado}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {getAgendamentoBarTooltip(detalhesLiberacao.percentualAgendado, detalhesLiberacao.quantidadeAgendada, detalhesLiberacao.quantidade)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
 
-            <div className="pt-4 border-t border-border bg-background flex justify-end">
-              <Button 
+            <div className="pt-4 border-t border-border bg-background flex flex-col sm:flex-row gap-2 justify-between">
+              {(hasRole("logistica") || hasRole("admin")) &&
+               detalhesLiberacao?.status !== 'cancelada' &&
+               !detalhesLiberacao?.finalizada && (
+                <Button
+                  variant="destructive"
+                  onClick={handleAbrirCancelarDialog}
+                  className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Cancelar Liberação
+                </Button>
+              )}
+              <Button
                 onClick={() => setDetalhesLiberacao(null)}
-                className="min-h-[44px] max-md:min-h-[44px] w-full md:w-auto btn-secondary"
+                className="min-h-[44px] max-md:min-h-[44px] w-full sm:w-auto btn-secondary sm:ml-auto"
               >
                 Fechar
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Confirmação de Cancelamento */}
+        <Dialog open={showCancelarDialog} onOpenChange={(open) => { if (!open) { setShowCancelarDialog(false); setPreviewCancelamento(null); } }}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Cancelar Liberação?</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesLiberacao?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-4">
+              {isLoadingPreviewCancelamento ? (
+                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando impacto...
+                </div>
+              ) : previewCancelamento && !previewCancelamento.pode_cancelar ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950/20 dark:border-amber-800">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-sm space-y-1">
+                      <p className="font-medium text-amber-800 dark:text-amber-300">Não é possível cancelar esta liberação.</p>
+                      <p className="text-amber-700 dark:text-amber-400 text-xs">{previewCancelamento.motivo_bloqueio}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-800">
+                    <div className="flex items-start gap-2">
+                      <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                      <div className="text-sm space-y-1">
+                        <p className="font-medium text-red-800 dark:text-red-300">Esta ação é irreversível.</p>
+                        <ul className="text-red-700 dark:text-red-400 text-xs space-y-1 list-disc list-inside">
+                          <li>Agendamentos não iniciados serão arquivados</li>
+                          <li>Carregamentos não iniciados serão removidos</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {previewCancelamento ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="p-2 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Liberada</p>
+                          <p className="font-semibold text-sm">{previewCancelamento.quantidade_liberada.toLocaleString('pt-BR')}t</p>
+                        </div>
+                        <div className="p-2 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Já retirada</p>
+                          <p className="font-semibold text-sm text-orange-600">{previewCancelamento.quantidade_retirada.toLocaleString('pt-BR')}t</p>
+                        </div>
+                        <div className="p-2 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Em carregamento</p>
+                          <p className="font-semibold text-sm text-yellow-600">{previewCancelamento.quantidade_em_andamento.toLocaleString('pt-BR')}t</p>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/20 dark:border-green-800 text-center">
+                        <p className="text-xs text-green-700 dark:text-green-400">Quantidade a devolver ao estoque</p>
+                        <p className="text-lg font-bold text-green-800 dark:text-green-300">{previewCancelamento.quantidade_a_devolver.toLocaleString('pt-BR')}t</p>
+                      </div>
+                    </div>
+                  ) : detalhesLiberacao && (
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="p-2 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground">Liberada</p>
+                        <p className="font-semibold text-sm">{detalhesLiberacao.quantidade.toLocaleString('pt-BR')}t</p>
+                      </div>
+                      <div className="p-2 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground">Retirada</p>
+                        <p className="font-semibold text-sm text-orange-600">{detalhesLiberacao.quantidadeRetirada.toLocaleString('pt-BR')}t</p>
+                      </div>
+                      <div className="p-2 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground">Agendada</p>
+                        <p className="font-semibold text-sm text-blue-600">{detalhesLiberacao.quantidadeAgendada.toLocaleString('pt-BR')}t</p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-2 justify-end">
+              <Button
+                onClick={() => { setShowCancelarDialog(false); setPreviewCancelamento(null); }}
+                className="min-h-[44px] w-full sm:w-auto btn-secondary"
+                disabled={isCancelando}
+              >
+                {previewCancelamento && !previewCancelamento.pode_cancelar ? "Fechar" : "Cancelar"}
+              </Button>
+              {!(previewCancelamento && !previewCancelamento.pode_cancelar) && (
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelarLiberacao}
+                  disabled={isCancelando || isLoadingPreviewCancelamento}
+                  className="min-h-[44px] w-full sm:w-auto"
+                >
+                  {isCancelando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Confirmar Cancelamento
+                </Button>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -1448,7 +1840,7 @@ const Liberacoes = () => {
                 <>
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                       <div className="text-sm">
                         <p className="font-medium text-amber-800">Atenção:</p>
                         <p className="text-amber-700 text-xs mt-1">
@@ -1488,7 +1880,7 @@ const Liberacoes = () => {
                         value={novoArmazemId} 
                         onValueChange={(v) => {
                           setNovoArmazemId(v);
-                          setAlertArmazem(true);
+                          markAsChangedArmazem();
                         }}
                         disabled={isAlterandoArmazem}
                       >
@@ -1575,6 +1967,111 @@ const Liberacoes = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Modal de Alteração de Quantidade da Liberação */}
+        <Dialog open={showAlterarQuantidade} onOpenChange={(open) => {
+          if (!open) {
+            handleCloseModalAlterarQuantidade();
+          } else {
+            setShowAlterarQuantidade(open);
+          }
+        }}>
+          <DialogContent className="max-w-[calc(100vw-2rem)] md:max-w-md my-4">
+            <DialogHeader className="pt-2 pb-3 border-b border-border pr-8">
+              <DialogTitle className="text-lg pr-2 mt-1">Alterar Quantidade da Liberação</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pedido: {detalhesLiberacao?.pedido}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 px-1 space-y-4">
+              {isLoadingPreviewAlteracao ? (
+                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculando...
+                </div>
+              ) : previewAlteracao && (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="p-2 bg-muted rounded-lg">
+                      <div className="flex items-center justify-center gap-1">
+                        <p className="text-xs text-muted-foreground">Comprometida</p>
+                        <Popover>
+                          <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">Quantidade já retirada, em carregamento ou agendada — a nova quantidade não pode ficar abaixo disso.</p></PopoverContent>
+                        </Popover>
+                      </div>
+                      <p className="font-semibold text-sm text-orange-600">{previewAlteracao.quantidade_comprometida.toLocaleString('pt-BR')}t</p>
+                    </div>
+                    <div className="p-2 bg-muted rounded-lg">
+                      <div className="flex items-center justify-center gap-1">
+                        <p className="text-xs text-muted-foreground">Máximo possível</p>
+                        <Popover>
+                          <PopoverTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-pointer shrink-0" /></PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2"><p className="text-sm">Quantidade atual + estoque disponível no armazém desta liberação.</p></PopoverContent>
+                        </Popover>
+                      </div>
+                      <p className="font-semibold text-sm text-green-600">{previewAlteracao.quantidade_maxima.toLocaleString('pt-BR')}t</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="nova-quantidade" className="text-sm font-medium">
+                      Nova Quantidade Total (t) *
+                    </Label>
+                    <Input
+                      id="nova-quantidade"
+                      type="number"
+                      inputMode="decimal"
+                      min={previewAlteracao.quantidade_comprometida}
+                      max={previewAlteracao.quantidade_maxima}
+                      value={novaQuantidade}
+                      onChange={(e) => setNovaQuantidade(e.target.value)}
+                      disabled={isAlterandoQuantidade}
+                      className="min-h-[44px] mt-1"
+                    />
+                    {(() => {
+                      const qtdNum = Number(novaQuantidade);
+                      if (!novaQuantidade || Number.isNaN(qtdNum)) return null;
+                      if (qtdNum < previewAlteracao.quantidade_comprometida) {
+                        return <p className="text-xs text-red-600 mt-1">⚠️ Não pode ser menor que {previewAlteracao.quantidade_comprometida.toLocaleString('pt-BR')}t (já comprometido)</p>;
+                      }
+                      if (qtdNum > previewAlteracao.quantidade_maxima) {
+                        return <p className="text-xs text-red-600 mt-1">⚠️ Estoque insuficiente para esse aumento. Máximo: {previewAlteracao.quantidade_maxima.toLocaleString('pt-BR')}t</p>;
+                      }
+                      const delta = qtdNum - previewAlteracao.quantidade_liberada;
+                      if (delta === 0) return null;
+                      return (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {delta > 0
+                            ? `Aumento de ${delta.toLocaleString('pt-BR')}t — será debitado do estoque disponível do armazém.`
+                            : `Redução de ${Math.abs(delta).toLocaleString('pt-BR')}t — será devolvido ao estoque disponível do armazém.`}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <ModalFooter
+              variant="double"
+              onClose={handleCloseModalAlterarQuantidade}
+              onConfirm={handleAlterarQuantidade}
+              confirmText="Confirmar Alteração"
+              isLoading={isAlterandoQuantidade}
+              disabled={
+                !previewAlteracao ||
+                isAlterandoQuantidade ||
+                isLoadingPreviewAlteracao ||
+                !novaQuantidade ||
+                Number.isNaN(Number(novaQuantidade)) ||
+                Number(novaQuantidade) < previewAlteracao.quantidade_comprometida ||
+                Number(novaQuantidade) > previewAlteracao.quantidade_maxima
+              }
+            />
+          </DialogContent>
+        </Dialog>
+
         {/* Listagem de Liberações */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -1584,24 +2081,16 @@ const Liberacoes = () => {
 
           <div className="grid gap-3">
             {liberacoesAtivas.map(renderLiberacaoCard)}
-            {liberacoesAtivas.length === 0 && (
-              <div className="text-center py-8">
-                <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground text-sm md:text-base">
+            {liberacoesAtivas.length === 0 && (liberacoesFinalizadas.length > 0 || liberacoesCanceladas.length > 0) && (
+              <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
+                <div className="rounded-full bg-muted p-3">
+                  <ClipboardList className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
                   {hasActiveFilters
-                    ? "Nenhuma liberação ativa encontrada com os filtros aplicados"
-                    : "Nenhuma liberação ativa no momento"}
+                    ? "Nenhuma liberação ativa encontrada com os filtros aplicados."
+                    : "Nenhuma liberação ativa no momento."}
                 </p>
-                {hasActiveFilters && (
-                  <Button 
-                    size="sm" 
-                    onClick={clearFilters}
-                    className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Limpar Filtros
-                  </Button>
-                )}
               </div>
             )}
           </div>
@@ -1611,7 +2100,7 @@ const Liberacoes = () => {
           <div className="space-y-4">
             <Button
               onClick={() => setSecaoFinalizadasExpandida(!secaoFinalizadasExpandida)}
-              className="w-full justify-between bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 min-h-[44px] max-md:min-h-[44px]"
+              className="w-full justify-between bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 min-h-[44px] max-md:min-h-[44px] dark:bg-green-950/20 dark:hover:bg-green-950/30 dark:border-green-800 dark:text-green-400"
             >
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5" />
@@ -1619,36 +2108,77 @@ const Liberacoes = () => {
                   Liberações Finalizadas ({liberacoesFinalizadas.length})
                 </span>
               </div>
-              {secaoFinalizadasExpandida ? 
-                <ChevronUp className="h-4 w-4" /> : 
+              {secaoFinalizadasExpandida ?
+                <ChevronUp className="h-4 w-4" /> :
                 <ChevronDown className="h-4 w-4" />
               }
             </Button>
 
             {secaoFinalizadasExpandida && (
-              <div className="grid gap-3">
+              <div className="grid gap-3 rounded-lg bg-green-50/50 dark:bg-green-950/10 p-3">
                 {liberacoesFinalizadas.map(renderLiberacaoCard)}
               </div>
             )}
           </div>
         )}
 
-        {liberacoesAtivas.length === 0 && liberacoesFinalizadas.length === 0 && (
-          <div className="text-center py-12">
-            <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground text-sm md:text-base">
-              {hasActiveFilters
-                ? "Nenhuma liberação encontrada com os filtros aplicados"
-                : "Nenhuma liberação cadastrada ainda"}
-            </p>
-            {hasActiveFilters && (
-              <Button 
-                size="sm" 
+        {liberacoesCanceladas.length > 0 && (
+          <div className="space-y-4">
+            <Button
+              onClick={() => setSecaoCanceladasExpandida(!secaoCanceladasExpandida)}
+              className="w-full justify-between bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 min-h-[44px] max-md:min-h-[44px] dark:bg-red-950/20 dark:hover:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+            >
+              <div className="flex items-center gap-2">
+                <XCircle className="h-5 w-5" />
+                <span className="text-sm font-medium">
+                  Liberações Canceladas ({liberacoesCanceladas.length})
+                </span>
+              </div>
+              {secaoCanceladasExpandida ?
+                <ChevronUp className="h-4 w-4" /> :
+                <ChevronDown className="h-4 w-4" />
+              }
+            </Button>
+
+            {secaoCanceladasExpandida && (
+              <div className="grid gap-3 rounded-lg bg-red-50/50 dark:bg-red-950/10 p-3">
+                {liberacoesCanceladas.map(renderLiberacaoCard)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {liberacoesAtivas.length === 0 && liberacoesFinalizadas.length === 0 && liberacoesCanceladas.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+            <div className="rounded-full bg-muted p-4">
+              <ClipboardList className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-foreground">
+                {hasActiveFilters ? "Nenhuma liberação encontrada" : "Nenhuma liberação cadastrada"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? "Nenhuma liberação encontrada com os filtros aplicados."
+                  : "Comece criando a primeira liberação do sistema."}
+              </p>
+            </div>
+            {hasActiveFilters ? (
+              <Button
+                size="sm"
                 onClick={clearFilters}
-                className="mt-2 min-h-[44px] max-md:min-h-[44px] btn-secondary"
+                className="min-h-[44px] max-md:min-h-[44px] btn-secondary"
               >
                 <X className="h-4 w-4 mr-2" />
                 Limpar Filtros
+              </Button>
+            ) : canCreate && (
+              <Button
+                className="btn-primary min-h-[44px] max-md:min-h-[44px]"
+                onClick={() => setDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Liberação
               </Button>
             )}
           </div>

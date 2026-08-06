@@ -16,7 +16,7 @@ export const NavegacaoSection = () => {
             { title: "Barra Superior", desc: "Contém o logo do sistema e o menu do seu perfil (avatar) no canto direito." },
             { title: "Menu Lateral", desc: "Localizado à esquerda, exibe apenas os recursos disponíveis para o perfil Logística." },
             { title: "Área de Conteúdo", desc: "Parte central da tela onde as informações e funcionalidades são exibidas." },
-            { title: "Menu do Avatar", desc: "Clique no seu nome/foto no canto superior direito para acessar o manual e sair do sistema." },
+            { title: "Menu do Avatar", desc: "Clique no seu nome/foto no canto superior direito para acessar o manual, sair do sistema e ver a versão atual do NEXOR e as novidades (changelog)." },
           ].map((item, i) => (
             <Card key={i}>
               <CardContent className="p-4">
@@ -40,6 +40,7 @@ export const NavegacaoSection = () => {
             </thead>
             <tbody>
               {[
+                { menu: "🏠 Dashboard", func: "Visão geral com estoque por armazém, agendamentos e carregamentos em atraso" },
                 { menu: "📋 Liberações", func: "Criar e gerenciar todas as liberações do sistema" },
                 { menu: "📅 Agendamentos", func: "Ver e criar agendamentos de todos os clientes" },
                 { menu: "🚚 Carregamentos", func: "Acompanhar todos os carregamentos e executar Etapa 5B" },
@@ -155,7 +156,7 @@ export const NavegacaoSection = () => {
                   </tr>
                   <tr>
                     <td className="border px-4 py-2 font-medium">Status</td>
-                    <td className="border px-4 py-2">Situação atual de um registro (ex: Pendente, Confirmado, Cancelado)</td>
+                    <td className="border px-4 py-2">Situação atual de um registro (ex: Pendente, Em Andamento, Concluído, Cancelado)</td>
                   </tr>
                   <tr>
                     <td className="border px-4 py-2 font-medium">Timestamp</td>

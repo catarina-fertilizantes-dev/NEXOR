@@ -18,6 +18,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { UnsavedChangesAlert } from "@/components/UnsavedChangesAlert";
+import { validateFileForBucket } from "@/lib/uploadValidation";
+import { formatDateOnlyBR } from "@/lib/utils";
 import {
   Loader2,
   CheckCircle,
@@ -37,7 +39,8 @@ import {
   Building2,
   Package
 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // ✅ Funções de formatação
 function formatPlaca(placa: string) {
@@ -112,6 +115,7 @@ const ETAPAS = [
         campo_url: "docs_retorno_url",
         campo_xml: "docs_retorno_xml_url",
         campo_status: "etapa_5a_status",
+        campo_concluida_em: "etapa_5a_concluida_em",
         roles_permitidos: ["armazem"],
         cor: "bg-yellow-600 text-white",
         descricao: "Armazém anexa Nota de Retorno + XML"
@@ -123,6 +127,7 @@ const ETAPAS = [
         campo_url: "docs_venda_url",
         campo_xml: "docs_venda_xml_url",
         campo_status: "etapa_5b_status",
+        campo_concluida_em: "etapa_5b_concluida_em",
         roles_permitidos: ["admin", "logistica"],
         cor: "bg-amber-600 text-white",
         descricao: "Logística anexa Nota de Venda + XML"
@@ -134,6 +139,7 @@ const ETAPAS = [
         campo_url: "docs_remessa_url",
         campo_xml: "docs_remessa_xml_url",
         campo_status: "etapa_5c_status",
+        campo_concluida_em: "etapa_5c_concluida_em",
         roles_permitidos: ["armazem"],
         cor: "bg-orange-600 text-white",
         descricao: "Armazém anexa Nota de Remessa + XML"
@@ -142,14 +148,20 @@ const ETAPAS = [
   },
   {
     id: 6,
-    nome: "Finalizado",
-    titulo: "Finalizado",
+    nome: "Processo Finalizado",
+    titulo: "Processo Finalizado",
     campo_data: null,
     campo_obs: null,
     campo_url: null,
     cor: "bg-green-600 text-white"
   },
 ];
+
+// Etapa 6 não é um passo do stepper visual (não tem ação própria) — existe só
+// como status agregado (badge "Etapa Atual", cor/nome). O stepper mostra só 1-5;
+// quando etapa_atual chega a 6, os 5 círculos ficam verdes e o painel de
+// processo finalizado é exibido separadamente.
+const ETAPAS_TIMELINE = ETAPAS.filter((e) => e.id !== 6);
 
 const formatarDataHora = (v?: string | null) => {
   if (!v) return "-";
@@ -213,8 +225,7 @@ const CarregamentoDetalhe = () => {
   });
 
   const { uploadPhoto, isUploading: isUploadingPhoto } = usePhotoUpload({
-    bucket: 'carregamento-fotos',
-    folder: id || 'unknown'
+    bucket: 'carregamento-fotos'
   });
 
   // ✅ Função para verificar se há mudanças pendentes
@@ -256,7 +267,7 @@ const CarregamentoDetalhe = () => {
     if (!currentPhotoEtapa || !id) return;
 
     try {
-      const result = await uploadPhoto(file, `etapa-${currentPhotoEtapa}-${Date.now()}.jpg`);
+      const result = await uploadPhoto(file, `${id}_etapa_${currentPhotoEtapa}_${Date.now()}.jpg`);
       
       if (result) {
         await updateCarregamentoFoto(currentPhotoEtapa, result.url);
@@ -507,6 +518,7 @@ const CarregamentoDetalhe = () => {
 
       const updateData: any = {
         [subEtapa.campo_status]: 'concluida',
+        [subEtapa.campo_concluida_em]: new Date().toISOString(),
         updated_by: user?.id,
       };
 
@@ -712,7 +724,7 @@ const CarregamentoDetalhe = () => {
         {/* Container com scroll horizontal - com padding para as setas */}
         <div className="overflow-x-auto pb-2" style={{ paddingTop: `${ARROW_HEIGHT}px` }}>
           <div className="flex items-end justify-between w-full min-w-[600px] lg:min-w-0 max-w-4xl mx-auto relative">
-            {ETAPAS.map((etapa, idx) => {
+            {ETAPAS_TIMELINE.map((etapa, idx) => {
               const etapaIndex = etapa.id;
               const etapaAtual = carregamento?.etapa_atual ?? 1;
               const isFinalizada = etapaIndex < etapaAtual;
@@ -756,7 +768,7 @@ const CarregamentoDetalhe = () => {
                   key={etapa.id}
                   className="flex flex-col items-center flex-1 min-w-[90px] relative"
                 >
-                  {idx < ETAPAS.length - 1 && (
+                  {idx < ETAPAS_TIMELINE.length - 1 && (
                     <div
                       style={{
                         position: "absolute",
@@ -927,6 +939,14 @@ const CarregamentoDetalhe = () => {
                           accept=".pdf"
                           onChange={e => {
                             const file = e.target.files?.[0] ?? null;
+                            if (file) {
+                              const result = validateFileForBucket(file, 'carregamento-documentos');
+                              if (!result.valid) {
+                                toast({ variant: 'destructive', title: 'Arquivo inválido', description: result.error });
+                                e.target.value = '';
+                                return;
+                              }
+                            }
                             setSubEtapaFiles(prev => ({
                               ...prev,
                               [subEtapa.id]: { ...prev[subEtapa.id], pdf: file }
@@ -978,6 +998,14 @@ const CarregamentoDetalhe = () => {
                           accept=".xml"
                           onChange={e => {
                             const file = e.target.files?.[0] ?? null;
+                            if (file) {
+                              const result = validateFileForBucket(file, 'carregamento-documentos', { checkMimeType: false });
+                              if (!result.valid) {
+                                toast({ variant: 'destructive', title: 'Arquivo inválido', description: result.error });
+                                e.target.value = '';
+                                return;
+                              }
+                            }
                             setSubEtapaFiles(prev => ({
                               ...prev,
                               [subEtapa.id]: { ...prev[subEtapa.id], xml: file }
@@ -1097,35 +1125,37 @@ const CarregamentoDetalhe = () => {
     return (
       <Card className="shadow-sm">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-3 gap-3">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base sm:text-lg font-semibold text-foreground break-words">{etapaTitulo}</h2>
-              {etapaData.data && (
-                <p className="text-xs text-muted-foreground mt-1 break-words">
-                  Concluída em: {formatarDataHora(etapaData.data)}
-                </p>
+          {!isEtapaFinalizada && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-3 gap-3">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground break-words">{etapaTitulo}</h2>
+                {etapaData.data && (
+                  <p className="text-xs text-muted-foreground mt-1 break-words">
+                    Concluída em: {formatarDataHora(etapaData.data)}
+                  </p>
+                )}
+              </div>
+              {podeEditar && (
+                <Button
+                  disabled={!stageFile || proximaEtapaMutation.isPending || isUploadingPhoto}
+                  size="sm"
+                  className="px-6 btn-primary min-h-[44px] max-md:min-h-[44px] shrink-0"
+                  onClick={() => {
+                    proximaEtapaMutation.mutate();
+                  }}
+                >
+                  {proximaEtapaMutation.isPending || isUploadingPhoto ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Processando...
+                    </>
+                  ) : (
+                    "Próxima"
+                  )}
+                </Button>
               )}
             </div>
-            {podeEditar && (
-              <Button
-                disabled={!stageFile || proximaEtapaMutation.isPending || isUploadingPhoto}
-                size="sm"
-                className="px-6 btn-primary min-h-[44px] max-md:min-h-[44px] shrink-0"
-                onClick={() => {
-                  proximaEtapaMutation.mutate();
-                }}
-              >
-                {proximaEtapaMutation.isPending || isUploadingPhoto ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Processando...
-                  </>
-                ) : (
-                  "Próxima"
-                )}
-              </Button>
-            )}
-          </div>
+          )}
 
           {isEtapaFinalizada ? (
             <div className="text-center py-6">
@@ -1133,6 +1163,9 @@ const CarregamentoDetalhe = () => {
               <h3 className="text-base font-medium text-foreground mb-1">Processo Finalizado</h3>
               <p className="text-sm text-muted-foreground">
                 O carregamento foi concluído com sucesso.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Clique em qualquer etapa acima para ver as informações registradas e baixar as fotos ou documentos.
               </p>
             </div>
           ) : isEtapaDoc ? (
@@ -1213,6 +1246,15 @@ const CarregamentoDetalhe = () => {
                     accept="image/*"
                     onChange={e => {
                       const file = e.target.files?.[0] ?? null;
+                      if (file) {
+                        const result = validateFileForBucket(file, 'carregamento-fotos');
+                        if (!result.valid) {
+                          toast({ variant: 'destructive', title: 'Arquivo inválido', description: result.error });
+                          e.target.value = '';
+                          setStageFile(null);
+                          return;
+                        }
+                      }
                       setStageFile(file);
                     }}
                     className="hidden"
@@ -1394,8 +1436,8 @@ const CarregamentoDetalhe = () => {
               <div>
                 <span className="text-xs text-muted-foreground">Data Agendada:</span>
                 <p className="font-semibold text-sm">
-                  {carregamento?.agendamento_data_retirada 
-                    ? new Date(carregamento.agendamento_data_retirada).toLocaleDateString("pt-BR")
+                  {carregamento?.agendamento_data_retirada
+                    ? formatDateOnlyBR(carregamento.agendamento_data_retirada)
                     : "N/A"}
                 </p>
               </div>
@@ -1457,51 +1499,51 @@ const CarregamentoDetalhe = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {stats.tempoEspera !== null && (
                       <div>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 cursor-help">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-pointer">
                               <span className="text-xs text-muted-foreground">Tempo de Espera:</span>
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2">
                             <p className="text-sm">Tempo entre a chegada do caminhão no armazém e o início efetivo do carregamento</p>
-                          </TooltipContent>
-                        </Tooltip>
+                          </PopoverContent>
+                        </Popover>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoEspera)}</p>
                       </div>
                     )}
                     
                     {stats.tempoCarregamento !== null && (
                       <div>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 cursor-help">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-pointer">
                               <span className="text-xs text-muted-foreground">Tempo de Carregamento:</span>
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2">
                             <p className="text-sm">Tempo da operação física de carregamento, desde o início até a finalização</p>
-                          </TooltipContent>
-                        </Tooltip>
+                          </PopoverContent>
+                        </Popover>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoCarregamento)}</p>
                       </div>
                     )}
                     
                     {stats.tempoTotalProcesso !== null && (
                       <div>
-                        <Tooltip delayDuration={100}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 cursor-help">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-pointer">
                               <span className="text-xs text-muted-foreground">Tempo Total do Processo:</span>
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto max-w-[240px] p-2">
                             <p className="text-sm">Tempo completo do processo, desde a chegada até a finalização da documentação</p>
-                          </TooltipContent>
-                        </Tooltip>
+                          </PopoverContent>
+                        </Popover>
                         <p className="font-semibold text-sm">{formatarTempo(stats.tempoTotalProcesso)}</p>
                       </div>
                     )}

@@ -138,6 +138,115 @@ export const LiberacoesSection = () => {
       </div>
 
       <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Alterar Quantidade de uma Liberação</h3>
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mb-3">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Quando está disponível?</h4>
+                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                  <li>• A liberação <strong>não</strong> está cancelada</li>
+                  <li>• A liberação <strong>não</strong> está finalizada</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <p className="text-sm text-muted-foreground mb-2">
+          Use esta opção para aumentar ou reduzir a quantidade total liberada — por exemplo, quando o pedido do
+          cliente mudou depois da liberação já criada. É a alternativa quando a liberação não pode mais ser
+          cancelada por já ter algum carregamento iniciado ou finalizado.
+        </p>
+        <div className="space-y-2">
+          {[
+            "Clique na liberação e depois em \"Alterar Quantidade\" (ao lado do campo Liberada)",
+            "O sistema mostra a quantidade já comprometida (retirada ou em carregamento) e o máximo possível (quantidade atual + estoque disponível no armazém)",
+            "Informe a nova quantidade total — não pode ficar abaixo da quantidade já comprometida",
+            "Aumentar debita a diferença do estoque disponível do armazém; reduzir devolve a diferença",
+            'Confirme clicando em "Confirmar Alteração"',
+          ].map((step, i) => (
+            <div key={i} className="flex items-start gap-3 text-sm">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0 text-xs mt-0.5">
+                {i + 1}
+              </span>
+              <span className="text-foreground">{step}</span>
+            </div>
+          ))}
+        </div>
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mt-3">
+          <CardContent className="p-4">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              Se você reduzir a quantidade exatamente até o valor já comprometido, a liberação <strong>não é
+              cancelada</strong> — ela continua ativa e passa a status <strong>Finalizada</strong> automaticamente
+              assim que os carregamentos em andamento forem concluídos.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Cancelar uma Liberação</h3>
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mb-3">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Quando está disponível?</h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  Somente se <strong>nenhum</strong> carregamento vinculado a esta liberação foi iniciado —
+                  ou seja, todos ainda aguardam a chegada do caminhão no armazém. Se algum carregamento já foi
+                  iniciado ou já foi finalizado, o cancelamento é bloqueado (veja abaixo).
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Alert className="border-red-200 bg-red-50 dark:bg-red-950/20 mb-3">
+          <AlertCircle className="h-5 w-5 text-red-600" />
+          <div className="ml-2">
+            <AlertTitle className="text-red-900 dark:text-red-100 font-semibold mb-1">
+              ⚠️ Ação irreversível
+            </AlertTitle>
+            <AlertDescription className="text-red-800 dark:text-red-200">
+              Ao cancelar: os agendamentos são marcados como cancelados, os carregamentos vinculados (todos ainda
+              não iniciados) são removidos, e a quantidade não utilizada volta para o estoque disponível do
+              armazém.
+            </AlertDescription>
+          </div>
+        </Alert>
+        <div className="space-y-2 mb-3">
+          {[
+            'Clique na liberação e depois em "Cancelar Liberação"',
+            "O sistema calcula e mostra o impacto: quantidade liberada, já retirada e o total que será devolvido ao estoque",
+            "Confirme o cancelamento",
+          ].map((step, i) => (
+            <div key={i} className="flex items-start gap-3 text-sm">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0 text-xs mt-0.5">
+                {i + 1}
+              </span>
+              <span className="text-foreground">{step}</span>
+            </div>
+          ))}
+        </div>
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">Quando o cancelamento é bloqueado</h4>
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Se algum carregamento desta liberação já foi iniciado ou já foi finalizado, o sistema bloqueia o
+                  cancelamento e explica o motivo. Nesse caso, use <strong>Alterar Quantidade</strong> para reduzir
+                  o saldo ainda não comprometido.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div>
         <h3 className="text-lg font-semibold text-foreground mb-3">Permissões em Liberações</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
@@ -152,6 +261,8 @@ export const LiberacoesSection = () => {
                 { action: "Criar liberações", allowed: true },
                 { action: "Visualizar TODAS as liberações do sistema", allowed: true },
                 { action: "Alterar armazém (com restrições)", allowed: true },
+                { action: "Alterar quantidade (com restrições)", allowed: true },
+                { action: "Cancelar liberação (com restrições)", allowed: true },
                 { action: "Consultar quantidade disponível para agendamento", allowed: true },
                 { action: "Filtrar por produto, pedido, status ou período", allowed: true },
                 { action: "Excluir liberações", allowed: false },
@@ -211,6 +322,8 @@ export const LiberacoesSection = () => {
             { status: "Disponível", color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400", desc: "Há quantidade disponível para agendar" },
             { status: "Parcialmente Agendada", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400", desc: "Parte foi agendada, ainda há saldo disponível" },
             { status: "Totalmente Agendada", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400", desc: "Toda a quantidade foi agendada" },
+            { status: "Finalizada", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400", desc: "Todos os carregamentos relacionados foram concluídos" },
+            { status: "Cancelada", color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400", desc: "Liberação cancelada pela Logística; saldo não utilizado voltou ao estoque" },
           ].map((item, i) => (
             <Card key={i}>
               <CardContent className="p-3 space-y-2">

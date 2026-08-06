@@ -38,7 +38,7 @@ const ProtectedRoute = ({
 }: {
   children: React.ReactNode;
   resource?: Resource;
-  requiredRole?: string;
+  requiredRole?: string | string[];
 }) => {
   const { user, loading: authLoading, needsPasswordChange, recoveryMode, userRole } = useAuth();
   const { canAccess, loading: permLoading } = usePermissions();
@@ -65,8 +65,11 @@ const ProtectedRoute = ({
     return <Navigate to="/change-password" replace />;
   }
 
-  if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to="/" replace />;
+  if (requiredRole) {
+    const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   if (resource && !canAccess(resource, 'read')) {
@@ -244,7 +247,7 @@ const App = () => (
             <Route
               path="/manual/logistica"
               element={
-                <ProtectedRoute requiredRole="logistica">
+                <ProtectedRoute requiredRole={["logistica", "admin"]}>
                   <ManualLogistica />
                 </ProtectedRoute>
               }
