@@ -1041,7 +1041,7 @@ const DashboardLogistica = () => {
       let query = supabase
         .from("estoque")
         .select(
-          "id, produto_id, armazem_id, quantidade, quantidade_disponivel, produtos(nome, unidade, estoque_minimo), armazens(nome)"
+          "id, produto_id, armazem_id, quantidade, quantidade_disponivel, produtos(nome, unidade, estoque_minimo, ativo), armazens(nome, ativo)"
         );
       if (filtroArmazens.length) query = query.in("armazem_id", filtroArmazens);
       if (filtroProdutos.length) query = query.in("produto_id", filtroProdutos);
@@ -1049,6 +1049,8 @@ const DashboardLogistica = () => {
       if (error) throw error;
 
       return (data ?? [])
+        // Mesma regra da página Estoque: não listar estoque de produto/armazém inativo.
+        .filter((e: any) => e.produtos?.ativo && e.armazens?.ativo)
         .map((e: any) => ({
           id: e.id as string,
           produtoId: e.produto_id as string,
